@@ -130,11 +130,11 @@ const UserSchema = new Schema<IUser>({
 }, {
     timestamps: true, // Automatically adds createdAt and updatedAt
     toJSON: {
-        transform: function (doc, ret) {
-            delete (ret as any).password;
-            delete (ret as any).emailVerificationToken;
-            delete (ret as any).resetPasswordToken;
-            delete (ret as any).resetPasswordExpires;
+        transform: function (doc, ret: Record<string, unknown>) {
+            delete ret.password;
+            delete ret.emailVerificationToken;
+            delete ret.resetPasswordToken;
+            delete ret.resetPasswordExpires;
             return ret;
         }
     }
@@ -151,9 +151,9 @@ UserSchema.index({ createdAt: -1 });
 UserSchema.pre('save', async function (next) {
     if (!this.isModified('password')) return next();
 
-    if ((this as any).password) {
+    if (this.password) {
         const salt = await bcrypt.genSalt(12);
-        (this as any).password = await bcrypt.hash((this as any).password, salt);
+        this.password = await bcrypt.hash(this.password, salt);
     }
 
     next();

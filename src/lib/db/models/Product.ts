@@ -48,13 +48,11 @@ export interface IProduct extends Document {
     youtubeLink?: string;
 
     // Design customization options (Admin checkboxes)
+    EnableCustomizations: boolean;
     allowColorChanges: boolean;      // Show color picker to customer
     allowTextEditing: boolean;       // Show text input fields to customer
-    textEdit?: string;                 // Text to be edited by customer
     allowImageReplacement: boolean;  // Show image upload to customer
-    imagesReplacement?: string[] // Image to be replaced by customer
     allowLogoUpload: boolean;        // Show logo upload to customer
-    logoUpload?: string;          // Logo uploaded by customer
     // Color themes (only shown if allowColorChanges = true)
     colors: IColorTheme[];           // Theme colors for customer customization
 
@@ -191,9 +189,11 @@ const ProductSchema = new Schema<IProduct>({
         }
     },
 
-
-
     // Design customization options (Admin checkboxes)
+    EnableCustomizations: {
+        type: Boolean,
+        default: false
+    },
     allowColorChanges: {
         type: Boolean,
         default: false
@@ -203,37 +203,15 @@ const ProductSchema = new Schema<IProduct>({
         type: Boolean,
         default: false
     },
-    textEdit: {
-        type: String,
-        maxlength: [1000, 'Text cannot exceed 1000 characters'],
-        trim: true
-    },
-
+    
     allowImageReplacement: {
         type: Boolean,
         default: false
     },
-    imagesReplacement: [{
-        type: String,
-        validate: {
-            validator: function (v: string) {
-                return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(v);
-            },
-            message: 'Please provide a valid image URL'
-        }
-    }],
+    
     allowLogoUpload: {
         type: Boolean,
         default: false
-    },
-    logoUpload: {
-        type: String,
-        validate: {
-            validator: function (v: string) {
-                return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(v);
-            },
-            message: 'Please provide a valid logo URL'
-        }
     },
 
     // Color themes (only shown if allowColorChanges = true)

@@ -27,13 +27,18 @@ interface MongooseCache {
     promise: Promise<typeof mongoose> | null;
 }
 
+// Declare global namespace to properly type the global object
+declare global {
+    var mongoose: MongooseCache | undefined;
+}
+
 // Global is used here to maintain a cached connection across hot reloads
 // in development. This prevents connections growing exponentially
 // during API Route usage.
-let cached: MongooseCache = (global as any).mongoose;
+let cached: MongooseCache = global.mongoose || { conn: null, promise: null };
 
 if (!cached) {
-    cached = (global as any).mongoose = { conn: null, promise: null };
+    cached = global.mongoose = { conn: null, promise: null };
 }
 
 /**

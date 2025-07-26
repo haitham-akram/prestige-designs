@@ -15,16 +15,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from './config';
+import {
+    SessionUser,
+    ApiRouteContext,
+    ProtectedApiHandler,
+    OptionalAuthApiHandler,
+    PublicApiHandler,
+    AllowedRoles
+} from './types';
 
 /**
  * Authentication middleware for API routes
  * @param handler - The API route handler to protect
  * @returns Protected route handler
  */
-export function withAuth(
-    handler: (req: NextRequest, context: any, user: any) => Promise<NextResponse>
-) {
-    return async (req: NextRequest, context: any) => {
+export function withAuth(handler: ProtectedApiHandler): PublicApiHandler {
+    return async (req: NextRequest, context: ApiRouteContext) => {
         try {
             const session = await getServerSession(authOptions);
 
@@ -35,7 +41,7 @@ export function withAuth(
                 );
             }
 
-            return handler(req, context, session.user);
+            return handler(req, context, session.user as SessionUser);
         } catch (error) {
             console.error('Auth middleware error:', error);
             return NextResponse.json(
@@ -53,10 +59,10 @@ export function withAuth(
  * @returns Protected route handler with role checking
  */
 export function withRoles(
-    roles: ('customer' | 'seller' | 'admin')[],
-    handler: (req: NextRequest, context: any, user: any) => Promise<NextResponse>
-) {
-    return withAuth(async (req: NextRequest, context: any, user: any) => {
+    roles: AllowedRoles,
+    handler: ProtectedApiHandler
+): PublicApiHandler {
+    return withAuth(async (req: NextRequest, context: ApiRouteContext, user: SessionUser) => {
         if (!roles.includes(user.role)) {
             return NextResponse.json(
                 {
@@ -76,44 +82,26 @@ export function withRoles(
  * @param handler - The API route handler to protect
  * @returns Protected route handler for admin access only
  */
-export function withAdmin(
-    handler: (req: NextRequest, context: any, user: any) => Promise<NextResponse>
-) {
+export function withAdmin(handler: ProtectedApiHandler): PublicApiHandler {
     return withRoles(['admin'], handler);
 }
 
 /**
- * Seller or Admin middleware
+ * Customer or Admin middleware (authenticated users)
  * @param handler - The API route handler to protect
- * @returns Protected route handler for seller/admin access
+ * @returns Protected route handler for customer/admin access
  */
-export function withSellerOrAdmin(
-    handler: (req: NextRequest, context: any, user: any) => Promise<NextResponse>
-) {
-    return withRoles(['seller', 'admin'], handler);
+export function withCustomerOrAdmin(handler: ProtectedApiHandler): PublicApiHandler {
+    return withRoles(['customer', 'admin'], handler);
 }
 
 /**
- * Verified seller middleware
+ * Customer-only middleware
  * @param handler - The API route handler to protect
- * @returns Protected route handler for verified sellers only
+ * @returns Protected route handler for customers only
  */
-export function withVerifiedSeller(
-    handler: (req: NextRequest, context: any, user: any) => Promise<NextResponse>
-) {
-    return withAuth(async (req: NextRequest, context: any, user: any) => {
-        if (user.role !== 'seller' || !user.isSellerVerified) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Verified seller account required'
-                },
-                { status: 403 }
-            );
-        }
-
-        return handler(req, context, user);
-    });
+export function withCustomer(handler: ProtectedApiHandler): PublicApiHandler {
+    return withRoles(['customer'], handler);
 }
 
 /**
@@ -122,13 +110,11 @@ export function withVerifiedSeller(
  * @param handler - The API route handler
  * @returns Route handler with optional user context
  */
-export function withOptionalAuth(
-    handler: (req: NextRequest, context: any, user?: any) => Promise<NextResponse>
-) {
-    return async (req: NextRequest, context: any) => {
+export function withOptionalAuth(handler: OptionalAuthApiHandler): PublicApiHandler {
+    return async (req: NextRequest, context: ApiRouteContext) => {
         try {
             const session = await getServerSession(authOptions);
-            return handler(req, context, session?.user || undefined);
+            return handler(req, context, session?.user as SessionUser || undefined);
         } catch (error) {
             console.error('Optional auth middleware error:', error);
             return handler(req, context, undefined);
@@ -146,11 +132,11 @@ export function withOptionalAuth(
 export function withRateLimit(
     maxRequests: number,
     windowMs: number,
-    handler: (req: NextRequest, context: any) => Promise<NextResponse>
-) {
+    handler: PublicApiHandler
+): PublicApiHandler {
     const requests = new Map<string, { count: number; resetTime: number }>();
 
-    return async (req: NextRequest, context: any) => {
+    return async (req: NextRequest, context: ApiRouteContext) => {
         const ip = req.headers.get('x-forwarded-for') ||
             req.headers.get('x-real-ip') ||
             'unknown';
@@ -185,11 +171,11 @@ export function withRateLimit(
  * @returns Combined middleware chain
  */
 export function combineMiddleware(
-    middlewares: Array<(handler: any) => any>,
-    handler: (req: NextRequest, context: any, user?: any) => Promise<NextResponse>
-) {
+    middlewares: Array<(handler: PublicApiHandler) => PublicApiHandler>,
+    handler: OptionalAuthApiHandler
+): PublicApiHandler {
     return middlewares.reduceRight(
         (acc, middleware) => middleware(acc),
-        handler
+        handler as PublicApiHandler
     );
 }
