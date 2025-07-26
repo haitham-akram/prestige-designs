@@ -172,8 +172,8 @@ const PromoCodeSchema = new Schema<IPromoCode>({
 });
 
 // Indexes for better query performance
-PromoCodeSchema.index({ code: 1 });
-PromoCodeSchema.index({ productId: 1 });
+// Note: code index is automatically created by unique: true in schema
+// Note: productId index is automatically created by index: true in schema
 PromoCodeSchema.index({ isActive: 1 });
 PromoCodeSchema.index({ startDate: 1 });
 PromoCodeSchema.index({ endDate: 1 });

@@ -179,8 +179,7 @@ const CategorySchema = new Schema<ICategory>({
 });
 
 // Indexes for better query performance
-CategorySchema.index({ name: 1 });
-CategorySchema.index({ slug: 1 });
+// Note: name and slug indexes are automatically created by unique: true in schema
 CategorySchema.index({ order: 1 });
 CategorySchema.index({ isActive: 1 });
 CategorySchema.index({ isFeatured: 1 });

@@ -468,8 +468,8 @@ const OrderSchema = new Schema<IOrder>({
 });
 
 // Indexes for better query performance
-OrderSchema.index({ orderNumber: 1 });
-OrderSchema.index({ customerId: 1 });
+// Note: orderNumber index is automatically created by unique: true in schema
+// Note: customerId index is automatically created by index: true in schema
 OrderSchema.index({ customerEmail: 1 });
 OrderSchema.index({ orderStatus: 1 });
 OrderSchema.index({ paymentStatus: 1 });

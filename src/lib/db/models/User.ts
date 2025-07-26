@@ -141,7 +141,7 @@ const UserSchema = new Schema<IUser>({
 });
 
 // Index for better query performance
-UserSchema.index({ email: 1 });
+// Note: email index is automatically created by unique: true in schema
 UserSchema.index({ googleId: 1 });
 UserSchema.index({ twitterId: 1 });
 UserSchema.index({ role: 1 });
