@@ -22,15 +22,16 @@
 import NextAuth, { NextAuthOptions } from 'next-auth';
 import GoogleProvider from 'next-auth/providers/google';
 import TwitterProvider from 'next-auth/providers/twitter';
+import DiscordProvider from 'next-auth/providers/discord';
 import CredentialsProvider from 'next-auth/providers/credentials';
-import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
-import { MongoClient } from 'mongodb';
+// import { MongoDBAdapter } from '@next-auth/mongodb-adapter';
+// import { MongoClient } from 'mongodb';
 import connectDB from '@/lib/db/connection';
 import User from '@/lib/db/models/User';
 
-// MongoDB client for NextAuth adapter
-const client = new MongoClient(process.env.MONGODB_URI!);
-const clientPromise = client.connect();
+// MongoDB client for NextAuth adapter (currently disabled)
+// const client = new MongoClient(process.env.MONGODB_URI!);
+// const clientPromise = client.connect();
 
 // Extend NextAuth types
 declare module 'next-auth' {
@@ -62,8 +63,8 @@ declare module 'next-auth/jwt' {
         isEmailVerified: boolean;
     }
 } export const authOptions: NextAuthOptions = {
-    // MongoDB adapter for storing sessions and users
-    adapter: MongoDBAdapter(clientPromise),
+    // Use JWT strategy instead of database sessions for better OAuth compatibility
+    // adapter: MongoDBAdapter(clientPromise), // Commented out to use JWT strategy
 
     // Authentication providers
     providers: [
@@ -81,11 +82,32 @@ declare module 'next-auth/jwt' {
             }
         }),
 
-        // Twitter OAuth Provider
+        // Twitter OAuth Provider (v1.0A for email access)
         TwitterProvider({
-            clientId: process.env.TWITTER_CLIENT_ID!,
-            clientSecret: process.env.TWITTER_CLIENT_SECRET!,
-            version: '2.0' // Use Twitter API v2
+            clientId: process.env.TWITTER_API_KEY!,
+            clientSecret: process.env.TWITTER_API_SECRET!,
+            version: '1.0A',
+            profile(profile) {
+                return {
+                    id: profile.id_str,
+                    name: profile.name,
+                    email: profile.email || null,
+                    image: profile.profile_image_url_https?.replace('_normal', '_400x400') || null,
+                    role: 'customer' as const,
+                    isEmailVerified: !!profile.email
+                }
+            }
+        }),
+
+        // Discord OAuth Provider
+        DiscordProvider({
+            clientId: process.env.DISCORD_CLIENT_ID!,
+            clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+            authorization: {
+                params: {
+                    scope: 'identify email',
+                }
+            }
         }),
 
         // Email/Password Credentials Provider
@@ -173,24 +195,51 @@ declare module 'next-auth/jwt' {
             try {
                 await connectDB();
 
-                if (account?.provider === 'google' || account?.provider === 'twitter') {
-                    // Check if user exists
-                    const existingUser = await User.findOne({ email: user.email });
+                // Debug: Log user and account data
+                console.log('🔍 SignIn Debug - User:', JSON.stringify(user, null, 2));
+                console.log('🔍 SignIn Debug - Account:', JSON.stringify(account, null, 2));
+
+                if (account?.provider === 'google' || account?.provider === 'twitter' || account?.provider === 'discord') {
+                    // Handle Twitter OAuth - email might not be provided
+                    let userEmail = user.email;
+                    if (account.provider === 'twitter' && !userEmail) {
+                        // Generate a fallback email for Twitter users without email
+                        userEmail = `twitter_${account.providerAccountId}@prestige-designs.local`;
+                        console.log('🐦 Twitter user without email, using fallback:', userEmail);
+                    }
+
+                    // Find existing user by email or social ID
+                    let existingUser = null;
+                    if (userEmail) {
+                        existingUser = await User.findOne({ email: userEmail });
+                    }
+
+                    // Also check by social ID if email lookup failed
+                    if (!existingUser) {
+                        if (account.provider === 'google') {
+                            existingUser = await User.findOne({ googleId: account.providerAccountId });
+                        } else if (account.provider === 'twitter') {
+                            existingUser = await User.findOne({ twitterId: account.providerAccountId });
+                        } else if (account.provider === 'discord') {
+                            existingUser = await User.findOne({ discordId: account.providerAccountId });
+                        }
+                    }
 
                     if (!existingUser) {
                         // Create new user for social login
                         const newUser = new User({
-                            name: user.name,
-                            email: user.email,
+                            name: user.name || 'Social User',
+                            email: userEmail,
                             avatar: user.image,
-                            isEmailVerified: true, // Social accounts are pre-verified
+                            isEmailVerified: account.provider === 'google' || account.provider === 'discord' || account.provider === 'twitter', // Google and Discord emails are verified
                             googleId: account.provider === 'google' ? account.providerAccountId : undefined,
                             twitterId: account.provider === 'twitter' ? account.providerAccountId : undefined,
+                            discordId: account.provider === 'discord' ? account.providerAccountId : undefined,
                             lastLoginAt: new Date()
                         });
 
                         await newUser.save();
-                        console.log(`✅ New ${account.provider} user created:`, user.email);
+                        console.log(`✅ New ${account.provider} user created:`, userEmail);
                     } else {
                         // Update existing user with social ID if not set
                         if (account.provider === 'google' && !existingUser.googleId) {
@@ -199,9 +248,13 @@ declare module 'next-auth/jwt' {
                         if (account.provider === 'twitter' && !existingUser.twitterId) {
                             existingUser.twitterId = account.providerAccountId;
                         }
+                        if (account.provider === 'discord' && !existingUser.discordId) {
+                            existingUser.discordId = account.providerAccountId;
+                        }
 
                         existingUser.lastLoginAt = new Date();
                         await existingUser.save();
+                        console.log(`✅ Updated ${account.provider} user:`, existingUser.email);
                     }
                 }
 
@@ -213,12 +266,46 @@ declare module 'next-auth/jwt' {
         },
 
         // JWT callback
-        async jwt({ token, user, trigger, session }) {
+        async jwt({ token, user, trigger, session, account }) {
+            console.log('🔍 JWT Callback Debug - Provider:', account?.provider, 'Trigger:', trigger);
+
+            // When user signs in, populate token with user data
             if (user) {
                 token.id = user.id;
-                token.role = user.role;
-                token.isEmailVerified = user.isEmailVerified;
-            }            // Update token when session is updated
+                token.role = user.role || 'customer';
+                token.isEmailVerified = user.isEmailVerified || false;
+                console.log('📋 Initial token from user:', {
+                    isEmailVerified: token.isEmailVerified,
+                    role: token.role
+                });
+            }
+
+            // For social login or when we need to sync with database
+            if (token.email && (!token.role || account?.provider === 'google' || account?.provider === 'twitter' || account?.provider === 'discord')) {
+                try {
+                    await connectDB();
+                    const dbUser = await User.findOne({ email: token.email });
+                    if (dbUser) {
+                        // Use database user data instead of provider data
+                        token.id = dbUser._id.toString();
+                        token.role = dbUser.role;
+                        token.isEmailVerified = dbUser.isEmailVerified;
+                        token.name = dbUser.name;
+                        token.picture = dbUser.avatar; // Sync avatar to picture for consistency
+                        console.log('✅ Synced token with database:', {
+                            isEmailVerified: token.isEmailVerified,
+                            role: token.role,
+                            provider: account?.provider
+                        });
+                    } else {
+                        console.log('❌ No database user found for:', token.email);
+                    }
+                } catch (error) {
+                    console.error('Error fetching user in JWT callback:', error);
+                }
+            }
+
+            // Update token when session is updated
             if (trigger === 'update' && session) {
                 token.name = session.name;
                 token.email = session.email;
@@ -230,10 +317,18 @@ declare module 'next-auth/jwt' {
         // Session callback
         async session({ session, token }) {
             if (token) {
-                session.user.id = token.id;
-                session.user.role = token.role;
-                session.user.isEmailVerified = token.isEmailVerified;
-            } return session;
+                session.user.id = token.id as string;
+                session.user.role = (token.role as 'customer' | 'admin') || 'customer';
+                session.user.isEmailVerified = (token.isEmailVerified as boolean) || false;
+                session.user.name = token.name as string;
+                session.user.email = token.email as string;
+                // Use picture from token if available, otherwise keep existing image
+                if (token.picture) {
+                    session.user.image = token.picture as string;
+                }
+            }
+
+            return session;
         }
     },
 
