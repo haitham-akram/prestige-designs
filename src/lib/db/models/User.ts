@@ -35,6 +35,7 @@ export interface IUser extends Document {
     // Social media login fields
     googleId?: string;
     twitterId?: string;
+    discordId?: string;
 
     // Preferences
     preferences: {
@@ -109,6 +110,7 @@ const UserSchema = new Schema<IUser>({
     // Social media login IDs
     googleId: String,
     twitterId: String,
+    discordId: String,
 
     preferences: {
         emailNotifications: {
