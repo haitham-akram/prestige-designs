@@ -6,19 +6,26 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import '../../../styles/auth.css'
 
+interface FormData {
+  name: string
+  email: string
+  password: string
+  confirmPassword: string
+}
+
 export default function SignUpPage() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
   })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
+  const [success, setSuccess] = useState<boolean>(false)
   const router = useRouter()
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -51,7 +58,7 @@ export default function SignUpPage() {
     return true
   }
 
-  const handleSignUp = async (e) => {
+  const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!validateForm()) {
@@ -108,7 +115,7 @@ export default function SignUpPage() {
     }
   }
 
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLogin = async (provider: string) => {
     setLoading(true)
     setError('')
 

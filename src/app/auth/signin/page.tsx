@@ -6,16 +6,21 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import '../../../styles/auth.css'
 
+interface FormData {
+  email: string
+  password: string
+}
+
 export default function SignInPage() {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     email: '',
     password: '',
   })
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string>('')
+  const [loading, setLoading] = useState<boolean>(false)
   const router = useRouter()
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
@@ -24,7 +29,7 @@ export default function SignInPage() {
     setError('') // Clear error when user types
   }
 
-  const handleCredentialsLogin = async (e) => {
+  const handleCredentialsLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
     setError('')
@@ -60,7 +65,7 @@ export default function SignInPage() {
     }
   }
 
-  const handleSocialLogin = async (provider) => {
+  const handleSocialLogin = async (provider: string) => {
     setLoading(true)
     setError('')
 
