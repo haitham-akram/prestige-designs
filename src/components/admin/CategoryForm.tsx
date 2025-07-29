@@ -12,6 +12,7 @@ interface Category {
   slug: string
   description?: string
   image?: string
+  imagePublicId?: string
   order: number
   isActive: boolean
   isFeatured: boolean
@@ -29,12 +30,14 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
     slug: '',
     description: '',
     image: '',
+    imagePublicId: '',
     order: 0,
     isActive: true,
     isFeatured: false,
   })
 
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState('')
@@ -47,6 +50,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
         slug: category.slug || '',
         description: category.description || '',
         image: category.image || '',
+        imagePublicId: category.imagePublicId || '',
         order: category.order || 0,
         isActive: category.isActive ?? true,
         isFeatured: category.isFeatured ?? false,
@@ -75,20 +79,41 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
     }))
   }
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    handleImageFile(file)
+    await handleImageFile(file)
   }
 
-  const handleImageFile = (file: File | undefined) => {
+  const handleImageFile = async (file: File | undefined) => {
     if (file && file.type.startsWith('image/')) {
       setImageFile(file)
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        setImagePreview(e.target?.result as string)
-      }
-      reader.readAsDataURL(file)
+      setUploading(true)
       setError('')
+
+      try {
+        // Show preview immediately
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          setImagePreview(e.target?.result as string)
+        }
+        reader.readAsDataURL(file)
+
+        // Upload to Cloudinary
+        const { url, publicId } = await uploadImageToCloudinary(file)
+        
+        setFormData((prev) => ({
+          ...prev,
+          image: url,
+          imagePublicId: publicId
+        }))
+      } catch (error) {
+        console.error('Upload error:', error)
+        setError(error instanceof Error ? error.message : 'فشل في رفع الصورة')
+        setImageFile(null)
+        setImagePreview('')
+      } finally {
+        setUploading(false)
+      }
     } else if (file) {
       setError('يرجى اختيار ملف صورة صحيح (JPG, PNG, WebP, إلخ)')
     }
@@ -104,17 +129,65 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
     setDragOver(false)
   }
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer.files[0]
-    handleImageFile(file)
+    await handleImageFile(file)
   }
 
-  const removeImage = () => {
+  const uploadImageToCloudinary = async (file: File): Promise<{ url: string; publicId: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result as string
+          
+          const response = await fetch('/api/upload/image', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              image: base64Data,
+              folder: 'prestige-designs/categories'
+            }),
+          })
+
+          const data = await response.json()
+
+          if (!response.ok) {
+            throw new Error(data.message || 'Failed to upload image')
+          }
+
+          resolve({
+            url: data.data.secure_url,
+            publicId: data.data.public_id
+          })
+        } catch (error) {
+          reject(error)
+        }
+      }
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeImage = async () => {
+    // If we have a Cloudinary public ID, delete the image from Cloudinary
+    if (formData.imagePublicId) {
+      try {
+        await fetch(`/api/upload/image?public_id=${formData.imagePublicId}`, {
+          method: 'DELETE',
+        })
+      } catch (error) {
+        console.error('Failed to delete image from Cloudinary:', error)
+      }
+    }
+
     setImageFile(null)
     setImagePreview('')
-    setFormData((prev) => ({ ...prev, image: '' }))
+    setFormData((prev) => ({ ...prev, image: '', imagePublicId: '' }))
 
     // Clear the file input value to allow selecting the same file again
     const fileInput = document.getElementById('image-upload') as HTMLInputElement
@@ -220,7 +293,18 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
                   style={{ objectFit: 'cover' }}
                 />
                 <div className="image-overlay">
-                  <button type="button" onClick={removeImage} className="remove-image-btn">
+                  {uploading && (
+                    <div className="upload-progress">
+                      <div className="loading-spinner-sm"></div>
+                      <span>جاري الرفع...</span>
+                    </div>
+                  )}
+                  <button 
+                    type="button" 
+                    onClick={removeImage} 
+                    className="remove-image-btn"
+                    disabled={uploading}
+                  >
                     <FontAwesomeIcon icon={faTimes} /> إزالة
                   </button>
                 </div>
@@ -232,6 +316,12 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
                 </div>
                 <p>اسحب وأفلت صورة هنا، أو انقر للاختيار</p>
                 <p className="upload-formats">يدعم: JPG, PNG, WebP</p>
+                {uploading && (
+                  <div className="upload-progress">
+                    <div className="loading-spinner-sm"></div>
+                    <span>جاري الرفع...</span>
+                  </div>
+                )}
               </div>
             )}
             <input

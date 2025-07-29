@@ -34,7 +34,9 @@ const createCategorySchema = z.object({
         .optional(),
     image: z.string()
         .regex(/\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Image must be a valid image format (jpg, jpeg, png, gif, webp, svg)')
-        .optional().or(z.literal('')),
+        .optional().or(z.literal(''))
+        .or(z.string().regex(/^https:\/\/res\.cloudinary\.com\/.+$/i, 'Invalid Cloudinary URL')),
+    imagePublicId: z.string().optional(),
     icon: z.string()
         .max(50, 'Icon name cannot exceed 50 characters')
         .trim()

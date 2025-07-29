@@ -370,6 +370,28 @@
   transform: scale(1.05);
 }
 
+.remove-image-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: white;
+  font-weight: 500;
+  background: rgba(0, 0, 0, 0.8);
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.upload-progress .loading-spinner-sm {
+  margin-right: 0;
+}
+
 @media (max-width: 768px) {
   .image-upload-area {
     padding: 1.5rem;
