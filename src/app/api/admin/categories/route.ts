@@ -29,6 +29,12 @@ const createCategorySchema = z.object({
         .min(2, 'Category name must be at least 2 characters')
         .max(100, 'Category name cannot exceed 100 characters')
         .trim(),
+    slug: z.string()
+        .min(1, 'Slug must be at least 1 character')
+        .max(100, 'Slug cannot exceed 100 characters')
+        .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens')
+        .trim()
+        .optional(),
     description: z.string()
         .max(500, 'Description cannot exceed 500 characters')
         .optional(),
@@ -198,8 +204,8 @@ async function createCategory(req: NextRequest, _context: ApiRouteContext, user:
         const body = await req.json();
         const validatedData = createCategorySchema.parse(body);
 
-        // Generate slug from name
-        const slug = validatedData.name
+        // Generate slug from name only if slug is not provided
+        const slug = validatedData.slug || validatedData.name
             .toLowerCase()
             .replace(/[^a-z0-9\s-]/g, '')
             .replace(/\s+/g, '-')

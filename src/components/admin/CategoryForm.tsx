@@ -35,6 +35,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
     isActive: true,
     isFeatured: false,
   })
+  const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false)
 
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -58,6 +59,8 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
       if (category.image) {
         setImagePreview(category.image)
       }
+      // Reset manual edit flag when loading existing category
+      setIsSlugManuallyEdited(false)
     }
   }, [category])
 
@@ -75,7 +78,8 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
     setFormData((prev) => ({
       ...prev,
       name,
-      slug: generateSlug(name),
+      // Only auto-generate slug if it hasn't been manually edited
+      slug: isSlugManuallyEdited ? prev.slug : generateSlug(name),
     }))
   }
 
@@ -100,11 +104,11 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
 
         // Upload to Cloudinary
         const { url, publicId } = await uploadImageToCloudinary(file)
-        
+
         setFormData((prev) => ({
           ...prev,
           image: url,
-          imagePublicId: publicId
+          imagePublicId: publicId,
         }))
       } catch (error) {
         console.error('Upload error:', error)
@@ -142,7 +146,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
       reader.onload = async () => {
         try {
           const base64Data = reader.result as string
-          
+
           const response = await fetch('/api/upload/image', {
             method: 'POST',
             headers: {
@@ -150,7 +154,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
             },
             body: JSON.stringify({
               image: base64Data,
-              folder: 'prestige-designs/categories'
+              folder: 'prestige-designs/categories',
             }),
           })
 
@@ -162,7 +166,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
 
           resolve({
             url: data.data.secure_url,
-            publicId: data.data.public_id
+            publicId: data.data.public_id,
           })
         } catch (error) {
           reject(error)
@@ -254,7 +258,10 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
             id="slug"
             type="text"
             value={formData.slug}
-            onChange={(e) => setFormData((prev) => ({ ...prev, slug: e.target.value }))}
+            onChange={(e) => {
+              setIsSlugManuallyEdited(true)
+              setFormData((prev) => ({ ...prev, slug: e.target.value }))
+            }}
             required
             placeholder="رابط-التصنيف"
             className="form-input"
@@ -299,12 +306,7 @@ export default function CategoryForm({ category, onSave, onCancel }: CategoryFor
                       <span>جاري الرفع...</span>
                     </div>
                   )}
-                  <button 
-                    type="button" 
-                    onClick={removeImage} 
-                    className="remove-image-btn"
-                    disabled={uploading}
-                  >
+                  <button type="button" onClick={removeImage} className="remove-image-btn" disabled={uploading}>
                     <FontAwesomeIcon icon={faTimes} /> إزالة
                   </button>
                 </div>

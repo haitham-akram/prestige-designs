@@ -32,6 +32,12 @@ const updateCategorySchema = z.object({
         .max(100, 'Category name cannot exceed 100 characters')
         .trim()
         .optional(),
+    slug: z.string()
+        .min(1, 'Slug must be at least 1 character')
+        .max(100, 'Slug cannot exceed 100 characters')
+        .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens')
+        .trim()
+        .optional(),
     description: z.string()
         .max(500, 'Description cannot exceed 500 characters')
         .optional(),
@@ -166,20 +172,27 @@ async function updateCategory(req: NextRequest, context: ApiRouteContext, user: 
         // Prepare update data
         const updateData: Record<string, unknown> = { ...validatedData };
 
-        // If name is being updated, generate new slug and check for duplicates
-        if (validatedData.name) {
+        // Handle slug updates
+        if (validatedData.slug) {
+            // Use the provided slug
+            updateData.slug = validatedData.slug;
+        } else if (validatedData.name) {
+            // Generate slug from name only if slug is not provided
             const slug = validatedData.name
                 .toLowerCase()
                 .replace(/[^a-z0-9\s-]/g, '')
                 .replace(/\s+/g, '-')
                 .trim();
+            updateData.slug = slug;
+        }
 
-            // Check for duplicate name or slug (excluding current category)
+        // Check for duplicate name or slug (excluding current category)
+        if (validatedData.name || validatedData.slug) {
             const duplicateCategory = await Category.findOne({
                 _id: { $ne: id },
                 $or: [
-                    { name: { $regex: `^${validatedData.name}$`, $options: 'i' } },
-                    { slug }
+                    ...(validatedData.name ? [{ name: { $regex: `^${validatedData.name}$`, $options: 'i' } }] : []),
+                    ...(updateData.slug ? [{ slug: updateData.slug }] : [])
                 ]
             });
 
@@ -187,13 +200,11 @@ async function updateCategory(req: NextRequest, context: ApiRouteContext, user: 
                 return NextResponse.json(
                     {
                         success: false,
-                        message: 'Category with this name already exists'
+                        message: 'Category with this name or slug already exists'
                     },
                     { status: 409 }
                 );
             }
-
-            updateData.slug = slug;
         }
 
         // If image is being updated and we have an old Cloudinary image, delete it
