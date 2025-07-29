@@ -1,0 +1,564 @@
+/* RTL Support for Arabic Layout */
+
+html[dir='rtl'] body {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Fix sidebar positioning for RTL */
+html[dir='rtl'] .admin-sidebar {
+  right: 0 !important;
+  left: auto !important;
+  border-right: none !important;
+  border-left: 1px solid var(--border-color) !important;
+  position: fixed !important;
+  z-index: 100 !important;
+}
+
+/* Fix hamburger button positioning for RTL */
+html[dir='rtl'] .hamburger-btn {
+  right: auto !important;
+  left: 1rem !important;
+}
+
+html[dir='rtl'] .admin-sidebar.collapsed .hamburger-btn {
+  left: auto !important;
+  right: auto !important;
+}
+
+/* Fix admin layout for RTL - use flexbox approach */
+html[dir='rtl'] .admin-layout {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  min-height: 100vh !important;
+}
+
+/* Fix admin-main positioning for RTL - add padding for sidebar with gap */
+html[dir='rtl'] .admin-main {
+  flex: 1 !important;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  padding-right: 300px !important; /* Space for expanded sidebar + 20px gap */
+  padding-left: 2rem !important;
+  min-height: 100vh !important;
+  background: var(--bg-primary) !important;
+  overflow-x: auto !important;
+  transition: padding-right 0.3s ease-in-out !important;
+}
+
+/* Fix admin-main positioning for RTL when sidebar is collapsed */
+html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
+  padding-right: 90px !important; /* Space for collapsed sidebar + 20px gap */
+}
+
+/* RTL Responsive Design - Fix mobile layout */
+@media (max-width: 1024px) {
+  html[dir='rtl'] .admin-main {
+    padding-right: 270px !important; /* Space for smaller sidebar + 20px gap */
+  }
+  
+  html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
+    padding-right: 90px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  html[dir='rtl'] .admin-layout {
+    flex-direction: column !important;
+  }
+  
+  html[dir='rtl'] .admin-sidebar {
+    display: none !important;
+  }
+  
+  html[dir='rtl'] .admin-main {
+    padding-right: 0 !important; /* Remove padding on mobile */
+    padding-left: 1rem !important;
+    margin-right: 0 !important;
+    margin-left: 0 !important;
+    padding-bottom: 80px !important; /* Space for bottom navigation */
+  }
+  
+  html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
+    padding-right: 0 !important; /* Remove padding on mobile even when collapsed */
+  }
+  
+  /* Mobile-specific stat item padding */
+  html[dir='rtl'] .stat-item {
+    gap: 2px !important;
+    margin-left: 1rem !important;
+    margin-right: 1rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-number {
+    font-size: 2rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-label {
+    margin-top: 0.5rem !important;
+    font-size: 1.1rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  html[dir='rtl'] .admin-main {
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  
+  /* Extra padding for very small screens */
+  html[dir='rtl'] .stat-item {
+    gap: 2px !important;
+    margin-left: 0.5rem !important;
+    margin-right: 0.5rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-number {
+    font-size: 1.8rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-label {
+    margin-top: 0.75rem !important;
+    font-size: 1.1rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-value {
+    margin-bottom: 1rem !important;
+  }
+  
+  html[dir='rtl'] .stat-item .stat-name {
+    margin-top: 0.75rem !important;
+  }
+}
+
+/* Fix admin-container for RTL - remove margins */
+html[dir='rtl'] .admin-container {
+  direction: rtl;
+  text-align: right;
+  margin-right: 0 !important;
+  margin-left: 0 !important;
+  padding-right: 0 !important;
+  padding-left: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Admin Layout RTL */
+html[dir='rtl'] .admin-header {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+html[dir='rtl'] .header-content {
+  text-align: right;
+  order: 2;
+}
+
+html[dir='rtl'] .admin-header .btn {
+  order: 1;
+}
+
+html[dir='rtl'] .admin-content,
+html[dir='rtl'] .categories-section,
+html[dir='rtl'] .category-card {
+  direction: rtl;
+}
+
+/* Search Section RTL */
+html[dir='rtl'] .search-section {
+  direction: rtl;
+  text-align: right;
+}
+
+/* Search Bar RTL */
+html[dir='rtl'] .search-bar {
+  direction: rtl;
+}
+
+html[dir='rtl'] .search-icon {
+  left: auto !important;
+  right: 1rem !important;
+}
+
+html[dir='rtl'] .search-input {
+  padding: 1rem 3rem 1rem 1rem !important;
+  text-align: right;
+}
+
+/* Category Stats Section RTL */
+html[dir='rtl'] .category-stats {
+  direction: rtl;
+  flex-direction: row-reverse;
+  justify-content: center;
+}
+
+html[dir='rtl'] .stat-item {
+  direction: rtl;
+  text-align: center;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 0.5rem !important;
+}
+
+html[dir='rtl'] .stat-number {
+  font-size: 2.5rem !important;
+  font-weight: 700 !important;
+  color: #fff !important;
+}
+
+html[dir='rtl'] .stat-label {
+  font-size: 1.1rem !important;
+  color: #fcebff !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.5px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+/* Categories Grid RTL */
+html[dir='rtl'] .categories-grid {
+  direction: rtl;
+}
+
+/* Category Card RTL - Enhanced Styling */
+html[dir='rtl'] .category-card {
+  direction: rtl;
+  text-align: right;
+  padding: 1.5rem !important;
+  margin-bottom: 1.5rem !important;
+}
+
+/* Category Image Section RTL */
+html[dir='rtl'] .category-image-section {
+  text-align: center !important;
+  margin: 1rem 0 !important;
+}
+
+html[dir='rtl'] .category-display-image {
+  border-radius: 12px !important;
+  object-fit: cover !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+  transition: transform 0.2s !important;
+}
+
+html[dir='rtl'] .category-display-image:hover {
+  transform: scale(1.02) !important;
+}
+
+/* Category Header RTL - Complete Fix */
+html[dir='rtl'] .category-card .category-header {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  justify-content: space-between !important;
+  align-items: flex-start !important;
+  margin-bottom: 0 !important;
+  gap: 1rem !important;
+  width: 100% !important;
+  direction: rtl !important;
+}
+
+html[dir='rtl'] .category-card .category-header .category-info {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-end !important;
+  justify-content: flex-start !important;
+  gap: 0.5rem !important;
+  flex: 1 !important;
+  text-align: right !important;
+  order: 2 !important;
+  direction: rtl !important;
+}
+
+html[dir='rtl'] .category-card .category-header .category-status {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: flex-start !important;
+  justify-content: flex-start !important;
+  gap: 0.75rem !important;
+  order: 1 !important;
+  flex-shrink: 0 !important;
+  direction: rtl !important;
+}
+
+html[dir='rtl'] .category-details {
+  display: flex !important;
+  flex-direction: column !important;
+  text-align: right !important;
+  width: 100% !important;
+  direction: rtl !important;
+}
+
+html[dir='rtl'] .category-details h3.category-name {
+  text-align: right !important;
+  direction: rtl !important;
+  margin: 0 !important;
+  font-size: 1.2rem !important;
+  font-weight: 600 !important;
+  color: var(--text-primary) !important;
+}
+
+html[dir='rtl'] .category-details p.category-slug {
+  text-align: right !important;
+  direction: rtl !important;
+  margin: 0.25rem 0 0 0 !important;
+  font-size: 0.9rem !important;
+  color: var(--text-muted) !important;
+  font-family: monospace !important;
+}
+
+/* Category Name and Slug RTL */
+html[dir='rtl'] .category-name {
+  text-align: right !important;
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.25rem !important;
+  color: var(--text-primary) !important;
+}
+
+html[dir='rtl'] .category-slug {
+  text-align: right !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 0.5rem !important;
+}
+
+/* Category Description RTL */
+html[dir='rtl'] .category-description {
+  text-align: right !important;
+  color: var(--text-secondary) !important;
+  font-size: 0.875rem !important;
+  margin-bottom: 1rem !important;
+  line-height: 1.4 !important;
+}
+
+/* Status Badges RTL - Better Spacing with Rounded Edges */
+html[dir='rtl'] .status-badge {
+  text-align: center !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0.5rem !important;
+  padding: 0.375rem 0.75rem !important;
+  border-radius: 1rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  display: inline-block !important;
+  min-width: 60px !important;
+}
+
+html[dir='rtl'] .featured-badge {
+  text-align: center !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+  padding: 0.375rem 0.75rem !important;
+  border-radius: 1rem !important;
+  font-size: 0.75rem !important;
+  font-weight: 500 !important;
+  display: inline-block !important;
+  min-width: 60px !important;
+}
+
+/* Category Stats RTL - Better Layout */
+html[dir='rtl'] .category-stats {
+  direction: rtl !important;
+  flex-direction: row-reverse !important;
+  justify-content: space-around !important;
+  margin: 1rem 0 !important;
+  padding: 1rem 0 !important;
+  border-top: 1px solid var(--border-color) !important;
+  border-bottom: 1px solid var(--border-color) !important;
+}
+
+html[dir='rtl'] .stat {
+  text-align: center !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.25rem !important;
+}
+
+html[dir='rtl'] .stat-value {
+  text-align: center !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  color: var(--accent-primary) !important;
+}
+
+html[dir='rtl'] .stat-name {
+  text-align: center !important;
+  font-size: 0.75rem !important;
+  color: var(--text-secondary) !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+}
+
+/* Category Actions RTL - Centered Buttons */
+html[dir='rtl'] .category-actions {
+  flex-direction: row-reverse !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  margin-top: 1rem !important;
+  padding-top: 1rem !important;
+}
+
+html[dir='rtl'] .category-actions .btn {
+  text-align: center !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0.375rem !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  transition: all 0.2s ease !important;
+  min-width: 80px !important;
+}
+
+/* Category Details RTL */
+html[dir='rtl'] .category-details {
+  text-align: right !important;
+  margin-bottom: 1rem !important;
+}
+
+/* Form Elements RTL */
+html[dir='rtl'] .form-group,
+html[dir='rtl'] .form-actions {
+  text-align: right;
+}
+
+html[dir='rtl'] .form-grid {
+  direction: rtl;
+}
+
+/* Modal RTL */
+html[dir='rtl'] .modal-header {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+}
+
+html[dir='rtl'] .modal-close {
+  margin-left: 0;
+  margin-right: auto;
+  order: 1;
+}
+
+html[dir='rtl'] .modal-header h2 {
+  order: 2;
+  text-align: right;
+}
+
+html[dir='rtl'] .modal-body {
+  direction: rtl;
+}
+
+/* Image Upload RTL */
+html[dir='rtl'] .image-upload-area {
+  direction: rtl;
+}
+
+/* Checkbox and Toggle RTL */
+html[dir='rtl'] .checkbox-label {
+  flex-direction: row-reverse;
+}
+
+/* Error Messages RTL */
+html[dir='rtl'] .error-message {
+  flex-direction: row-reverse;
+}
+
+/* Loading Spinner RTL */
+html[dir='rtl'] .loading-spinner {
+  direction: rtl;
+}
+
+/* Empty State RTL */
+html[dir='rtl'] .empty-state {
+  direction: rtl;
+}
+
+html[dir='rtl'] .empty-state h3,
+html[dir='rtl'] .empty-state p {
+  text-align: center;
+}
+
+/* File Input Label RTL */
+html[dir='rtl'] .file-input-label {
+  direction: rtl;
+}
+
+/* Upload Placeholder RTL */
+html[dir='rtl'] .upload-placeholder {
+  direction: rtl;
+}
+
+/* Remove Image Button RTL */
+html[dir='rtl'] .remove-image-btn {
+  direction: rtl;
+}
+
+/* Admin Title RTL */
+html[dir='rtl'] .admin-title {
+  text-align: right;
+}
+
+/* Admin Subtitle RTL */
+html[dir='rtl'] .admin-subtitle {
+  text-align: right;
+}
+
+/* Button Text RTL */
+html[dir='rtl'] .btn {
+  text-align: center;
+  direction: rtl;
+}
+
+/* Form Labels RTL */
+html[dir='rtl'] .form-group label {
+  text-align: right;
+}
+
+/* Form Help Text RTL */
+html[dir='rtl'] .form-help {
+  text-align: right;
+}
+
+/* Checkbox Text RTL */
+html[dir='rtl'] .checkbox-text {
+  text-align: right;
+}
+
+/* Stat Label RTL */
+html[dir='rtl'] .stat-label {
+  text-align: center;
+}
+
+/* Stat Number RTL */
+html[dir='rtl'] .stat-number {
+  text-align: center;
+}
+
+/* Modal Title RTL */
+html[dir='rtl'] .modal-header h2 {
+  text-align: right;
+}
+
+/* Force RTL for all text elements */
+html[dir='rtl'] h1, html[dir='rtl'] h2, html[dir='rtl'] h3, html[dir='rtl'] h4, html[dir='rtl'] h5, html[dir='rtl'] h6 {
+  text-align: right;
+}
+
+html[dir='rtl'] p, html[dir='rtl'] span, html[dir='rtl'] div {
+  direction: rtl;
+}
+
+/* Fix input placeholders */
+html[dir='rtl'] input::placeholder {
+  text-align: right;
+}
+
+html[dir='rtl'] textarea::placeholder {
+  text-align: right;
+} 

@@ -267,8 +267,6 @@ declare module 'next-auth/jwt' {
 
         // JWT callback
         async jwt({ token, user, trigger, session, account }) {
-            console.log('🔍 JWT Callback Debug - Provider:', account?.provider, 'Trigger:', trigger);
-
             // When user signs in, populate token with user data
             if (user) {
                 token.id = user.id;

@@ -29,6 +29,7 @@ export interface ICategory extends Document {
     slug: string;
     description?: string;
     image?: string;
+    imagePublicId?: string;
     icon?: string;
 
     // Display and ordering
@@ -85,17 +86,20 @@ const CategorySchema = new Schema<ICategory>({
         validate: {
             validator: function (v: string) {
                 if (!v) return true; // Optional field
-                return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(v);
+                // Accept both regular URLs and Cloudinary URLs
+                return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i.test(v) ||
+                    /^https:\/\/res\.cloudinary\.com\/.+$/i.test(v);
             },
-            message: 'Please provide a valid image URL'
+            message: 'Please provide a valid image URL or Cloudinary URL'
         }
     },
 
-    icon: {
+    // Cloudinary specific fields
+    imagePublicId: {
         type: String,
-        maxlength: [50, 'Icon name cannot exceed 50 characters'],
-        trim: true
+        // Store Cloudinary public_id for future reference
     },
+
 
     // Display and ordering
     order: {

@@ -20,8 +20,10 @@ import { useSession, signOut } from 'next-auth/react'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useTranslation } from 'next-i18next'
 
 export default function AdminDashboard() {
+  const { t } = useTranslation()
   const { data: session, status } = useSession()
   const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -88,7 +90,7 @@ export default function AdminDashboard() {
       >
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
-          <div>Loading...</div>
+          <div>{t('dashboard.loading')}</div>
         </div>
       </div>
     )
@@ -121,22 +123,22 @@ export default function AdminDashboard() {
           <div className="flex justify-between items-center py-6">
             <div>
               <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                Admin Dashboard
+                {t('dashboard.title')}
               </h1>
-              <p style={{ color: 'var(--text-secondary)' }}>Welcome back, {session.user.name || session.user.email}</p>
+              <p style={{ color: 'var(--text-secondary)' }}>{t('dashboard.welcome')}</p>
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                Role:{' '}
+                {t('dashboard.role')}:{' '}
                 <span className="font-semibold" style={{ color: 'var(--accent-primary)' }}>
-                  Admin
+                  {t('dashboard.adminRole')}
                 </span>
               </div>
               <button
                 onClick={handleSignOut}
                 className="auth-button-secondary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
               >
-                Sign Out
+                {t('dashboard.signOut')}
               </button>
             </div>
           </div>
@@ -165,7 +167,7 @@ export default function AdminDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Total Users
+                  {t('dashboard.totalUsers')}
                 </p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                   {loading ? '...' : stats?.totalUsers || 0}
@@ -192,7 +194,7 @@ export default function AdminDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Customers
+                  {t('dashboard.customers')}
                 </p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                   {loading ? '...' : stats?.totalCustomers || 0}
@@ -223,7 +225,7 @@ export default function AdminDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Categories
+                  {t('dashboard.categories')}
                 </p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                   {loading ? '...' : stats?.totalCategories || 0}
@@ -254,7 +256,7 @@ export default function AdminDashboard() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  Products
+                  {t('dashboard.products')}
                 </p>
                 <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
                   {loading ? '...' : stats?.totalProducts || 0}
@@ -273,7 +275,7 @@ export default function AdminDashboard() {
           }}
         >
           <h3 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-            Quick Actions
+            {t('dashboard.quickActions')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <Link
@@ -285,10 +287,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                Manage Categories
+                {t('dashboard.manageCategories')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Create, edit, and organize product categories
+                {t('dashboard.manageCategoriesDesc')}
               </p>
             </Link>
 
@@ -300,10 +302,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                Manage Users
+                {t('dashboard.manageUsers')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                View and manage user accounts
+                {t('dashboard.manageUsersDesc')}
               </p>
             </button>
 
@@ -315,10 +317,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                Store Settings
+                {t('dashboard.storeSettings')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Configure store preferences and settings
+                {t('dashboard.storeSettingsDesc')}
               </p>
             </button>
 
@@ -330,10 +332,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                View Reports
+                {t('dashboard.viewReports')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Analytics and performance reports
+                {t('dashboard.viewReportsDesc')}
               </p>
             </button>
 
@@ -345,10 +347,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                Manage Products
+                {t('dashboard.manageProducts')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Add, edit, and organize digital products
+                {t('dashboard.manageProductsDesc')}
               </p>
             </button>
 
@@ -360,10 +362,10 @@ export default function AdminDashboard() {
               }}
             >
               <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                Order Management
+                {t('dashboard.orderManagement')}
               </h4>
               <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                Track and manage customer orders
+                {t('dashboard.orderManagementDesc')}
               </p>
             </button>
           </div>
@@ -378,7 +380,7 @@ export default function AdminDashboard() {
           }}
         >
           <h3 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-            Recent Activity
+            {t('dashboard.recentActivity')}
           </h3>
           <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
             <div className="mb-4">
@@ -390,8 +392,8 @@ export default function AdminDashboard() {
                 />
               </svg>
             </div>
-            <p>No recent activity to display</p>
-            <p className="text-sm mt-1">Activity will appear here as users interact with the store</p>
+            <p>{t('dashboard.noRecentActivity')}</p>
+            <p className="text-sm mt-1">{t('dashboard.recentActivityDesc')}</p>
           </div>
         </div>
       </div>

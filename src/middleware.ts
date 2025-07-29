@@ -22,7 +22,8 @@ import { getToken } from 'next-auth/jwt';
 
 // Define protected routes
 const ADMIN_ONLY_ROUTES = [
-    '/dashboard'
+    '/dashboard',
+    '/admin'
 ];
 
 const PUBLIC_ROUTES = [
@@ -46,7 +47,7 @@ export async function middleware(request: NextRequest) {
     if (
         pathname.startsWith('/_next/') ||
         pathname.startsWith('/favicon.ico') ||
-        pathname.startsWith('/api/') && !pathname.startsWith('/api/dashboard')
+        pathname.startsWith('/api/') && !pathname.startsWith('/api/dashboard') && !pathname.startsWith('/api/admin')
     ) {
         return NextResponse.next();
     }
