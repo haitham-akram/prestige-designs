@@ -34,7 +34,7 @@ const createCategorySchema = z.object({
         .optional(),
     image: z.string()
         .regex(/\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Image must be a valid image format (jpg, jpeg, png, gif, webp, svg)')
-        .optional(),
+        .optional().or(z.literal('')),
     icon: z.string()
         .max(50, 'Icon name cannot exceed 50 characters')
         .trim()

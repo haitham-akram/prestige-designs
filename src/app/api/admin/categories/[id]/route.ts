@@ -35,7 +35,7 @@ const updateCategorySchema = z.object({
         .max(500, 'Description cannot exceed 500 characters')
         .optional(),
     image: z.string()
-        .regex(/\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Image must be a valid image format (jpg, jpeg, png, gif, webp, svg)')
+        .regex(/\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Image must be a valid image format (jpg, jpeg, png, gif, webp, svg)').or(z.literal(''))
         .optional(),
     icon: z.string()
         .max(50, 'Icon name cannot exceed 50 characters')

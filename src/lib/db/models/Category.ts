@@ -91,11 +91,6 @@ const CategorySchema = new Schema<ICategory>({
         }
     },
 
-    icon: {
-        type: String,
-        maxlength: [50, 'Icon name cannot exceed 50 characters'],
-        trim: true
-    },
 
     // Display and ordering
     order: {
