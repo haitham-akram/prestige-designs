@@ -1,0 +1,244 @@
+/* File Upload Container */
+.file-upload-container {
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.file-upload-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+/* File Upload Area */
+.file-upload-area {
+  position: relative;
+  border: 2px dashed var(--border-color);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: var(--bg-secondary);
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-upload-area:hover {
+  border-color: var(--accent-primary);
+  background: rgba(130, 97, 198, 0.05);
+}
+
+.file-upload-area.drag-active {
+  border-color: var(--accent-primary);
+  background: rgba(130, 97, 198, 0.1);
+  transform: scale(1.02);
+}
+
+.file-upload-area.has-status {
+  padding-bottom: 1rem;
+}
+
+/* Hidden File Input */
+.file-input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  z-index: 1;
+}
+
+/* Upload Content */
+.upload-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  pointer-events: none;
+}
+
+.upload-icon {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.upload-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-placeholder {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.upload-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+/* Progress Bar */
+.upload-progress {
+  width: 100%;
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-primary);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-primary), #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent-primary);
+  text-align: center;
+}
+
+/* Status Messages */
+.upload-status {
+  width: 100%;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.upload-status.success {
+  background: rgba(72, 187, 120, 0.1);
+  border: 1px solid rgba(72, 187, 120, 0.3);
+  color: #48bb78;
+}
+
+.upload-status.error {
+  background: rgba(245, 101, 101, 0.1);
+  border: 1px solid rgba(245, 101, 101, 0.3);
+  color: #f56565;
+}
+
+.status-message {
+  flex: 1;
+  text-align: right;
+}
+
+.reset-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+.reset-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Spinner Animation */
+.fa-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .file-upload-area {
+    padding: 1.5rem;
+    min-height: 100px;
+  }
+  
+  .upload-icon {
+    font-size: 2rem;
+  }
+  
+  .upload-placeholder {
+    font-size: 1rem;
+  }
+  
+  .upload-hint {
+    font-size: 0.85rem;
+  }
+}
+
+/* RTL Support */
+[dir="rtl"] .upload-status {
+  text-align: right;
+}
+
+[dir="rtl"] .status-message {
+  text-align: right;
+}
+
+/* Disabled State */
+.file-upload-area:has(.file-input:disabled) {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.file-upload-area:has(.file-input:disabled):hover {
+  border-color: var(--border-color);
+  background: var(--bg-secondary);
+  transform: none;
+} 

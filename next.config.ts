@@ -35,6 +35,24 @@ const nextConfig: NextConfig = {
       }
     ],
   },
+  // Configure static file serving for video files
+  async headers() {
+    return [
+      {
+        source: '/uploads/designs/:path*',
+        headers: [
+          {
+            key: 'Accept-Ranges',
+            value: 'bytes',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+    ];
+  },
   i18n: {
     locales: ['en', 'ar'],
     defaultLocale: 'ar',

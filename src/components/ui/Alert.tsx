@@ -3,19 +3,19 @@
 import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faCheckCircle, faExclamationTriangle, faInfoCircle, faTimes } from '@fortawesome/free-solid-svg-icons'
-import './Notification.css'
+import './Alert.css'
 
-export type NotificationType = 'success' | 'error' | 'warning' | 'info'
+export type AlertType = 'success' | 'error' | 'warning' | 'info'
 
-export interface NotificationProps {
-  type: NotificationType
+export interface AlertProps {
+  type: AlertType
   title: string
   message: string
   duration?: number
   onClose?: () => void
 }
 
-export default function Notification({ type, title, message, duration = 5000, onClose }: NotificationProps) {
+export default function Alert({ type, title, message, duration = 5000, onClose }: AlertProps) {
   const [isVisible, setIsVisible] = useState(true)
 
   useEffect(() => {
@@ -52,60 +52,60 @@ export default function Notification({ type, title, message, duration = 5000, on
   }
 
   return (
-    <div className={`notification notification-${type}`}>
-      <div className="notification-icon">
+    <div className={`alert alert-${type}`}>
+      <div className="alert-icon">
         <FontAwesomeIcon icon={getIcon()} />
       </div>
-      <div className="notification-content">
-        <h4 className="notification-title">{title}</h4>
-        <p className="notification-message">{message}</p>
+      <div className="alert-content">
+        <h4 className="alert-title">{title}</h4>
+        <p className="alert-message">{message}</p>
       </div>
-      <button onClick={handleClose} className="notification-close">
+      <button onClick={handleClose} className="alert-close">
         <FontAwesomeIcon icon={faTimes} />
       </button>
     </div>
   )
 }
 
-// Hook for managing notifications
-export function useNotifications() {
-  const [notifications, setNotifications] = useState<NotificationProps[]>([])
+// Hook for managing alerts
+export function useAlerts() {
+  const [alerts, setAlerts] = useState<AlertProps[]>([])
 
-  const addNotification = (notification: Omit<NotificationProps, 'onClose'>) => {
+  const addAlert = (alert: Omit<AlertProps, 'onClose'>) => {
     const id = Date.now()
-    const newNotification = {
-      ...notification,
-      onClose: () => removeNotification(id),
+    const newAlert = {
+      ...alert,
+      onClose: () => removeAlert(id),
     }
-    setNotifications((prev) => [...prev, newNotification])
+    setAlerts((prev) => [...prev, newAlert])
   }
 
-  const removeNotification = (id: number) => {
-    setNotifications((prev) => prev.filter((n) => n !== notifications.find((notif) => notif === n)))
+  const removeAlert = (id: number) => {
+    setAlerts((prev) => prev.filter((alert) => alert !== alerts.find((a) => a === alert)))
   }
 
   const showSuccess = (title: string, message: string) => {
-    addNotification({ type: 'success', title, message })
+    addAlert({ type: 'success', title, message })
   }
 
   const showError = (title: string, message: string) => {
-    addNotification({ type: 'error', title, message })
+    addAlert({ type: 'error', title, message })
   }
 
   const showWarning = (title: string, message: string) => {
-    addNotification({ type: 'warning', title, message })
+    addAlert({ type: 'warning', title, message })
   }
 
   const showInfo = (title: string, message: string) => {
-    addNotification({ type: 'info', title, message })
+    addAlert({ type: 'info', title, message })
   }
 
   return {
-    notifications,
+    alerts,
     showSuccess,
     showError,
     showWarning,
     showInfo,
-    removeNotification,
+    removeAlert,
   }
 }

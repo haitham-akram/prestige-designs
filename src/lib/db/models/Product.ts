@@ -57,7 +57,7 @@ export interface IProduct extends Document {
     colors: IColorTheme[];           // Theme colors for customer customization
 
     // Category and organization
-    categoryId: string;
+    categoryId: mongoose.Types.ObjectId;
     tags?: string[];                 // Additional tags for search/filtering
 
     // Pricing and promotions
@@ -70,19 +70,10 @@ export interface IProduct extends Document {
     isActive: boolean;
     isFeatured: boolean;
 
-    // SEO and metadata
-    metaTitle?: string;
-    metaDescription?: string;
-    keywords?: string[];
-
     // Analytics and stats
-    viewCount: number;
     purchaseCount: number;
     rating: number;                  // Average rating (0-5)
     reviewCount: number;
-
-    // File management
-    designFiles?: string[];          // URLs to design files (PSD, AI, etc.)
 
     // Timestamps
     createdAt: Date;
@@ -170,6 +161,7 @@ const ProductSchema = new Schema<IProduct>({
     // Media and customization
     images: {
         type: [ProductImageSchema],
+        default: [],
         validate: {
             validator: function (images: IProductImage[]) {
                 return images.length > 0;
@@ -203,12 +195,12 @@ const ProductSchema = new Schema<IProduct>({
         type: Boolean,
         default: false
     },
-    
+
     allowImageReplacement: {
         type: Boolean,
         default: false
     },
-    
+
     allowLogoUpload: {
         type: Boolean,
         default: false
@@ -222,16 +214,20 @@ const ProductSchema = new Schema<IProduct>({
 
     // Category and organization
     categoryId: {
-        type: String,
+        type: Schema.Types.ObjectId,
+        ref: 'Category',
         required: [true, 'Category is required']
     },
 
-    tags: [{
-        type: String,
-        lowercase: true,
-        trim: true,
-        maxlength: [30, 'Tag cannot exceed 30 characters']
-    }],
+    tags: {
+        type: [{
+            type: String,
+            lowercase: true,
+            trim: true,
+            maxlength: [30, 'Tag cannot exceed 30 characters']
+        }],
+        default: []
+    },
 
     // Pricing and promotions
     price: {
@@ -255,8 +251,8 @@ const ProductSchema = new Schema<IProduct>({
 
     finalPrice: {
         type: Number,
-        required: [true, 'Final price is required'],
-        min: [0, 'Final price cannot be negative']
+        min: [0, 'Final price cannot be negative'],
+        default: 0
     },
 
     // Status and visibility
@@ -270,32 +266,7 @@ const ProductSchema = new Schema<IProduct>({
         default: false
     },
 
-    // SEO and metadata
-    metaTitle: {
-        type: String,
-        maxlength: [60, 'Meta title cannot exceed 60 characters'],
-        trim: true
-    },
-
-    metaDescription: {
-        type: String,
-        maxlength: [160, 'Meta description cannot exceed 160 characters'],
-        trim: true
-    },
-
-    keywords: [{
-        type: String,
-        lowercase: true,
-        trim: true
-    }],
-
     // Analytics and stats
-    viewCount: {
-        type: Number,
-        default: 0,
-        min: [0, 'View count cannot be negative']
-    },
-
     purchaseCount: {
         type: Number,
         default: 0,
@@ -315,16 +286,8 @@ const ProductSchema = new Schema<IProduct>({
         min: [0, 'Review count cannot be negative']
     },
 
-    // File management
-    designFiles: [{
-        type: String,
-        validate: {
-            validator: function (v: string) {
-                return /^https?:\/\/.+\.(psd|ai|eps|pdf|svg|zip|rar)$/i.test(v);
-            },
-            message: 'Please provide a valid design file URL'
-        }
-    }],
+    // File management - Now handled by DesignFile model
+    // designFiles field removed - files are managed separately for security
 
 }, {
     timestamps: true, // Automatically adds createdAt and updatedAt
@@ -346,7 +309,6 @@ ProductSchema.index({ isFeatured: 1 });
 ProductSchema.index({ price: 1 });
 ProductSchema.index({ finalPrice: 1 });
 ProductSchema.index({ rating: -1 });
-ProductSchema.index({ viewCount: -1 });
 ProductSchema.index({ purchaseCount: -1 });
 ProductSchema.index({ createdAt: -1 });
 
@@ -359,8 +321,7 @@ ProductSchema.index({ tags: 1, isActive: 1 });
 ProductSchema.index({
     name: 'text',
     description: 'text',
-    tags: 'text',
-    keywords: 'text'
+    tags: 'text'
 });
 
 // Pre-save middleware to generate slug from name if not provided
@@ -376,25 +337,20 @@ ProductSchema.pre('save', function (this: IProduct, next) {
     next();
 });
 
-// Pre-save middleware to calculate final price
+// Pre-save middleware for final price calculation
 ProductSchema.pre('save', function (this: IProduct, next) {
     if (this.isModified('price') || this.isModified('discountAmount') || this.isModified('discountPercentage')) {
-        let discount = 0;
-
-        if ((this.discountPercentage || 0) > 0) {
-            discount = this.price * ((this.discountPercentage || 0) / 100);
-        } else if ((this.discountAmount || 0) > 0) {
-            discount = this.discountAmount || 0;
-        }
-
-        this.finalPrice = Math.max(0, this.price - discount);
+        let finalPrice = this.price;
+        if ((this.discountAmount || 0) > 0) { finalPrice -= this.discountAmount || 0; }
+        if ((this.discountPercentage || 0) > 0) { finalPrice -= (finalPrice * (this.discountPercentage || 0)) / 100; }
+        this.finalPrice = Math.max(0, finalPrice);
     }
     next();
 });
 
 // Pre-save middleware to ensure only one primary image
 ProductSchema.pre('save', function (this: IProduct, next) {
-    if (this.isModified('images')) {
+    if (this.isModified('images') && this.images && Array.isArray(this.images)) {
         const primaryImages = this.images.filter(img => img.isPrimary);
 
         if (primaryImages.length === 0 && this.images.length > 0) {
@@ -440,12 +396,6 @@ ProductSchema.statics.search = async function (query: string, limit = 20) {
         .lean();
 };
 
-// Instance method to increment view count
-ProductSchema.methods.incrementViews = async function () {
-    this.viewCount += 1;
-    return this.save();
-};
-
 // Instance method to increment purchase count
 ProductSchema.methods.incrementPurchases = async function () {
     this.purchaseCount += 1;
@@ -464,6 +414,9 @@ ProductSchema.methods.updateRating = async function (newRating: number) {
 
 // Virtual for primary image
 ProductSchema.virtual('primaryImage').get(function (this: IProduct) {
+    if (!this.images || !Array.isArray(this.images)) {
+        return null;
+    }
     const primary = this.images.find(img => img.isPrimary);
     return primary || (this.images.length > 0 ? this.images[0] : null);
 });
