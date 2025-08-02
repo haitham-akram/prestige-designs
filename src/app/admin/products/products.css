@@ -2104,4 +2104,111 @@
 .inactive-product .purchase-count:hover {
   background: linear-gradient(135deg, #9ca3af, #6b7280);
   opacity: 1;
+}
+
+/* Color Files Section Styles */
+.color-files-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--gradient-card);
+  border-radius: 15px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+}
+
+.color-files-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.color-file-item {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+  transition: all 0.3s ease;
+}
+
+.color-file-item:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.color-file-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.color-preview {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+}
+
+.color-file-header h4 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  flex: 1;
+}
+
+.color-folder {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 5px;
+  border: 1px solid var(--border-color);
+  font-family: 'Courier New', monospace;
+}
+
+.general-files-section {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--gradient-card);
+  border-radius: 15px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+}
+
+.general-files-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Responsive styles for color files */
+@media (max-width: 768px) {
+  .color-file-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .color-folder {
+    font-size: 0.8rem;
+    word-break: break-all;
+  }
+  
+  .color-files-section,
+  .general-files-section {
+    padding: 1rem;
+  }
 } 

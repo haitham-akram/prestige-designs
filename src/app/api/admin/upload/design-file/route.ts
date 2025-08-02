@@ -40,7 +40,12 @@ const uploadSchema = z.object({
         .min(1, 'Product ID is required'),
     productSlug: z.string()
         .min(1, 'Product slug is required')
-        .regex(/^[a-z0-9-]+$/, 'Product slug can only contain lowercase letters, numbers, and hyphens')
+        .regex(/^[a-z0-9-]+$/, 'Product slug can only contain lowercase letters, numbers, and hyphens'),
+    colorName: z.string()
+        .regex(/^[a-z0-9]+$/, 'Color name can only contain lowercase letters and numbers')
+        .nullable()
+        .optional()
+        .transform(val => val === null ? undefined : val)
 });
 
 // Allowed file types and their MIME types
@@ -97,6 +102,7 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
         const description = formData.get('description') as string;
         const productId = formData.get('productId') as string;
         const productSlug = formData.get('productSlug') as string;
+        const colorName = formData.get('colorName') as string;
 
         // Debug logging
         console.log('Upload data:', {
@@ -105,8 +111,20 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
             description,
             productId,
             productSlug,
+            colorName,
             fileSize: file?.size,
             hasFile: !!file
+        });
+
+        // Additional debug logging for validation
+        console.log('Validation data:', {
+            fileName: typeof fileName,
+            fileType: typeof fileType,
+            description: typeof description,
+            productId: typeof productId,
+            productSlug: typeof productSlug + ' - ' + productSlug,
+            colorName: typeof colorName + ' - ' + colorName,
+            fileSize: typeof file?.size
         });
 
         // Validate input data
@@ -116,7 +134,8 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
             fileSize: file?.size || 0,
             description,
             productId,
-            productSlug
+            productSlug,
+            colorName
         });
 
         // Validate file
@@ -169,8 +188,20 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
         const uniqueFileName = `${timestamp}_${validatedData.fileName}`;
         const sanitizedFileName = uniqueFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
 
-        // Create directory structure using product slug
-        const uploadDir = join(process.cwd(), 'public', 'uploads', 'designs', validatedData.productSlug);
+        // Create directory structure using product slug and color name if provided
+        let uploadDir: string;
+        let publicUrl: string;
+
+        if (validatedData.colorName) {
+            // Color-specific folder structure: /uploads/designs/product-slug/color-name/
+            uploadDir = join(process.cwd(), 'public', 'uploads', 'designs', validatedData.productSlug, validatedData.colorName);
+            publicUrl = `/uploads/designs/${validatedData.productSlug}/${validatedData.colorName}/${sanitizedFileName}`;
+        } else {
+            // Regular folder structure: /uploads/designs/product-slug/
+            uploadDir = join(process.cwd(), 'public', 'uploads', 'designs', validatedData.productSlug);
+            publicUrl = `/uploads/designs/${validatedData.productSlug}/${sanitizedFileName}`;
+        }
+
         const filePath = join(uploadDir, sanitizedFileName);
 
         // Ensure upload directory exists
@@ -184,9 +215,6 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
 
         // Write file to disk
         await writeFile(filePath, buffer);
-
-        // Generate public URL using product slug
-        const publicUrl = `/uploads/designs/${validatedData.productSlug}/${sanitizedFileName}`;
 
         // Return success response
         return NextResponse.json({

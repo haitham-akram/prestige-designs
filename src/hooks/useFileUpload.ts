@@ -40,6 +40,9 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
                 Object.entries(additionalData).forEach(([key, value]) => {
                     if (value !== null && value !== undefined) {
                         formData.append(key, value.toString())
+                    } else if (value === '') {
+                        // Handle empty strings explicitly
+                        formData.append(key, '')
                     }
                 })
             }

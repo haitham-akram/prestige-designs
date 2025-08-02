@@ -41,6 +41,13 @@ interface ProductFormData {
     name: string
     hex: string
     description?: string
+    uploadedFiles?: {
+      fileName: string
+      fileType: string
+      fileUrl: string
+      fileSize: number
+      isTemp?: boolean
+    }[]
   }[]
   designFiles: {
     fileName: string
@@ -69,6 +76,8 @@ export default function AddProduct() {
   const [oldSlug, setOldSlug] = useState<string>('') // Track old slug for file migration
   const [originalSlug, setOriginalSlug] = useState<string>('') // Track original slug when files were uploaded
   const [slugChangeTimeout, setSlugChangeTimeout] = useState<NodeJS.Timeout | null>(null) // Debounce timeout
+  const [originalColorNames, setOriginalColorNames] = useState<{ [key: number]: string }>({}) // Track original color names when files were uploaded
+  const [colorNameChangeTimeouts, setColorNameChangeTimeouts] = useState<{ [key: number]: NodeJS.Timeout | null }>({}) // Debounce timeouts for color names
   const currentSlugRef = useRef<string>('') // Track current slug for debouncing
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
@@ -95,14 +104,20 @@ export default function AddProduct() {
     fetchCategories()
   }, [])
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (slugChangeTimeout) {
         clearTimeout(slugChangeTimeout)
       }
+      // Cleanup color name change timeouts
+      Object.values(colorNameChangeTimeouts).forEach((timeout) => {
+        if (timeout) {
+          clearTimeout(timeout)
+        }
+      })
     }
-  }, [slugChangeTimeout])
+  }, [slugChangeTimeout, colorNameChangeTimeouts])
 
   // Reset original slug when all files are removed
   useEffect(() => {
@@ -235,18 +250,139 @@ export default function AddProduct() {
     }))
   }
 
-  const removeColorTheme = (index: number) => {
+  const removeColorTheme = async (index: number) => {
+    const color = formData.colors[index]
+
+    // If color has uploaded files, delete them and the folder
+    if (color?.uploadedFiles?.length) {
+      try {
+        const originalColorName = originalColorNames[index] || color.name
+        const cleanColorName = originalColorName.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+        // Delete all files for this color
+        for (const file of color.uploadedFiles) {
+          if (file.fileUrl) {
+            try {
+              const response = await fetch('/api/admin/upload/delete-file', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  fileUrl: file.fileUrl,
+                }),
+              })
+
+              if (!response.ok) {
+                console.error(`Failed to delete file: ${file.fileName}`)
+              }
+            } catch (error) {
+              console.error(`Error deleting file ${file.fileName}:`, error)
+            }
+          }
+        }
+
+        // Try to delete the color folder
+        try {
+          const response = await fetch('/api/admin/upload/delete-color-folder', {
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              productSlug: formData.slug,
+              colorName: cleanColorName,
+            }),
+          })
+
+          if (!response.ok) {
+            console.error('Failed to delete color folder')
+          }
+        } catch (error) {
+          console.error('Error deleting color folder:', error)
+        }
+      } catch (error) {
+        console.error('Error handling color deletion:', error)
+        showError('خطأ في حذف ملفات اللون', 'تم حذف اللون لكن حدث خطأ في حذف الملفات')
+      }
+    }
+
+    // Clean up any pending timeouts for this color
+    if (colorNameChangeTimeouts[index]) {
+      clearTimeout(colorNameChangeTimeouts[index])
+      setColorNameChangeTimeouts((prev) => {
+        const newTimeouts = { ...prev }
+        delete newTimeouts[index]
+        return newTimeouts
+      })
+    }
+
+    // Clean up original color name
+    setOriginalColorNames((prev) => {
+      const newOriginalNames = { ...prev }
+      delete newOriginalNames[index]
+      return newOriginalNames
+    })
+
     setFormData((prev) => ({
       ...prev,
       colors: prev.colors.filter((_, i) => i !== index),
     }))
+
+    showSuccess('تم حذف اللون', 'تم حذف اللون وملفاته بنجاح')
   }
 
   const handleColorThemeChange = (index: number, field: string, value: unknown) => {
+    // Prevent Arabic text in color names
+    if (field === 'name' && typeof value === 'string') {
+      // Check if the value contains Arabic characters
+      const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+      if (arabicRegex.test(value)) {
+        showError('خطأ في اسم اللون', 'لا يمكن استخدام النصوص العربية في اسم اللون')
+        return
+      }
+    }
+
     setFormData((prev) => ({
       ...prev,
       colors: prev.colors.map((color, i) => (i === index ? { ...color, [field]: value } : color)),
     }))
+
+    // Handle color name debouncing outside of setFormData - only if files exist
+    if (field === 'name' && typeof value === 'string') {
+      const color = formData.colors[index]
+      const hasFiles = (color?.uploadedFiles?.length || 0) > 0
+
+      if (hasFiles) {
+        // Clear existing timeout for this color
+        if (colorNameChangeTimeouts[index]) {
+          clearTimeout(colorNameChangeTimeouts[index])
+        }
+
+        // Get the original color name where files were first uploaded
+        const originalColorName = originalColorNames[index] || color.name
+
+        // Set new timeout for debounced color name change
+        const newTimeout = setTimeout(() => {
+          const newColorName = typeof value === 'string' ? value : ''
+          if (originalColorName && originalColorName !== newColorName) {
+            handleColorNameChange(index, originalColorName, newColorName)
+          }
+        }, 1000) // Wait 1 second after user stops typing
+
+        setColorNameChangeTimeouts((prev) => ({ ...prev, [index]: newTimeout }))
+      } else {
+        // No files to move, clear any existing timeout for this color
+        if (colorNameChangeTimeouts[index]) {
+          clearTimeout(colorNameChangeTimeouts[index])
+          setColorNameChangeTimeouts((prev) => {
+            const newTimeouts = { ...prev }
+            delete newTimeouts[index]
+            return newTimeouts
+          })
+        }
+      }
+    }
   }
 
   const addDesignFile = () => {
@@ -299,36 +435,77 @@ export default function AddProduct() {
 
       // Add the uploaded file to the form data
       setFormData((prev) => {
-        const updatedDesignFiles = [...prev.designFiles]
+        // Check if this is a color file upload
+        const isColorFile = prev.colors.some((color, index) =>
+          color.uploadedFiles?.some((file) => file.isTemp && file.fileName === fileInfo?.fileName)
+        )
 
-        if (fileInfo) {
-          const { designFileIndex } = fileInfo
-          const currentFile = updatedDesignFiles[designFileIndex]
+        if (isColorFile && fileInfo) {
+          // Handle color file upload
+          const updatedColors = [...prev.colors]
+          const colorIndex = updatedColors.findIndex((color) =>
+            color.uploadedFiles?.some((file) => file.isTemp && file.fileName === fileInfo.fileName)
+          )
 
-          if (currentFile) {
-            const updatedUploadedFiles = currentFile.uploadedFiles.map((uploadedFile) => {
-              if (uploadedFile.isTemp && uploadedFile.fileName === fileInfo.fileName) {
-                return {
-                  fileName: result.data.fileName,
-                  fileType: result.data.fileType,
-                  fileUrl: result.data.fileUrl,
-                  fileSize: result.data.fileSize,
-                  isTemp: false,
+          if (colorIndex !== -1) {
+            const currentColor = updatedColors[colorIndex]
+            const updatedUploadedFiles =
+              currentColor.uploadedFiles?.map((uploadedFile) => {
+                if (uploadedFile.isTemp && uploadedFile.fileName === fileInfo.fileName) {
+                  return {
+                    fileName: result.data.fileName,
+                    fileType: result.data.fileType,
+                    fileUrl: result.data.fileUrl,
+                    fileSize: result.data.fileSize,
+                    isTemp: false,
+                  }
                 }
-              }
-              return uploadedFile
-            })
+                return uploadedFile
+              }) || []
 
-            updatedDesignFiles[designFileIndex] = {
-              ...currentFile,
+            updatedColors[colorIndex] = {
+              ...currentColor,
               uploadedFiles: updatedUploadedFiles,
             }
           }
-        }
 
-        return {
-          ...prev,
-          designFiles: updatedDesignFiles,
+          return {
+            ...prev,
+            colors: updatedColors,
+          }
+        } else {
+          // Handle regular design file upload
+          const updatedDesignFiles = [...prev.designFiles]
+
+          if (fileInfo) {
+            const { designFileIndex } = fileInfo
+            const currentFile = updatedDesignFiles[designFileIndex]
+
+            if (currentFile) {
+              const updatedUploadedFiles = currentFile.uploadedFiles.map((uploadedFile) => {
+                if (uploadedFile.isTemp && uploadedFile.fileName === fileInfo.fileName) {
+                  return {
+                    fileName: result.data.fileName,
+                    fileType: result.data.fileType,
+                    fileUrl: result.data.fileUrl,
+                    fileSize: result.data.fileSize,
+                    isTemp: false,
+                  }
+                }
+                return uploadedFile
+              })
+
+              updatedDesignFiles[designFileIndex] = {
+                ...currentFile,
+                uploadedFiles: updatedUploadedFiles,
+              }
+            }
+          }
+
+          return {
+            ...prev,
+            designFiles: updatedDesignFiles,
+          }
         }
       })
 
@@ -355,6 +532,7 @@ export default function AddProduct() {
 
       // Remove any temporary files
       setFormData((prev) => {
+        // Remove temp files from design files
         const updatedDesignFiles = [...prev.designFiles]
         updatedDesignFiles.forEach((designFile, index) => {
           updatedDesignFiles[index] = {
@@ -363,9 +541,19 @@ export default function AddProduct() {
           }
         })
 
+        // Remove temp files from colors
+        const updatedColors = [...prev.colors]
+        updatedColors.forEach((color, index) => {
+          updatedColors[index] = {
+            ...color,
+            uploadedFiles: color.uploadedFiles?.filter((file) => !file.isTemp) || [],
+          }
+        })
+
         return {
           ...prev,
           designFiles: updatedDesignFiles,
+          colors: updatedColors,
         }
       })
 
@@ -463,6 +651,176 @@ export default function AddProduct() {
       },
       fileInfo
     )
+  }
+
+  const handleColorFileUpload = async (file: File, colorIndex: number, sanitizedColorName: string) => {
+    // Check if slug is valid before allowing upload
+    if (!isSlugValidForUpload()) {
+      showError('رابط المنتج مطلوب', 'يرجى إدخال رابط المنتج أولاً قبل رفع الملفات')
+      return
+    }
+
+    // Ensure slug is properly formatted
+    const cleanSlug = formData.slug
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '') // Remove any invalid characters
+      .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
+      .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+
+    if (!cleanSlug) {
+      showError('رابط المنتج غير صحيح', 'يرجى إدخال رابط منتج صحيح')
+      return
+    }
+
+    const fileType = file.name.split('.').pop()?.toLowerCase() || ''
+
+    // Validate file type
+    const allowedTypes = [
+      'psd',
+      'ai',
+      'eps',
+      'pdf',
+      'svg',
+      'zip',
+      'rar',
+      'png',
+      'jpg',
+      'jpeg',
+      'gif',
+      'webp',
+      'mp4',
+      'avi',
+      'mov',
+      'wmv',
+      'flv',
+      'webm',
+      'mkv',
+    ]
+
+    if (!allowedTypes.includes(fileType)) {
+      showError('نوع الملف غير مدعوم', 'يرجى اختيار ملف من الأنواع المدعومة')
+      return
+    }
+
+    // Check if already uploading
+    if (isUploading) {
+      showWarning('الملف قيد الرفع', 'يرجى الانتظار حتى انتهاء الرفع الحالي')
+      return
+    }
+
+    // Set upload state
+    setIsUploading(true)
+    setUploadProgress(0)
+    setUploadStatus('uploading')
+    setCurrentUploadingFile({ fileName: file.name, designFileIndex: colorIndex })
+
+    // Add temporary file entry to color
+    setFormData((prev) => {
+      const updatedColors = [...prev.colors]
+      const currentColor = updatedColors[colorIndex]
+
+      const tempUploadedFile = {
+        fileName: file.name,
+        fileType,
+        fileUrl: '',
+        fileSize: file.size,
+        isTemp: true,
+      }
+
+      updatedColors[colorIndex] = {
+        ...currentColor,
+        uploadedFiles: [...(currentColor.uploadedFiles || []), tempUploadedFile],
+      }
+
+      // Set original color name when first file is uploaded
+      if (!originalColorNames[colorIndex] && (!currentColor.uploadedFiles || currentColor.uploadedFiles.length === 0)) {
+        setOriginalColorNames((prev) => ({ ...prev, [colorIndex]: currentColor.name }))
+      }
+
+      return {
+        ...prev,
+        colors: updatedColors,
+      }
+    })
+
+    // Start upload with color-specific folder
+    const fileInfo = { fileName: file.name, designFileIndex: colorIndex }
+
+    // Ensure colorName is always a valid string
+    const validColorName = sanitizedColorName || 'default'
+
+    // Debug logging
+    console.log('Color file upload data:', {
+      fileName: file.name,
+      fileType,
+      description: `ملف ${formData.colors[colorIndex]?.name || sanitizedColorName}`,
+      productId: 'temp',
+      productSlug: cleanSlug,
+      colorName: validColorName,
+      slugValidation: /^[a-z0-9-]+$/.test(cleanSlug),
+    })
+
+    await uploadDesignFile(
+      file,
+      '/api/admin/upload/design-file',
+      {
+        fileName: file.name,
+        fileType,
+        description: `ملف ${formData.colors[colorIndex]?.name || sanitizedColorName}`,
+        productId: 'temp', // This will be updated after product creation
+        productSlug: cleanSlug, // Use cleaned product slug, color folder will be handled by API
+        colorName: validColorName, // Pass color name separately for folder organization
+      },
+      fileInfo
+    )
+  }
+
+  const handleColorFileRemove = async (fileName: string, colorIndex: number) => {
+    // Find the file to get its URL
+    const fileToDelete = formData.colors[colorIndex]?.uploadedFiles?.find((f) => f.fileName === fileName)
+
+    if (fileToDelete?.fileUrl) {
+      try {
+        // Delete file from server
+        const response = await fetch('/api/admin/upload/delete-file', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            fileUrl: fileToDelete.fileUrl,
+          }),
+        })
+
+        const result = await response.json()
+
+        if (!result.success) {
+          showError('خطأ في حذف الملف', result.message || 'فشل في حذف الملف من الخادم')
+          return
+        }
+      } catch (error) {
+        console.error('Error deleting file:', error)
+        showError('خطأ في حذف الملف', 'حدث خطأ أثناء حذف الملف من الخادم')
+        return
+      }
+    }
+
+    // Remove file from UI state
+    setFormData((prev) => {
+      const updatedColors = [...prev.colors]
+      if (updatedColors[colorIndex]) {
+        updatedColors[colorIndex] = {
+          ...updatedColors[colorIndex],
+          uploadedFiles: updatedColors[colorIndex].uploadedFiles?.filter((f) => f.fileName !== fileName) || [],
+        }
+      }
+      return {
+        ...prev,
+        colors: updatedColors,
+      }
+    })
+
+    showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
   }
 
   const {
@@ -588,7 +946,12 @@ export default function AddProduct() {
           designFile.uploadedFiles.filter((file) => !file.isTemp)
         )
 
-        if (uploadedFiles.length > 0) {
+        // Save color files to database after product creation
+        const uploadedColorFiles = formData.colors.flatMap(
+          (color) => color.uploadedFiles?.filter((file) => !file.isTemp) || []
+        )
+
+        if (uploadedFiles.length > 0 || uploadedColorFiles.length > 0) {
           const designFileErrors: string[] = []
           setSavingDesignFiles(true)
 
@@ -685,6 +1048,99 @@ export default function AddProduct() {
             }
           }
 
+          // Save color files to database
+          for (const color of formData.colors) {
+            const filesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
+
+            for (const file of filesToSave) {
+              try {
+                // Validate file data before sending
+                if (!file.fileUrl || !file.fileName || !file.fileType) {
+                  const errorMsg = `بيانات ملف اللون غير مكتملة: ${file.fileName}`
+                  console.error(errorMsg, file)
+                  designFileErrors.push(errorMsg)
+                  continue
+                }
+
+                const designFileData = {
+                  productId: productId, // Use the actual productId
+                  fileName: file.fileName,
+                  fileUrl: file.fileUrl,
+                  fileType: file.fileType,
+                  fileSize: file.fileSize,
+                  mimeType: getMimeType(file.fileName),
+                  description: `ملف ${color.name}`,
+                  isActive: true,
+                  isPublic: false,
+                }
+                console.log('Saving color file with productId:', productId)
+                console.log('Color file data:', designFileData)
+
+                // Retry mechanism for saving color files
+                let retryCount = 0
+                const maxRetries = 3
+                let designFileResponse
+                let errorData
+
+                while (retryCount < maxRetries) {
+                  try {
+                    designFileResponse = await fetch('/api/admin/design-files', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(designFileData),
+                    })
+
+                    if (designFileResponse.ok) {
+                      console.log(`Successfully saved color file: ${file.fileName}`)
+                      break // Success, exit retry loop
+                    }
+
+                    // Read response body only once
+                    errorData = await designFileResponse.json()
+
+                    // If it's a file not found error, wait a bit and retry
+                    if (
+                      errorData.message &&
+                      errorData.message.includes('File not found') &&
+                      retryCount < maxRetries - 1
+                    ) {
+                      console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
+                      await new Promise((resolve) => setTimeout(resolve, 1000))
+                      retryCount++
+                      continue
+                    }
+
+                    // For other errors, don't retry
+                    break
+                  } catch (fetchError) {
+                    console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
+                    if (retryCount < maxRetries - 1) {
+                      await new Promise((resolve) => setTimeout(resolve, 1000))
+                      retryCount++
+                      continue
+                    }
+                    throw fetchError
+                  }
+                }
+
+                if (!designFileResponse?.ok) {
+                  const errorMsg = `فشل في حفظ ملف اللون "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
+                  console.error('Failed to save color file:', file.fileName)
+                  console.error('Error response:', errorData)
+                  designFileErrors.push(errorMsg)
+                }
+              } catch (error) {
+                const errorMsg = `خطأ في حفظ ملف اللون "${file.fileName}": ${
+                  error instanceof Error ? error.message : 'خطأ غير معروف'
+                }`
+                console.error('Error saving color file:', error)
+                designFileErrors.push(errorMsg)
+              }
+            }
+          }
+
           // Show warnings for any design file errors
           if (designFileErrors.length > 0) {
             showWarning(
@@ -746,10 +1202,15 @@ export default function AddProduct() {
     // Check if any upload is in progress
     if (isUploading) return false
 
-    // Check if any files are still marked as temporary
-    const hasTempFiles = formData.designFiles.some((designFile) => designFile.uploadedFiles.some((file) => file.isTemp))
+    // Check if any files are still marked as temporary in design files
+    const hasTempDesignFiles = formData.designFiles.some((designFile) =>
+      designFile.uploadedFiles.some((file) => file.isTemp)
+    )
 
-    return !hasTempFiles
+    // Check if any files are still marked as temporary in color files
+    const hasTempColorFiles = formData.colors.some((color) => color.uploadedFiles?.some((file) => file.isTemp) || false)
+
+    return !hasTempDesignFiles && !hasTempColorFiles
   }
 
   // Function to check if slug is valid for file upload
@@ -757,11 +1218,81 @@ export default function AddProduct() {
     return formData.slug && formData.slug.trim().length > 0 && /^[a-z0-9-]+$/.test(formData.slug)
   }
 
+  // Function to handle color name changes and update file paths
+  const handleColorNameChange = async (colorIndex: number, oldName: string, newName: string) => {
+    const color = formData.colors[colorIndex]
+    if (!color?.uploadedFiles?.length) return
+
+    const oldSanitizedName = oldName.toLowerCase().replace(/[^a-z0-9]/g, '')
+    const newSanitizedName = newName.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+    console.log(`Moving color files from '${oldName}' to '${newName}'`)
+
+    try {
+      // Call API to move files from old color folder to new color folder
+      const response = await fetch('/api/admin/upload/move-color-files', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          productSlug: formData.slug,
+          oldColorName: oldSanitizedName,
+          newColorName: newSanitizedName,
+          files: color.uploadedFiles.map((file) => ({
+            fileName: file.fileName,
+            oldUrl: file.fileUrl,
+          })),
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Failed to move color files')
+      }
+
+      const result = await response.json()
+
+      // Update file URLs in state
+      setFormData((prev) => ({
+        ...prev,
+        colors: prev.colors.map((c, idx) =>
+          idx === colorIndex
+            ? {
+                ...c,
+                uploadedFiles:
+                  c.uploadedFiles?.map((file) => {
+                    const updatedFile = result.files.find(
+                      (f: { fileName: string; newUrl: string }) => f.fileName === file.fileName
+                    )
+                    return updatedFile ? { ...file, fileUrl: updatedFile.newUrl } : file
+                  }) || [],
+              }
+            : c
+        ),
+      }))
+
+      // Update original color name after successful migration
+      setOriginalColorNames((prev) => ({ ...prev, [colorIndex]: newName }))
+      showSuccess('تم تحديث مسارات الملفات', 'تم نقل ملفات اللون بنجاح')
+    } catch (error) {
+      console.error('Error moving color files:', error)
+      // Revert color name change on error
+      setFormData((prev) => ({
+        ...prev,
+        colors: prev.colors.map((c, idx) => (idx === colorIndex ? { ...c, name: oldName } : c)),
+      }))
+      showError('خطأ في نقل ملفات اللون', 'فشل في نقل ملفات اللون، تم إعادة اسم اللون')
+    }
+  }
+
   // Function to handle slug changes and update file paths
   const handleSlugChange = async (newSlug: string) => {
     // Only proceed if there are files to move
-    const hasFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
-    if (!hasFiles) {
+    const hasDesignFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
+    const hasColorFiles = formData.colors.some((color) => (color.uploadedFiles?.length || 0) > 0)
+
+    if (!hasDesignFiles && !hasColorFiles) {
       return // No files to move, just return
     }
 
@@ -771,6 +1302,22 @@ export default function AddProduct() {
       console.log(`Moving files from original slug '${sourceSlug}' to '${newSlug}'`) // Debug log
 
       try {
+        // Prepare all files to move (design files + color files)
+        const allFiles = [
+          ...formData.designFiles
+            .flatMap((df) => df.uploadedFiles)
+            .map((file) => ({
+              fileName: file.fileName,
+              oldUrl: file.fileUrl,
+            })),
+          ...formData.colors
+            .flatMap((color) => color.uploadedFiles || [])
+            .map((file) => ({
+              fileName: file.fileName,
+              oldUrl: file.fileUrl,
+            })),
+        ]
+
         // Call API to move files from old folder to new folder
         const response = await fetch('/api/admin/upload/move-files', {
           method: 'POST',
@@ -780,12 +1327,7 @@ export default function AddProduct() {
           body: JSON.stringify({
             oldSlug: sourceSlug,
             newSlug: newSlug,
-            files: formData.designFiles
-              .flatMap((df) => df.uploadedFiles)
-              .map((file) => ({
-                fileName: file.fileName,
-                oldUrl: file.fileUrl,
-              })),
+            files: allFiles,
           }),
         })
 
@@ -807,6 +1349,16 @@ export default function AddProduct() {
               )
               return updatedFile ? { ...file, fileUrl: updatedFile.newUrl } : file
             }),
+          })),
+          colors: prev.colors.map((color) => ({
+            ...color,
+            uploadedFiles:
+              color.uploadedFiles?.map((file) => {
+                const updatedFile = result.files.find(
+                  (f: { fileName: string; newUrl: string }) => f.fileName === file.fileName
+                )
+                return updatedFile ? { ...file, fileUrl: updatedFile.newUrl } : file
+              }) || [],
           })),
         }))
 
@@ -1056,196 +1608,6 @@ export default function AddProduct() {
               )}
             </div>
 
-            {/* Design Files */}
-            <div className="form-section">
-              <h2>ملفات التصميم والفيديو</h2>
-              <p className="section-description">أضف ملفات التصميم والفيديو التي سيحصل عليها العملاء عند الشراء</p>
-
-              {!isSlugValidForUpload() && (
-                <div className="slug-requirement-warning">
-                  <p>⚠️ يرجى إدخال رابط المنتج أولاً قبل رفع الملفات</p>
-                </div>
-              )}
-
-              {formData.designFiles.map((file, index) => {
-                return (
-                  <div key={index} className="design-file-item">
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>اسم الملف</label>
-                        <input
-                          type="text"
-                          value={file.fileName}
-                          onChange={(e) => handleDesignFileChange(index, 'fileName', e.target.value)}
-                          placeholder="مثال: تصميم الشعار.psd"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>نوع الملف</label>
-                        <select
-                          value={file.fileType}
-                          onChange={(e) => handleDesignFileChange(index, 'fileType', e.target.value)}
-                        >
-                          <option value="psd">PSD - Photoshop</option>
-                          <option value="ai">AI - Illustrator</option>
-                          <option value="eps">EPS - Encapsulated PostScript</option>
-                          <option value="pdf">PDF - Portable Document</option>
-                          <option value="svg">SVG - Scalable Vector</option>
-                          <option value="zip">ZIP - Archive</option>
-                          <option value="rar">RAR - Archive</option>
-                          <option value="png">PNG - Image</option>
-                          <option value="jpg">JPG - Image</option>
-                          <option value="jpeg">JPEG - Image</option>
-                          <option value="gif">GIF - Image</option>
-                          <option value="webp">WebP - Image</option>
-                          <option value="mp4">MP4 - Video</option>
-                          <option value="avi">AVI - Video</option>
-                          <option value="mov">MOV - Video</option>
-                          <option value="wmv">WMV - Video</option>
-                          <option value="flv">FLV - Video</option>
-                          <option value="webm">WebM - Video</option>
-                          <option value="mkv">MKV - Video</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="form-group">
-                      <label>وصف الملف</label>
-                      <textarea
-                        value={file.description}
-                        onChange={(e) => handleDesignFileChange(index, 'description', e.target.value)}
-                        placeholder="وصف مختصر للملف وما يحتويه"
-                        rows={2}
-                      />
-                    </div>
-
-                    <div className="form-group">
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={file.isActive}
-                          onChange={(e) => handleDesignFileChange(index, 'isActive', e.target.checked)}
-                        />
-                        الملف متاح للعملاء
-                      </label>
-                    </div>
-
-                    <div className="form-group">
-                      <FileUpload
-                        key={`design-file-upload-${index}`}
-                        label="رفع الملف"
-                        accept=".psd,.ai,.eps,.pdf,.svg,.zip,.rar,.png,.jpg,.jpeg,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
-                        maxSize={0}
-                        multiple={true}
-                        onFileSelect={(file) => handleDesignFileUpload(file, index)}
-                        disabled={loading || isUploading || !isSlugValidForUpload()}
-                        placeholder={
-                          !isSlugValidForUpload() ? 'يرجى إدخال رابط المنتج أولاً' : 'اختر ملفات التصميم أو الفيديو'
-                        }
-                        externalProgress={
-                          isUploading || uploadStatus === 'success'
-                            ? {
-                                progress: uploadProgress,
-                                status: uploadStatus,
-                                message: uploadStatus === 'success' ? 'تم رفع الملف بنجاح' : 'جاري رفع الملف...',
-                              }
-                            : undefined
-                        }
-                        uploadedFiles={formData.designFiles[index]?.uploadedFiles || []}
-                        onFileRemove={async (fileName) => {
-                          // Find the file to get its URL
-                          const fileToDelete = formData.designFiles[index]?.uploadedFiles.find(
-                            (f) => f.fileName === fileName
-                          )
-
-                          if (fileToDelete?.fileUrl) {
-                            try {
-                              // Delete file from server
-                              const response = await fetch('/api/admin/upload/delete-file', {
-                                method: 'DELETE',
-                                headers: {
-                                  'Content-Type': 'application/json',
-                                },
-                                body: JSON.stringify({
-                                  fileUrl: fileToDelete.fileUrl,
-                                }),
-                              })
-
-                              const result = await response.json()
-
-                              if (!result.success) {
-                                showError('خطأ في حذف الملف', result.message || 'فشل في حذف الملف من الخادم')
-                                return
-                              }
-                            } catch (error) {
-                              console.error('Error deleting file:', error)
-                              showError('خطأ في حذف الملف', 'حدث خطأ أثناء حذف الملف من الخادم')
-                              return
-                            }
-                          }
-
-                          // Remove file from UI state
-                          setFormData((prev) => {
-                            const updatedDesignFiles = [...prev.designFiles]
-                            if (updatedDesignFiles[index]) {
-                              updatedDesignFiles[index] = {
-                                ...updatedDesignFiles[index],
-                                uploadedFiles: updatedDesignFiles[index].uploadedFiles.filter(
-                                  (f) => f.fileName !== fileName
-                                ),
-                              }
-                            }
-                            return {
-                              ...prev,
-                              designFiles: updatedDesignFiles,
-                            }
-                          })
-
-                          showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
-                        }}
-                        onReset={() => {
-                          setIsUploading(false)
-                          setUploadProgress(0)
-                          setUploadStatus('idle')
-                        }}
-                        onRefresh={() => {
-                          // Update all temp files to permanent status
-                          setFormData((prev) => {
-                            const updatedDesignFiles = [...prev.designFiles]
-                            if (updatedDesignFiles[index]) {
-                              const updatedUploadedFiles = updatedDesignFiles[index].uploadedFiles.map((file) => ({
-                                ...file,
-                                isTemp: false,
-                              }))
-
-                              updatedDesignFiles[index] = {
-                                ...updatedDesignFiles[index],
-                                uploadedFiles: updatedUploadedFiles,
-                              }
-                            }
-
-                            return {
-                              ...prev,
-                              designFiles: updatedDesignFiles,
-                            }
-                          })
-
-                          setIsUploading(false)
-                          setUploadProgress(0)
-                          setUploadStatus('idle')
-                        }}
-                      />
-                    </div>
-                  </div>
-                )
-              })}
-
-              <button type="button" onClick={addDesignFile} className="add-file-btn">
-                <FontAwesomeIcon icon={faPlus} />
-                إضافة ملف تصميم
-              </button>
-            </div>
-
             {/* Design Customization Options */}
             <div className="form-section">
               <h2>خيارات تخصيص التصميم</h2>
@@ -1370,6 +1732,278 @@ export default function AddProduct() {
                   )}
                 </div>
               )}
+            </div>
+
+            {/* Design Files */}
+            <div className="form-section">
+              <h2>ملفات التصميم والفيديو</h2>
+              <p className="section-description">أضف ملفات التصميم والفيديو التي سيحصل عليها العملاء عند الشراء</p>
+
+              {!isSlugValidForUpload() && (
+                <div className="slug-requirement-warning">
+                  <p>⚠️ يرجى إدخال رابط المنتج أولاً قبل رفع الملفات</p>
+                </div>
+              )}
+
+              {/* Color-based file uploads */}
+              {formData.allowColorChanges && formData.colors.length > 0 && (
+                <div className="color-files-section">
+                  <h3>ملفات لكل لون</h3>
+                  <p className="section-description">رفع ملفات منفصلة لكل لون من ألوان التصميم</p>
+
+                  {formData.colors.map((color, colorIndex) => {
+                    const sanitizedColorName = color.name.toLowerCase().replace(/[^a-z0-9]/g, '')
+                    return (
+                      <div key={colorIndex} className="color-file-item">
+                        <div className="color-file-header">
+                          <div className="color-preview" style={{ backgroundColor: color.hex }}></div>
+                          <h4>{color.name}</h4>
+                          <span className="color-folder">
+                            /{formData.slug}/{sanitizedColorName}/
+                          </span>
+                        </div>
+
+                        <div className="form-group">
+                          <FileUpload
+                            key={`color-file-upload-${colorIndex}`}
+                            label={`رفع ملفات ${color.name}`}
+                            accept=".psd,.ai,.eps,.pdf,.svg,.zip,.rar,.png,.jpg,.jpeg,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
+                            maxSize={0}
+                            multiple={true}
+                            onFileSelect={(file) => handleColorFileUpload(file, colorIndex, sanitizedColorName)}
+                            disabled={loading || isUploading || !isSlugValidForUpload()}
+                            placeholder={
+                              !isSlugValidForUpload() ? 'يرجى إدخال رابط المنتج أولاً' : `اختر ملفات ${color.name}`
+                            }
+                            externalProgress={
+                              isUploading || uploadStatus === 'success'
+                                ? {
+                                    progress: uploadProgress,
+                                    status: uploadStatus,
+                                    message: uploadStatus === 'success' ? 'تم رفع الملف بنجاح' : 'جاري رفع الملف...',
+                                  }
+                                : undefined
+                            }
+                            uploadedFiles={formData.colors[colorIndex]?.uploadedFiles || []}
+                            onFileRemove={async (fileName) => {
+                              // Handle color file removal
+                              await handleColorFileRemove(fileName, colorIndex)
+                            }}
+                            onReset={() => {
+                              setIsUploading(false)
+                              setUploadProgress(0)
+                              setUploadStatus('idle')
+                            }}
+                            onRefresh={() => {
+                              // Update all temp files to permanent status for this color
+                              setFormData((prev) => ({
+                                ...prev,
+                                colors: prev.colors.map((c, idx) =>
+                                  idx === colorIndex
+                                    ? {
+                                        ...c,
+                                        uploadedFiles:
+                                          c.uploadedFiles?.map((file) => ({ ...file, isTemp: false })) || [],
+                                      }
+                                    : c
+                                ),
+                              }))
+
+                              setIsUploading(false)
+                              setUploadProgress(0)
+                              setUploadStatus('idle')
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              {/* General design files (existing functionality) */}
+              <div className="general-files-section">
+                <h3>ملفات التصميم العامة</h3>
+                <p className="section-description">ملفات التصميم المشتركة لجميع الألوان</p>
+
+                {formData.designFiles.map((file, index) => {
+                  return (
+                    <div key={index} className="design-file-item">
+                      <div className="form-row">
+                        <div className="form-group">
+                          <label>اسم الملف</label>
+                          <input
+                            type="text"
+                            value={file.fileName}
+                            onChange={(e) => handleDesignFileChange(index, 'fileName', e.target.value)}
+                            placeholder="مثال: تصميم الشعار.psd"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>نوع الملف</label>
+                          <select
+                            value={file.fileType}
+                            onChange={(e) => handleDesignFileChange(index, 'fileType', e.target.value)}
+                          >
+                            <option value="psd">PSD - Photoshop</option>
+                            <option value="ai">AI - Illustrator</option>
+                            <option value="eps">EPS - Encapsulated PostScript</option>
+                            <option value="pdf">PDF - Portable Document</option>
+                            <option value="svg">SVG - Scalable Vector</option>
+                            <option value="zip">ZIP - Archive</option>
+                            <option value="rar">RAR - Archive</option>
+                            <option value="png">PNG - Image</option>
+                            <option value="jpg">JPG - Image</option>
+                            <option value="jpeg">JPEG - Image</option>
+                            <option value="gif">GIF - Image</option>
+                            <option value="webp">WebP - Image</option>
+                            <option value="mp4">MP4 - Video</option>
+                            <option value="avi">AVI - Video</option>
+                            <option value="mov">MOV - Video</option>
+                            <option value="wmv">WMV - Video</option>
+                            <option value="flv">FLV - Video</option>
+                            <option value="webm">WebM - Video</option>
+                            <option value="mkv">MKV - Video</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="form-group">
+                        <label>وصف الملف</label>
+                        <textarea
+                          value={file.description}
+                          onChange={(e) => handleDesignFileChange(index, 'description', e.target.value)}
+                          placeholder="وصف مختصر للملف وما يحتويه"
+                          rows={2}
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={file.isActive}
+                            onChange={(e) => handleDesignFileChange(index, 'isActive', e.target.checked)}
+                          />
+                          الملف متاح للعملاء
+                        </label>
+                      </div>
+
+                      <div className="form-group">
+                        <FileUpload
+                          key={`design-file-upload-${index}`}
+                          label="رفع الملف"
+                          accept=".psd,.ai,.eps,.pdf,.svg,.zip,.rar,.png,.jpg,.jpeg,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
+                          maxSize={0}
+                          multiple={true}
+                          onFileSelect={(file) => handleDesignFileUpload(file, index)}
+                          disabled={loading || isUploading || !isSlugValidForUpload()}
+                          placeholder={
+                            !isSlugValidForUpload() ? 'يرجى إدخال رابط المنتج أولاً' : 'اختر ملفات التصميم أو الفيديو'
+                          }
+                          externalProgress={
+                            isUploading || uploadStatus === 'success'
+                              ? {
+                                  progress: uploadProgress,
+                                  status: uploadStatus,
+                                  message: uploadStatus === 'success' ? 'تم رفع الملف بنجاح' : 'جاري رفع الملف...',
+                                }
+                              : undefined
+                          }
+                          uploadedFiles={formData.designFiles[index]?.uploadedFiles || []}
+                          onFileRemove={async (fileName) => {
+                            // Find the file to get its URL
+                            const fileToDelete = formData.designFiles[index]?.uploadedFiles.find(
+                              (f) => f.fileName === fileName
+                            )
+
+                            if (fileToDelete?.fileUrl) {
+                              try {
+                                // Delete file from server
+                                const response = await fetch('/api/admin/upload/delete-file', {
+                                  method: 'DELETE',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    fileUrl: fileToDelete.fileUrl,
+                                  }),
+                                })
+
+                                const result = await response.json()
+
+                                if (!result.success) {
+                                  showError('خطأ في حذف الملف', result.message || 'فشل في حذف الملف من الخادم')
+                                  return
+                                }
+                              } catch (error) {
+                                console.error('Error deleting file:', error)
+                                showError('خطأ في حذف الملف', 'حدث خطأ أثناء حذف الملف من الخادم')
+                                return
+                              }
+                            }
+
+                            // Remove file from UI state
+                            setFormData((prev) => {
+                              const updatedDesignFiles = [...prev.designFiles]
+                              if (updatedDesignFiles[index]) {
+                                updatedDesignFiles[index] = {
+                                  ...updatedDesignFiles[index],
+                                  uploadedFiles: updatedDesignFiles[index].uploadedFiles.filter(
+                                    (f) => f.fileName !== fileName
+                                  ),
+                                }
+                              }
+                              return {
+                                ...prev,
+                                designFiles: updatedDesignFiles,
+                              }
+                            })
+
+                            showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
+                          }}
+                          onReset={() => {
+                            setIsUploading(false)
+                            setUploadProgress(0)
+                            setUploadStatus('idle')
+                          }}
+                          onRefresh={() => {
+                            // Update all temp files to permanent status
+                            setFormData((prev) => {
+                              const updatedDesignFiles = [...prev.designFiles]
+                              if (updatedDesignFiles[index]) {
+                                const updatedUploadedFiles = updatedDesignFiles[index].uploadedFiles.map((file) => ({
+                                  ...file,
+                                  isTemp: false,
+                                }))
+
+                                updatedDesignFiles[index] = {
+                                  ...updatedDesignFiles[index],
+                                  uploadedFiles: updatedUploadedFiles,
+                                }
+                              }
+
+                              return {
+                                ...prev,
+                                designFiles: updatedDesignFiles,
+                              }
+                            })
+
+                            setIsUploading(false)
+                            setUploadProgress(0)
+                            setUploadStatus('idle')
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+
+                <button type="button" onClick={addDesignFile} className="add-file-btn">
+                  <FontAwesomeIcon icon={faPlus} />
+                  إضافة ملف تصميم
+                </button>
+              </div>
             </div>
 
             {/* Settings */}
