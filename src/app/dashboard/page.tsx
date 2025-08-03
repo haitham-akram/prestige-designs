@@ -20,7 +20,11 @@ import { useEffect, useState } from 'react'
 
 export default function AdminDashboard() {
   const { data: session, status } = useSession()
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState<{
+    totalUsers: number
+    totalCustomers: number
+    totalAdmins: number
+  } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

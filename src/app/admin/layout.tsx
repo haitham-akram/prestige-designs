@@ -16,6 +16,7 @@ import {
   faSignOutAlt,
   faShoppingCart,
   faBars,
+  faBox,
 } from '@fortawesome/free-solid-svg-icons'
 import './admin-layout.css'
 
@@ -26,11 +27,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Helper function to get user initials
-  const getUserInitials = (user) => {
+  const getUserInitials = (user: any) => {
     if (user?.name) {
       return user.name
         .split(' ')
-        .map((name) => name.charAt(0))
+        .map((name: string) => name.charAt(0))
         .join('')
         .toUpperCase()
         .slice(0, 2)
@@ -117,6 +118,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <span className="nav-text">التصنيفات</span>
           </Link>
 
+          <Link
+            href="/admin/products"
+            className={`nav-item ${isActive('/admin/products') ? 'active' : ''}`}
+            title="Products"
+          >
+            <span className="nav-icon">
+              <FontAwesomeIcon icon={faBox} />
+            </span>
+            <span className="nav-text">المنتجات</span>
+          </Link>
+
           <Link href="/admin/orders" className={`nav-item ${isActive('/admin/orders') ? 'active' : ''}`} title="Orders">
             <span className="nav-icon">
               <FontAwesomeIcon icon={faShoppingCart} />
@@ -189,6 +201,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin/categories" className={`bottom-nav-item ${isActive('/admin/categories') ? 'active' : ''}`}>
           <span className="bottom-nav-icon">
             <FontAwesomeIcon icon={faFolder} />
+          </span>
+        </Link>
+
+        <Link href="/admin/products" className={`bottom-nav-item ${isActive('/admin/products') ? 'active' : ''}`}>
+          <span className="bottom-nav-icon">
+            <FontAwesomeIcon icon={faBox} />
           </span>
         </Link>
 
