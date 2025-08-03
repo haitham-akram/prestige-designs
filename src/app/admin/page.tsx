@@ -29,7 +29,7 @@ export default function AdminDashboard() {
         setStats((prev) => ({
           ...prev,
           totalCategories: categoriesData.categories?.length || 0,
-          activeCategories: categoriesData.categories?.filter((c) => c.isActive).length || 0,
+          activeCategories: categoriesData.categories?.filter((c: any) => c.isActive).length || 0,
         }))
       }
     } catch (error) {

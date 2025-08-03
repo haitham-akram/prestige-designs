@@ -2,12 +2,12 @@
 
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faSave, faArrowRight, faTrash, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons'
+import { faSave, faArrowRight, faUpload, faTrash, faEye, faPlus, faTimes } from '@fortawesome/free-solid-svg-icons'
 import { useAlerts } from '@/components/ui/Alert'
 import Alert from '@/components/ui/Alert'
-import FileUpload from '@/components/ui/FileUpload'
+import FileUpload, { UploadProgress } from '@/components/ui/FileUpload'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { getMimeType } from '@/lib/utils/clientUtils'
 import '../products.css'
@@ -26,7 +26,12 @@ interface ProductFormData {
   discountAmount?: number
   discountPercentage?: number
   categoryId: string
-  images: string[]
+  images: {
+    url: string
+    alt?: string
+    isPrimary: boolean
+    order: number
+  }[]
   youtubeLink?: string
   isActive: boolean
   isFeatured: boolean
@@ -65,361 +70,40 @@ interface ProductFormData {
   }[]
 }
 
-export default function AddProduct() {
+interface DesignFile {
+  _id: string
+  fileName: string
+  fileUrl: string
+  fileType: string
+  fileSize: number
+  description: string
+  isActive: boolean
+  isPublic: boolean
+  productId: string
+  createdAt: string
+  updatedAt: string
+  isTemp?: boolean
+}
+
+export default function EditProduct() {
   const { data: session } = useSession()
   const router = useRouter()
-  const { alerts, showSuccess, showError, showWarning } = useAlerts()
+  const params = useParams()
+  const productId = params.id as string
+
+  const { alerts, showSuccess, showError, showWarning, showInfo } = useAlerts()
   const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingDesignFiles, setSavingDesignFiles] = useState(false)
   const [categoriesLoading, setCategoriesLoading] = useState(true)
-  const [oldSlug, setOldSlug] = useState<string>('') // Track old slug for file migration
-  const [originalSlug, setOriginalSlug] = useState<string>('') // Track original slug when files were uploaded
-  const [slugChangeTimeout, setSlugChangeTimeout] = useState<NodeJS.Timeout | null>(null) // Debounce timeout
-  const [originalColorNames, setOriginalColorNames] = useState<{ [key: number]: string }>({}) // Track original color names when files were uploaded
-  const [colorNameChangeTimeouts, setColorNameChangeTimeouts] = useState<{ [key: number]: NodeJS.Timeout | null }>({}) // Debounce timeouts for color names
-  
-  const [formData, setFormData] = useState<ProductFormData>({
-    name: '',
-    slug: '',
-    description: '',
-    price: 0,
-    categoryId: '',
-    images: [],
-    youtubeLink: '',
-    isActive: true,
-    isFeatured: false,
-    // Design customization options
-    EnableCustomizations: false,
-    allowColorChanges: false,
-    allowTextEditing: false,
-    allowImageReplacement: false,
-    allowLogoUpload: false,
-    // Color themes
-    colors: [],
-    designFiles: [],
-  })
-
-  // Load categories on component mount
-  useEffect(() => {
-    fetchCategories()
-  }, [])
-
-  // Cleanup timeouts on unmount
-  useEffect(() => {
-    return () => {
-      if (slugChangeTimeout) {
-        clearTimeout(slugChangeTimeout)
-      }
-      // Cleanup color name change timeouts
-      Object.values(colorNameChangeTimeouts).forEach((timeout) => {
-        if (timeout) {
-          clearTimeout(timeout)
-        }
-      })
-    }
-  }, [slugChangeTimeout, colorNameChangeTimeouts])
-
-  // Reset original slug when all files are removed
-  useEffect(() => {
-    const hasFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
-    if (!hasFiles && originalSlug) {
-      setOriginalSlug('')
-      setOldSlug('')
-      console.log('All files removed, clearing original slug')
-    }
-  }, [formData.designFiles, originalSlug])
-
-  const fetchCategories = async () => {
-    try {
-      setCategoriesLoading(true)
-      const response = await fetch('/api/admin/categories')
-      const data = await response.json()
-
-      if (response.ok) {
-        setCategories(data.data || [])
-      } else {
-        console.error('Categories API error:', data)
-      }
-    } catch (error) {
-      console.error('خطأ في جلب التصنيفات:', error)
-    } finally {
-      setCategoriesLoading(false)
-    }
-  }
-
-  const handleInputChange = (field: keyof ProductFormData, value: unknown) => {
-    setFormData((prev) => {
-      // Auto-generate slug when name changes
-      let updatedData = { ...prev, [field]: value }
-
-      if (field === 'name' && typeof value === 'string') {
-        // Generate slug from name
-        const slug = value
-          .toLowerCase()
-          .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-          .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
-
-        updatedData = { ...updatedData, slug }
-      }
-
-      // Auto-format slug when slug field changes
-      if (field === 'slug' && typeof value === 'string') {
-        // Only format if the value contains spaces or special characters
-        let formattedSlug = value
-
-        if (value.includes(' ') || /[^a-z0-9-]/.test(value)) {
-          formattedSlug = value
-            .toLowerCase()
-            .replace(/[^a-z0-9\s-]/g, '') // Remove special characters except spaces and hyphens
-            .replace(/\s+/g, '-') // Replace spaces with hyphens
-            .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-            .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
-        }
-
-        // Store original slug when files are first uploaded
-        const hasFiles = prev.designFiles.some((df) => df.uploadedFiles.length > 0)
-        if (hasFiles && !originalSlug) {
-          // This is the first time we have files, store the current slug as original
-          setOriginalSlug(prev.slug)
-          console.log(`Setting original slug: '${prev.slug}'`) // Debug log
-        }
-
-        // Store old slug before updating - this is the key fix
-        if (prev.slug && prev.slug !== formattedSlug) {
-          console.log(`Storing old slug: '${prev.slug}' -> new slug: '${formattedSlug}'`) // Debug log
-          setOldSlug(prev.slug) // Store the actual current slug before change
-        }
-
-        updatedData = { ...updatedData, slug: formattedSlug }
-      }
-
-      return updatedData
-    })
-
-    // Handle slug debouncing outside of setFormData - only if files exist
-    if (field === 'slug' && typeof value === 'string') {
-      // Only set up debouncing if there are files to move
-      const hasFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
-
-      if (hasFiles) {
-        // Clear existing timeout
-        if (slugChangeTimeout) {
-          clearTimeout(slugChangeTimeout)
-        }
-
-        // Set new timeout for debounced slug change
-        const newTimeout = setTimeout(() => {
-          const newSlug = typeof value === 'string' ? value : ''
-          if (newSlug.includes(' ') || /[^a-z0-9-]/.test(newSlug)) {
-            const formattedSlug = newSlug
-              .toLowerCase()
-              .replace(/[^a-z0-9\s-]/g, '')
-              .replace(/\s+/g, '-')
-              .replace(/-+/g, '-')
-              .replace(/^-|-$/g, '')
-            handleSlugChange(formattedSlug)
-          } else {
-            handleSlugChange(newSlug)
-          }
-        }, 1000) // Wait 1 second after user stops typing
-
-        setSlugChangeTimeout(newTimeout)
-      } else {
-        // No files to move, clear any existing timeout
-        if (slugChangeTimeout) {
-          clearTimeout(slugChangeTimeout)
-          setSlugChangeTimeout(null)
-        }
-      }
-    }
-  }
-
-  const addColorTheme = () => {
-    setFormData((prev) => ({
-      ...prev,
-      colors: [
-        ...prev.colors,
-        {
-          name: '',
-          hex: '#000000',
-          description: '',
-        },
-      ],
-    }))
-  }
-
-  const removeColorTheme = async (index: number) => {
-    const color = formData.colors[index]
-
-    // If color has uploaded files, delete them and the folder
-    if (color?.uploadedFiles?.length) {
-      try {
-        const originalColorName = originalColorNames[index] || color.name
-        const cleanColorName = originalColorName.toLowerCase().replace(/[^a-z0-9]/g, '')
-
-        // Delete all files for this color
-        for (const file of color.uploadedFiles) {
-          if (file.fileUrl) {
-            try {
-              const response = await fetch('/api/admin/upload/delete-file', {
-                method: 'DELETE',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  fileUrl: file.fileUrl,
-                }),
-              })
-
-              if (!response.ok) {
-                console.error(`Failed to delete file: ${file.fileName}`)
-              }
-            } catch (error) {
-              console.error(`Error deleting file ${file.fileName}:`, error)
-            }
-          }
-        }
-
-        // Try to delete the color folder
-        try {
-          const response = await fetch('/api/admin/upload/delete-color-folder', {
-            method: 'DELETE',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              productSlug: formData.slug,
-              colorName: cleanColorName,
-            }),
-          })
-
-          if (!response.ok) {
-            console.error('Failed to delete color folder')
-          }
-        } catch (error) {
-          console.error('Error deleting color folder:', error)
-        }
-      } catch (error) {
-        console.error('Error handling color deletion:', error)
-        showError('خطأ في حذف ملفات اللون', 'تم حذف اللون لكن حدث خطأ في حذف الملفات')
-      }
-    }
-
-    // Clean up any pending timeouts for this color
-    if (colorNameChangeTimeouts[index]) {
-      clearTimeout(colorNameChangeTimeouts[index])
-      setColorNameChangeTimeouts((prev) => {
-        const newTimeouts = { ...prev }
-        delete newTimeouts[index]
-        return newTimeouts
-      })
-    }
-
-    // Clean up original color name
-    setOriginalColorNames((prev) => {
-      const newOriginalNames = { ...prev }
-      delete newOriginalNames[index]
-      return newOriginalNames
-    })
-
-    setFormData((prev) => ({
-      ...prev,
-      colors: prev.colors.filter((_, i) => i !== index),
-    }))
-
-    showSuccess('تم حذف اللون', 'تم حذف اللون وملفاته بنجاح')
-  }
-
-  const handleColorThemeChange = (index: number, field: string, value: unknown) => {
-    // Prevent Arabic text in color names
-    if (field === 'name' && typeof value === 'string') {
-      // Check if the value contains Arabic characters
-      const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
-      if (arabicRegex.test(value)) {
-        showError('خطأ في اسم اللون', 'لا يمكن استخدام النصوص العربية في اسم اللون')
-        return
-      }
-    }
-
-    setFormData((prev) => ({
-      ...prev,
-      colors: prev.colors.map((color, i) => (i === index ? { ...color, [field]: value } : color)),
-    }))
-
-    // Handle color name debouncing outside of setFormData - only if files exist
-    if (field === 'name' && typeof value === 'string') {
-      const color = formData.colors[index]
-      const hasFiles = (color?.uploadedFiles?.length || 0) > 0
-
-      if (hasFiles) {
-        // Clear existing timeout for this color
-        if (colorNameChangeTimeouts[index]) {
-          clearTimeout(colorNameChangeTimeouts[index])
-        }
-
-        // Get the original color name where files were first uploaded
-        const originalColorName = originalColorNames[index] || color.name
-
-        // Set new timeout for debounced color name change
-        const newTimeout = setTimeout(() => {
-          const newColorName = typeof value === 'string' ? value : ''
-          if (originalColorName && originalColorName !== newColorName) {
-            handleColorNameChange(index, originalColorName, newColorName)
-          }
-        }, 1000) // Wait 1 second after user stops typing
-
-        setColorNameChangeTimeouts((prev) => ({ ...prev, [index]: newTimeout }))
-      } else {
-        // No files to move, clear any existing timeout for this color
-        if (colorNameChangeTimeouts[index]) {
-          clearTimeout(colorNameChangeTimeouts[index])
-          setColorNameChangeTimeouts((prev) => {
-            const newTimeouts = { ...prev }
-            delete newTimeouts[index]
-            return newTimeouts
-          })
-        }
-      }
-    }
-  }
-
-  const addDesignFile = () => {
-    setFormData((prev) => ({
-      ...prev,
-      designFiles: [
-        ...prev.designFiles,
-        {
-          fileName: '',
-          fileType: 'psd',
-          description: '',
-          isActive: true,
-          uploadedFiles: [],
-        },
-      ],
-    }))
-  }
-
-  const removeDesignFile = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      designFiles: prev.designFiles.filter((_, i) => i !== index),
-    }))
-  }
-
-  const handleDesignFileChange = (index: number, field: string, value: unknown) => {
-    setFormData((prev) => {
-      const updatedDesignFiles = prev.designFiles.map((file, i) => (i === index ? { ...file, [field]: value } : file))
-
-      return {
-        ...prev,
-        designFiles: updatedDesignFiles,
-      }
-    })
-  }
+  const [productLoading, setProductLoading] = useState(true)
+  const [oldSlug, setOldSlug] = useState<string>('')
+  const [originalSlug, setOriginalSlug] = useState<string>('')
+  const [slugChangeTimeout, setSlugChangeTimeout] = useState<NodeJS.Timeout | null>(null)
+  const [originalColorNames, setOriginalColorNames] = useState<{ [key: number]: string }>({})
+  const [colorNameChangeTimeouts, setColorNameChangeTimeouts] = useState<{ [key: number]: NodeJS.Timeout | null }>({})
+  const currentSlugRef = useRef<string>('')
 
   // Single global upload state
   const [isUploading, setIsUploading] = useState(false)
@@ -430,6 +114,35 @@ export default function AddProduct() {
     designFileIndex: number
   } | null>(null)
 
+  // Image upload hook
+  const {
+    uploadFile: uploadImage,
+    uploadProgress: imageProgress,
+    resetUpload: resetImageUpload,
+  } = useFileUpload({
+    onSuccess: (result) => {
+      if (result.success && result.urls) {
+        setFormData((prev) => ({
+          ...prev,
+          images: [
+            ...prev.images,
+            ...result.urls.map((url: string, index: number) => ({
+              url,
+              alt: '',
+              isPrimary: prev.images.length === 0 && index === 0, // First image is primary
+              order: prev.images.length + index,
+            })),
+          ],
+        }))
+        showSuccess('تم رفع الصور', `تم رفع ${result.urls.length} صورة بنجاح!`)
+      }
+    },
+    onError: (error) => {
+      showError('خطأ في رفع الصور', error)
+    },
+  })
+
+  // Design file upload hook
   const { uploadFile: uploadDesignFile } = useFileUpload({
     onSuccess: async (result, fileInfo?: { fileName: string; designFileIndex: number }) => {
       // Add a small delay to ensure file is properly written to disk
@@ -566,6 +279,805 @@ export default function AddProduct() {
     },
   })
 
+  const [formData, setFormData] = useState<ProductFormData>({
+    name: '',
+    slug: '',
+    description: '',
+    price: 0,
+    categoryId: '',
+    images: [],
+    isActive: true,
+    isFeatured: false,
+    youtubeLink: '',
+    // Design customization options
+    EnableCustomizations: false,
+    allowColorChanges: false,
+    allowTextEditing: false,
+    allowImageReplacement: false,
+    allowLogoUpload: false,
+    // Color themes
+    colors: [],
+    designFiles: [],
+  })
+
+  // Load categories and product data on component mount
+  useEffect(() => {
+    fetchCategories()
+    fetchProduct()
+  }, [productId])
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (slugChangeTimeout) {
+        clearTimeout(slugChangeTimeout)
+      }
+      Object.values(colorNameChangeTimeouts).forEach((timeout) => {
+        if (timeout) {
+          clearTimeout(timeout)
+        }
+      })
+    }
+  }, [slugChangeTimeout, colorNameChangeTimeouts])
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true)
+      const response = await fetch('/api/admin/categories')
+      const data = await response.json()
+
+      if (response.ok) {
+        setCategories(data.data || [])
+      } else {
+        console.error('Categories API error:', data)
+      }
+    } catch (error) {
+      console.error('خطأ في جلب التصنيفات:', error)
+    } finally {
+      setCategoriesLoading(false)
+    }
+  }
+
+  const fetchProduct = async () => {
+    try {
+      setProductLoading(true)
+      const response = await fetch(`/api/admin/products/${productId}`)
+      const data = await response.json()
+
+      if (response.ok) {
+        const product = data.data
+
+        // Fetch design files for this product
+        const designFilesResponse = await fetch(`/api/admin/design-files?productId=${productId}`)
+        const designFilesData = await designFilesResponse.json()
+
+        let existingDesignFiles: DesignFile[] = []
+        if (designFilesResponse.ok) {
+          existingDesignFiles = designFilesData.data || []
+        }
+
+        console.log('Design files response:', {
+          response: designFilesResponse.status,
+          data: designFilesData,
+          existingDesignFiles,
+        })
+
+        // Helper function to extract color name from file URL
+        const extractColorFromFileUrl = (fileUrl: string, productSlug: string): string | null => {
+          const pattern = new RegExp(`/uploads/designs/${productSlug}/([^/]+)/`)
+          const match = fileUrl.match(pattern)
+          return match ? match[1] : null
+        }
+
+        // Separate files by color and general files
+        const colorFiles: { [colorName: string]: any[] } = {}
+        const generalFiles: any[] = []
+
+        existingDesignFiles.forEach((file: DesignFile) => {
+          const colorName = extractColorFromFileUrl(file.fileUrl, product.slug)
+
+          if (colorName) {
+            // This is a color-specific file
+            if (!colorFiles[colorName]) {
+              colorFiles[colorName] = []
+            }
+            colorFiles[colorName].push({
+              fileName: file.fileName,
+              fileType: file.fileType,
+              fileUrl: file.fileUrl,
+              fileSize: file.fileSize,
+              isTemp: false,
+            })
+          } else {
+            // This is a general file
+            generalFiles.push({
+              fileName: file.fileName,
+              fileType: file.fileType,
+              fileUrl: file.fileUrl,
+              fileSize: file.fileSize,
+              isTemp: false,
+            })
+          }
+        })
+
+        console.log('File categorization:', {
+          colorFiles,
+          generalFiles,
+          productSlug: product.slug,
+        })
+
+        // Transform product data to form format
+        const transformedData: ProductFormData = {
+          name: product.name || '',
+          slug: product.slug || '',
+          description: product.description || '',
+          price: product.price || 0,
+          discountAmount: product.discountAmount,
+          discountPercentage: product.discountPercentage,
+          categoryId: product.categoryId?._id || product.categoryId || '',
+          images:
+            product.images?.map((img: { url?: string; alt?: string; isPrimary?: boolean; order?: number }) => ({
+              url: img.url || '',
+              alt: img.alt || '',
+              isPrimary: img.isPrimary || false,
+              order: img.order || 0,
+            })) || [],
+          youtubeLink: product.youtubeLink || '',
+          isActive: product.isActive ?? true,
+          isFeatured: product.isFeatured ?? false,
+          EnableCustomizations: product.EnableCustomizations ?? false,
+          allowColorChanges: product.allowColorChanges ?? false,
+          allowTextEditing: product.allowTextEditing ?? false,
+          allowImageReplacement: product.allowImageReplacement ?? false,
+          allowLogoUpload: product.allowLogoUpload ?? false,
+          colors:
+            product.colors?.map((color: { name?: string; hex?: string; description?: string }) => {
+              const colorName = color.name?.toLowerCase().replace(/[^a-z0-9]/g, '') || ''
+              return {
+                name: color.name || '',
+                hex: color.hex || '#000000',
+                description: color.description || '',
+                uploadedFiles: colorFiles[colorName] || [],
+              }
+            }) || [],
+          designFiles:
+            generalFiles.length > 0
+              ? [
+                  {
+                    fileName: 'General Design Files',
+                    fileType: 'psd',
+                    description: 'General design files for all colors',
+                    isActive: true,
+                    uploadedFiles: generalFiles,
+                  },
+                ]
+              : [
+                  {
+                    fileName: '',
+                    fileType: 'psd',
+                    description: '',
+                    isActive: true,
+                    uploadedFiles: [],
+                  },
+                ],
+        }
+
+        console.log('Final transformed data:', {
+          colors: transformedData.colors,
+          designFiles: transformedData.designFiles,
+        })
+
+        setFormData(transformedData)
+        setOriginalSlug(product.slug || '')
+      } else {
+        showError('خطأ في تحميل المنتج', data.message || 'فشل في تحميل بيانات المنتج')
+      }
+    } catch (error) {
+      console.error('خطأ في تحميل المنتج:', error)
+      showError('خطأ في تحميل المنتج', 'حدث خطأ أثناء تحميل بيانات المنتج')
+    } finally {
+      setProductLoading(false)
+      setLoading(false)
+    }
+  }
+
+  const handleInputChange = (field: keyof ProductFormData, value: unknown) => {
+    setFormData((prev) => {
+      let updatedData = { ...prev, [field]: value }
+
+      if (field === 'name' && typeof value === 'string') {
+        const slug = value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-|-$/g, '')
+
+        updatedData = { ...updatedData, slug }
+      }
+
+      if (field === 'slug' && typeof value === 'string') {
+        let formattedSlug = value
+
+        if (value.includes(' ') || /[^a-z0-9-]/.test(value)) {
+          formattedSlug = value
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '')
+        }
+
+        const hasFiles = prev.designFiles.some((df) => df.uploadedFiles.length > 0)
+        if (hasFiles && !originalSlug) {
+          setOriginalSlug(prev.slug)
+        }
+
+        if (prev.slug && prev.slug !== formattedSlug) {
+          setOldSlug(prev.slug)
+        }
+
+        updatedData = { ...updatedData, slug: formattedSlug }
+      }
+
+      return updatedData
+    })
+
+    // Handle slug debouncing
+    if (field === 'slug' && typeof value === 'string') {
+      const hasFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
+
+      if (hasFiles) {
+        if (slugChangeTimeout) {
+          clearTimeout(slugChangeTimeout)
+        }
+
+        const newTimeout = setTimeout(() => {
+          const newSlug = typeof value === 'string' ? value : ''
+          if (newSlug.includes(' ') || /[^a-z0-9-]/.test(newSlug)) {
+            const formattedSlug = newSlug
+              .toLowerCase()
+              .replace(/[^a-z0-9\s-]/g, '')
+              .replace(/\s+/g, '-')
+              .replace(/-+/g, '-')
+              .replace(/^-|-$/g, '')
+            handleSlugChange(formattedSlug)
+          } else {
+            handleSlugChange(newSlug)
+          }
+        }, 1000)
+
+        setSlugChangeTimeout(newTimeout)
+      } else {
+        if (slugChangeTimeout) {
+          clearTimeout(slugChangeTimeout)
+          setSlugChangeTimeout(null)
+        }
+      }
+    }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    if (!formData.name || !formData.slug || !formData.description || !formData.price || !formData.categoryId) {
+      showWarning('حقول مطلوبة', 'يرجى ملء جميع الحقول المطلوبة')
+      return
+    }
+
+    // Check if any files are still uploading
+    const hasUploadingFiles = formData.designFiles.some((designFile) =>
+      designFile.uploadedFiles.some((file) => file.isTemp)
+    )
+
+    if (hasUploadingFiles) {
+      showWarning('ملفات قيد الرفع', 'يرجى الانتظار حتى انتهاء رفع جميع الملفات قبل حفظ المنتج')
+      return
+    }
+
+    // Check if any upload is in progress
+    if (isUploading) {
+      showWarning('رفع قيد التقدم', 'يرجى الانتظار حتى انتهاء عملية الرفع الحالية')
+      return
+    }
+
+    setSaving(true)
+    try {
+      console.log('Submitting form data:', {
+        images: formData.images,
+        formDataKeys: Object.keys(formData),
+      })
+
+      const response = await fetch(`/api/admin/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      })
+
+      const data = await response.json()
+      if (response.ok) {
+        console.log('Product updated successfully')
+
+        // Save new design files to database after product update
+        const uploadedFiles = formData.designFiles.flatMap((designFile) =>
+          designFile.uploadedFiles.filter((file) => !file.isTemp)
+        )
+
+        // Save new color files to database after product update
+        const uploadedColorFiles = formData.colors.flatMap(
+          (color) => color.uploadedFiles?.filter((file) => !file.isTemp) || []
+        )
+
+        if (uploadedFiles.length > 0 || uploadedColorFiles.length > 0) {
+          const designFileErrors: string[] = []
+          setSavingDesignFiles(true)
+
+          // Save each design file to database with the correct productId
+          for (const designFile of formData.designFiles) {
+            const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp)
+
+            for (const file of filesToSave) {
+              try {
+                // Validate file data before sending
+                if (!file.fileUrl || !file.fileName || !file.fileType) {
+                  const errorMsg = `بيانات الملف غير مكتملة: ${file.fileName}`
+                  console.error(errorMsg, file)
+                  designFileErrors.push(errorMsg)
+                  continue
+                }
+
+                const designFileData = {
+                  productId: productId, // Use the actual productId
+                  fileName: file.fileName,
+                  fileUrl: file.fileUrl,
+                  fileType: file.fileType,
+                  fileSize: file.fileSize,
+                  mimeType: getMimeType(file.fileName),
+                  description: designFile.description || '',
+                  isActive: true,
+                  isPublic: false,
+                }
+                console.log('Saving design file with productId:', productId)
+                console.log('Design file data:', designFileData)
+
+                // Retry mechanism for saving design files
+                let retryCount = 0
+                const maxRetries = 3
+                let designFileResponse
+                let errorData
+
+                while (retryCount < maxRetries) {
+                  try {
+                    designFileResponse = await fetch('/api/admin/design-files', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(designFileData),
+                    })
+
+                    if (designFileResponse.ok) {
+                      console.log(`Design file saved successfully: ${file.fileName}`)
+                      break
+                    } else {
+                      errorData = await designFileResponse.json()
+                      retryCount++
+                      if (retryCount < maxRetries) {
+                        console.log(`Retry ${retryCount} for design file: ${file.fileName}`)
+                        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount))
+                      }
+                    }
+                  } catch (retryError) {
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                      console.log(`Retry ${retryCount} for design file: ${file.fileName}`)
+                      await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount))
+                    }
+                  }
+                }
+
+                if (!designFileResponse?.ok) {
+                  const errorMsg = `فشل في حفظ ملف التصميم: ${file.fileName}`
+                  console.error(errorMsg, errorData)
+                  designFileErrors.push(errorMsg)
+                }
+              } catch (fileError) {
+                const errorMsg = `خطأ في حفظ ملف التصميم: ${file.fileName}`
+                console.error(errorMsg, fileError)
+                designFileErrors.push(errorMsg)
+              }
+            }
+          }
+
+          // Save color files to database
+          for (const color of formData.colors) {
+            const colorFilesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
+
+            for (const file of colorFilesToSave) {
+              try {
+                // Validate file data before sending
+                if (!file.fileUrl || !file.fileName || !file.fileType) {
+                  const errorMsg = `بيانات ملف اللون غير مكتملة: ${file.fileName}`
+                  console.error(errorMsg, file)
+                  designFileErrors.push(errorMsg)
+                  continue
+                }
+
+                const colorFileData = {
+                  productId: productId,
+                  fileName: file.fileName,
+                  fileUrl: file.fileUrl,
+                  fileType: file.fileType,
+                  fileSize: file.fileSize,
+                  mimeType: getMimeType(file.fileName),
+                  description: `ملف ${color.name}`,
+                  isActive: true,
+                  isPublic: false,
+                }
+                console.log('Saving color file with productId:', productId)
+                console.log('Color file data:', colorFileData)
+
+                // Retry mechanism for saving color files
+                let retryCount = 0
+                const maxRetries = 3
+                let colorFileResponse
+                let errorData
+
+                while (retryCount < maxRetries) {
+                  try {
+                    colorFileResponse = await fetch('/api/admin/design-files', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                      },
+                      body: JSON.stringify(colorFileData),
+                    })
+
+                    if (colorFileResponse.ok) {
+                      console.log(`Color file saved successfully: ${file.fileName}`)
+                      break
+                    } else {
+                      errorData = await colorFileResponse.json()
+                      retryCount++
+                      if (retryCount < maxRetries) {
+                        console.log(`Retry ${retryCount} for color file: ${file.fileName}`)
+                        await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount))
+                      }
+                    }
+                  } catch (retryError) {
+                    retryCount++
+                    if (retryCount < maxRetries) {
+                      console.log(`Retry ${retryCount} for color file: ${file.fileName}`)
+                      await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount))
+                    }
+                  }
+                }
+
+                if (!colorFileResponse?.ok) {
+                  const errorMsg = `فشل في حفظ ملف اللون: ${file.fileName}`
+                  console.error(errorMsg, errorData)
+                  designFileErrors.push(errorMsg)
+                }
+              } catch (fileError) {
+                const errorMsg = `خطأ في حفظ ملف اللون: ${file.fileName}`
+                console.error(errorMsg, fileError)
+                designFileErrors.push(errorMsg)
+              }
+            }
+          }
+
+          setSavingDesignFiles(false)
+
+          if (designFileErrors.length > 0) {
+            showWarning(
+              'تم تحديث المنتج مع أخطاء في الملفات',
+              `تم تحديث المنتج بنجاح، لكن حدثت أخطاء في حفظ بعض الملفات:\n${designFileErrors.join('\n')}`
+            )
+          } else {
+            showSuccess('تم تحديث المنتج', 'تم تحديث المنتج وملفات التصميم بنجاح!')
+          }
+        } else {
+          showSuccess('تم تحديث المنتج', 'تم تحديث المنتج بنجاح!')
+        }
+
+        setTimeout(() => {
+          router.push('/admin/products')
+        }, 1000)
+      } else {
+        if (data.errors && Array.isArray(data.errors)) {
+          const errorMessage = parseValidationErrors(data.errors)
+          showError('خطأ في البيانات المدخلة', errorMessage)
+        } else {
+          showError('خطأ في تحديث المنتج', data.message || 'حدث خطأ أثناء تحديث المنتج')
+        }
+      }
+    } catch (error) {
+      console.error('خطأ في تحديث المنتج:', error)
+      showError('خطأ في تحديث المنتج', 'حدث خطأ غير متوقع أثناء تحديث المنتج')
+    } finally {
+      setSaving(false)
+      setSavingDesignFiles(false)
+    }
+  }
+
+  const parseValidationErrors = (errors: Array<{ path?: string[]; message?: string }>): string => {
+    const errorMessages: string[] = []
+
+    errors.forEach((error) => {
+      const field = error.path?.[0] || 'unknown'
+      const message = error.message || 'Invalid value'
+
+      const fieldNames: { [key: string]: string } = {
+        name: 'اسم المنتج',
+        slug: 'رابط المنتج',
+        description: 'وصف المنتج',
+        price: 'السعر',
+        categoryId: 'التصنيف',
+        images: 'الصور',
+        youtubeLink: 'رابط اليوتيوب',
+        colors: 'الألوان',
+        designFiles: 'ملفات التصميم',
+      }
+
+      const arabicFieldName = fieldNames[field] || field
+
+      let arabicMessage = message
+      if (message.includes('Slug can only contain lowercase letters, numbers, and hyphens')) {
+        arabicMessage = 'يجب أن يحتوي رابط المنتج على أحرف إنجليزية صغيرة وأرقام وشرطات فقط'
+      } else if (message.includes('must be at least')) {
+        arabicMessage = `يجب أن يحتوي ${arabicFieldName} على ${message.match(/\d+/)?.[0] || ''} أحرف على الأقل`
+      } else if (message.includes('cannot exceed')) {
+        arabicMessage = `لا يمكن أن يتجاوز ${arabicFieldName} ${message.match(/\d+/)?.[0] || ''} حرف`
+      } else if (message.includes('is required')) {
+        arabicMessage = `${arabicFieldName} مطلوب`
+      } else if (message.includes('Please provide a valid')) {
+        arabicMessage = `يرجى إدخال ${arabicFieldName} صحيح`
+      } else if (message.includes('At least one')) {
+        arabicMessage = `يجب إضافة ${arabicFieldName} واحد على الأقل`
+      }
+
+      errorMessages.push(`${arabicFieldName}: ${arabicMessage}`)
+    })
+
+    return errorMessages.join('\n')
+  }
+
+  const calculateFinalPrice = () => {
+    let finalPrice = formData.price
+    if (formData.discountAmount) {
+      finalPrice -= formData.discountAmount
+    }
+    if (formData.discountPercentage) {
+      finalPrice -= (finalPrice * formData.discountPercentage) / 100
+    }
+    return Math.max(0, finalPrice)
+  }
+
+  // Function to extract YouTube video ID from URL
+  const extractYouTubeVideoId = (url: string): string | null => {
+    if (!url) return null
+
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
+      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
+    ]
+
+    for (const pattern of patterns) {
+      const match = url.match(pattern)
+      if (match) return match[1]
+    }
+
+    return null
+  }
+
+  // Get YouTube video ID for iframe
+  const youtubeVideoId = extractYouTubeVideoId(formData.youtubeLink || '')
+
+  const handleImageUpload = async (file: File) => {
+    await uploadImage(file, '/api/admin/upload/image', {
+      fileName: file.name,
+    })
+  }
+
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index),
+    }))
+  }
+
+  const addColorTheme = () => {
+    setFormData((prev) => ({
+      ...prev,
+      colors: [
+        ...prev.colors,
+        {
+          name: '',
+          hex: '#000000',
+          description: '',
+        },
+      ],
+    }))
+  }
+
+  const removeColorTheme = async (index: number) => {
+    const color = formData.colors[index]
+
+    try {
+      const originalColorName = originalColorNames[index] || color.name
+      const cleanColorName = originalColorName.toLowerCase().replace(/[^a-z0-9]/g, '')
+
+      // If color has uploaded files, delete them first
+      if (color?.uploadedFiles?.length) {
+        // Delete all files for this color
+        for (const file of color.uploadedFiles) {
+          if (file.fileUrl) {
+            try {
+              const response = await fetch('/api/admin/upload/delete-file', {
+                method: 'DELETE',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  fileUrl: file.fileUrl,
+                }),
+              })
+
+              if (!response.ok) {
+                console.error(`Failed to delete file: ${file.fileName}`)
+              }
+            } catch (error) {
+              console.error(`Error deleting file ${file.fileName}:`, error)
+            }
+          }
+        }
+      }
+
+      // Always try to delete the color folder (even if empty)
+      try {
+        console.log(`Attempting to delete color folder: ${cleanColorName} for product: ${formData.slug}`)
+
+        const response = await fetch('/api/admin/upload/delete-color-folder', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            productSlug: formData.slug,
+            colorName: cleanColorName,
+          }),
+        })
+
+        const result = await response.json()
+        console.log('Delete color folder response:', result)
+
+        if (!response.ok) {
+          console.error('Failed to delete color folder:', result)
+        } else {
+          console.log(`Successfully deleted color folder: ${cleanColorName}`)
+        }
+      } catch (error) {
+        console.error('Error deleting color folder:', error)
+      }
+    } catch (error) {
+      console.error('Error handling color deletion:', error)
+      showError('خطأ في حذف ملفات اللون', 'تم حذف اللون لكن حدث خطأ في حذف الملفات')
+    }
+
+    // Clean up any pending timeouts for this color
+    if (colorNameChangeTimeouts[index]) {
+      clearTimeout(colorNameChangeTimeouts[index])
+      setColorNameChangeTimeouts((prev) => {
+        const newTimeouts = { ...prev }
+        delete newTimeouts[index]
+        return newTimeouts
+      })
+    }
+
+    // Clean up original color name
+    setOriginalColorNames((prev) => {
+      const newOriginalNames = { ...prev }
+      delete newOriginalNames[index]
+      return newOriginalNames
+    })
+
+    setFormData((prev) => ({
+      ...prev,
+      colors: prev.colors.filter((_, i) => i !== index),
+    }))
+
+    showSuccess('تم حذف اللون', 'تم حذف اللون وملفاته بنجاح')
+  }
+
+  const handleColorThemeChange = (index: number, field: string, value: unknown) => {
+    // Prevent Arabic text in color names
+    if (field === 'name' && typeof value === 'string') {
+      // Check if the value contains Arabic characters
+      const arabicRegex = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/
+      if (arabicRegex.test(value)) {
+        showError('خطأ في اسم اللون', 'لا يمكن استخدام النصوص العربية في اسم اللون')
+        return
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      colors: prev.colors.map((color, i) => (i === index ? { ...color, [field]: value } : color)),
+    }))
+
+    // Handle color name debouncing outside of setFormData - only if files exist
+    if (field === 'name' && typeof value === 'string') {
+      const color = formData.colors[index]
+      const hasFiles = (color?.uploadedFiles?.length || 0) > 0
+
+      if (hasFiles) {
+        // Clear existing timeout for this color
+        if (colorNameChangeTimeouts[index]) {
+          clearTimeout(colorNameChangeTimeouts[index])
+        }
+
+        // Get the original color name where files were first uploaded
+        const originalColorName = originalColorNames[index] || color.name
+
+        // Set new timeout for debounced color name change
+        const newTimeout = setTimeout(() => {
+          const newColorName = typeof value === 'string' ? value : ''
+          if (originalColorName && originalColorName !== newColorName) {
+            handleColorNameChange(index, originalColorName, newColorName)
+          }
+        }, 1000) // Wait 1 second after user stops typing
+
+        setColorNameChangeTimeouts((prev) => ({ ...prev, [index]: newTimeout }))
+      } else {
+        // No files to move, clear any existing timeout for this color
+        if (colorNameChangeTimeouts[index]) {
+          clearTimeout(colorNameChangeTimeouts[index])
+          setColorNameChangeTimeouts((prev) => {
+            const newTimeouts = { ...prev }
+            delete newTimeouts[index]
+            return newTimeouts
+          })
+        }
+      }
+    }
+  }
+
+  const addDesignFile = () => {
+    setFormData((prev) => ({
+      ...prev,
+      designFiles: [
+        ...prev.designFiles,
+        {
+          fileName: '',
+          fileType: 'psd',
+          description: '',
+          isActive: true,
+          uploadedFiles: [],
+        },
+      ],
+    }))
+  }
+
+  const removeDesignFile = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      designFiles: prev.designFiles.filter((_, i) => i !== index),
+    }))
+  }
+
+  const handleDesignFileChange = (index: number, field: string, value: unknown) => {
+    setFormData((prev) => {
+      const updatedDesignFiles = prev.designFiles.map((file, i) => (i === index ? { ...file, [field]: value } : file))
+
+      return {
+        ...prev,
+        designFiles: updatedDesignFiles,
+      }
+    })
+  }
+
   const handleDesignFileUpload = async (file: File, index: number) => {
     // Check if slug is valid before allowing upload
     if (!isSlugValidForUpload()) {
@@ -648,7 +1160,7 @@ export default function AddProduct() {
         fileName: file.name,
         fileType,
         description: formData.designFiles[index]?.description || '',
-        productId: 'temp', // This will be updated after product creation
+        productId: productId, // Use the actual productId for edit
         productSlug: formData.slug, // Add slug for proper folder organization
       },
       fileInfo
@@ -751,17 +1263,6 @@ export default function AddProduct() {
     // Ensure colorName is always a valid string
     const validColorName = sanitizedColorName || 'default'
 
-    // Debug logging
-    console.log('Color file upload data:', {
-      fileName: file.name,
-      fileType,
-      description: `ملف ${formData.colors[colorIndex]?.name || sanitizedColorName}`,
-      productId: 'temp',
-      productSlug: cleanSlug,
-      colorName: validColorName,
-      slugValidation: /^[a-z0-9-]+$/.test(cleanSlug),
-    })
-
     await uploadDesignFile(
       file,
       '/api/admin/upload/design-file',
@@ -769,7 +1270,7 @@ export default function AddProduct() {
         fileName: file.name,
         fileType,
         description: `ملف ${formData.colors[colorIndex]?.name || sanitizedColorName}`,
-        productId: 'temp', // This will be updated after product creation
+        productId: productId, // Use the actual productId for edit
         productSlug: cleanSlug, // Use cleaned product slug, color folder will be handled by API
         colorName: validColorName, // Pass color name separately for folder organization
       },
@@ -823,416 +1324,6 @@ export default function AddProduct() {
     })
 
     showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
-  }
-
-  const {
-    uploadFile: uploadImage,
-    uploadProgress: imageProgress,
-    resetUpload: resetImageUpload,
-  } = useFileUpload({
-    onSuccess: (result) => {
-      if (result.success && result.urls) {
-        setFormData((prev) => ({
-          ...prev,
-          images: [...prev.images, ...result.urls],
-        }))
-        showSuccess('تم رفع الصور', `تم رفع ${result.urls.length} صورة بنجاح!`)
-      }
-    },
-    onError: (error) => {
-      showError('خطأ في رفع الصور', error)
-    },
-  })
-
-  const handleImageUpload = async (file: File) => {
-    await uploadImage(file, '/api/admin/upload/image', {
-      fileName: file.name,
-    })
-  }
-
-  const removeImage = (index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }))
-  }
-
-  // Function to parse validation errors and return user-friendly messages
-  const parseValidationErrors = (errors: Array<{ path?: string[]; message?: string }>): string => {
-    const errorMessages: string[] = []
-
-    errors.forEach((error) => {
-      const field = error.path?.[0] || 'unknown'
-      const message = error.message || 'Invalid value'
-
-      // Map field names to Arabic
-      const fieldNames: { [key: string]: string } = {
-        name: 'اسم المنتج',
-        slug: 'رابط المنتج',
-        description: 'وصف المنتج',
-        price: 'السعر',
-        categoryId: 'التصنيف',
-        images: 'الصور',
-        youtubeLink: 'رابط اليوتيوب',
-        colors: 'الألوان',
-        designFiles: 'ملفات التصميم',
-      }
-
-      const arabicFieldName = fieldNames[field] || field
-
-      // Map common validation messages to Arabic
-      let arabicMessage = message
-      if (message.includes('Slug can only contain lowercase letters, numbers, and hyphens')) {
-        arabicMessage = 'يجب أن يحتوي رابط المنتج على أحرف إنجليزية صغيرة وأرقام وشرطات فقط'
-      } else if (message.includes('must be at least')) {
-        arabicMessage = `يجب أن يحتوي ${arabicFieldName} على ${message.match(/\d+/)?.[0] || ''} أحرف على الأقل`
-      } else if (message.includes('cannot exceed')) {
-        arabicMessage = `لا يمكن أن يتجاوز ${arabicFieldName} ${message.match(/\d+/)?.[0] || ''} حرف`
-      } else if (message.includes('is required')) {
-        arabicMessage = `${arabicFieldName} مطلوب`
-      } else if (message.includes('Please provide a valid')) {
-        arabicMessage = `يرجى إدخال ${arabicFieldName} صحيح`
-      } else if (message.includes('At least one')) {
-        arabicMessage = `يجب إضافة ${arabicFieldName} واحد على الأقل`
-      }
-
-      errorMessages.push(`${arabicFieldName}: ${arabicMessage}`)
-    })
-
-    return errorMessages.join('\n')
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!formData.name || !formData.slug || !formData.description || !formData.price || !formData.categoryId) {
-      showWarning('حقول مطلوبة', 'يرجى ملء جميع الحقول المطلوبة')
-      return
-    }
-
-    // Check if any files are still uploading
-    const hasUploadingFiles = formData.designFiles.some((designFile) =>
-      designFile.uploadedFiles.some((file) => file.isTemp)
-    )
-
-    if (hasUploadingFiles) {
-      showWarning('ملفات قيد الرفع', 'يرجى الانتظار حتى انتهاء رفع جميع الملفات قبل حفظ المنتج')
-      return
-    }
-
-    // Check if any upload is in progress
-    if (isUploading) {
-      showWarning('رفع قيد التقدم', 'يرجى الانتظار حتى انتهاء عملية الرفع الحالية')
-      return
-    }
-
-    setSaving(true)
-    try {
-      // Create the product first
-      const response = await fetch('/api/admin/products', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      })
-
-      const data = await response.json()
-      if (response.ok) {
-        const productId = data.data._id
-        console.log('Product created with ID:', productId)
-        console.log('Product data:', data.data)
-
-        // Save design files to database after product creation
-        const uploadedFiles = formData.designFiles.flatMap((designFile) =>
-          designFile.uploadedFiles.filter((file) => !file.isTemp)
-        )
-
-        // Save color files to database after product creation
-        const uploadedColorFiles = formData.colors.flatMap(
-          (color) => color.uploadedFiles?.filter((file) => !file.isTemp) || []
-        )
-
-        if (uploadedFiles.length > 0 || uploadedColorFiles.length > 0) {
-          const designFileErrors: string[] = []
-          setSavingDesignFiles(true)
-
-          // Save each design file to database with the correct productId
-          for (const designFile of formData.designFiles) {
-            const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp)
-
-            for (const file of filesToSave) {
-              try {
-                // Validate file data before sending
-                if (!file.fileUrl || !file.fileName || !file.fileType) {
-                  const errorMsg = `بيانات الملف غير مكتملة: ${file.fileName}`
-                  console.error(errorMsg, file)
-                  designFileErrors.push(errorMsg)
-                  continue
-                }
-
-                const designFileData = {
-                  productId: productId, // Use the actual productId
-                  fileName: file.fileName,
-                  fileUrl: file.fileUrl,
-                  fileType: file.fileType,
-                  fileSize: file.fileSize,
-                  mimeType: getMimeType(file.fileName),
-                  description: designFile.description || '',
-                  isActive: true,
-                  isPublic: false,
-                }
-                console.log('Saving design file with productId:', productId)
-                console.log('Design file data:', designFileData)
-
-                // Retry mechanism for saving design files
-                let retryCount = 0
-                const maxRetries = 3
-                let designFileResponse
-                let errorData
-
-                while (retryCount < maxRetries) {
-                  try {
-                    designFileResponse = await fetch('/api/admin/design-files', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(designFileData),
-                    })
-
-                    if (designFileResponse.ok) {
-                      console.log(`Successfully saved design file: ${file.fileName}`)
-                      break // Success, exit retry loop
-                    }
-
-                    // Read response body only once
-                    errorData = await designFileResponse.json()
-
-                    // If it's a file not found error, wait a bit and retry
-                    if (
-                      errorData.message &&
-                      errorData.message.includes('File not found') &&
-                      retryCount < maxRetries - 1
-                    ) {
-                      console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-
-                    // For other errors, don't retry
-                    break
-                  } catch (fetchError) {
-                    console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
-                    if (retryCount < maxRetries - 1) {
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-                    throw fetchError
-                  }
-                }
-
-                if (!designFileResponse?.ok) {
-                  const errorMsg = `فشل في حفظ ملف التصميم "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
-                  console.error('Failed to save design file:', file.fileName)
-                  console.error('Error response:', errorData)
-                  designFileErrors.push(errorMsg)
-                }
-              } catch (error) {
-                const errorMsg = `خطأ في حفظ ملف التصميم "${file.fileName}": ${
-                  error instanceof Error ? error.message : 'خطأ غير معروف'
-                }`
-                console.error('Error saving design file:', error)
-                designFileErrors.push(errorMsg)
-              }
-            }
-          }
-
-          // Save color files to database
-          for (const color of formData.colors) {
-            const filesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
-
-            for (const file of filesToSave) {
-              try {
-                // Validate file data before sending
-                if (!file.fileUrl || !file.fileName || !file.fileType) {
-                  const errorMsg = `بيانات ملف اللون غير مكتملة: ${file.fileName}`
-                  console.error(errorMsg, file)
-                  designFileErrors.push(errorMsg)
-                  continue
-                }
-
-                const designFileData = {
-                  productId: productId, // Use the actual productId
-                  fileName: file.fileName,
-                  fileUrl: file.fileUrl,
-                  fileType: file.fileType,
-                  fileSize: file.fileSize,
-                  mimeType: getMimeType(file.fileName),
-                  description: `ملف ${color.name}`,
-                  isActive: true,
-                  isPublic: false,
-                }
-                console.log('Saving color file with productId:', productId)
-                console.log('Color file data:', designFileData)
-
-                // Retry mechanism for saving color files
-                let retryCount = 0
-                const maxRetries = 3
-                let designFileResponse
-                let errorData
-
-                while (retryCount < maxRetries) {
-                  try {
-                    designFileResponse = await fetch('/api/admin/design-files', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(designFileData),
-                    })
-
-                    if (designFileResponse.ok) {
-                      console.log(`Successfully saved color file: ${file.fileName}`)
-                      break // Success, exit retry loop
-                    }
-
-                    // Read response body only once
-                    errorData = await designFileResponse.json()
-
-                    // If it's a file not found error, wait a bit and retry
-                    if (
-                      errorData.message &&
-                      errorData.message.includes('File not found') &&
-                      retryCount < maxRetries - 1
-                    ) {
-                      console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-
-                    // For other errors, don't retry
-                    break
-                  } catch (fetchError) {
-                    console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
-                    if (retryCount < maxRetries - 1) {
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-                    throw fetchError
-                  }
-                }
-
-                if (!designFileResponse?.ok) {
-                  const errorMsg = `فشل في حفظ ملف اللون "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
-                  console.error('Failed to save color file:', file.fileName)
-                  console.error('Error response:', errorData)
-                  designFileErrors.push(errorMsg)
-                }
-              } catch (error) {
-                const errorMsg = `خطأ في حفظ ملف اللون "${file.fileName}": ${
-                  error instanceof Error ? error.message : 'خطأ غير معروف'
-                }`
-                console.error('Error saving color file:', error)
-                designFileErrors.push(errorMsg)
-              }
-            }
-          }
-
-          // Show warnings for any design file errors
-          if (designFileErrors.length > 0) {
-            showWarning(
-              'تحذير: بعض ملفات التصميم',
-              `تم إنشاء المنتج بنجاح، لكن حدثت أخطاء في حفظ بعض ملفات التصميم:\n${designFileErrors.join('\n')}`
-            )
-            // Still redirect even with warnings since the product was created successfully
-            setTimeout(() => {
-              router.push('/admin/products')
-            }, 2000) // Give more time to read the warning
-          } else {
-            showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج وملفات التصميم بنجاح!')
-            // Wait a moment for the success message to be displayed before redirecting
-            setTimeout(() => {
-              router.push('/admin/products')
-            }, 1000)
-          }
-        } else {
-          showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج بنجاح!')
-          // Wait a moment for the success message to be displayed before redirecting
-          setTimeout(() => {
-            router.push('/admin/products')
-          }, 1000)
-        }
-
-        setSavingDesignFiles(false)
-      } else {
-        // Handle validation errors specifically
-        if (data.errors && Array.isArray(data.errors)) {
-          const errorMessage = parseValidationErrors(data.errors)
-          showError('خطأ في البيانات المدخلة', errorMessage)
-        } else {
-          showError('خطأ في إنشاء المنتج', data.message || 'حدث خطأ أثناء إنشاء المنتج')
-        }
-        setSavingDesignFiles(false)
-      }
-    } catch (error) {
-      console.error('خطأ في إنشاء المنتج:', error)
-      showError('خطأ في إنشاء المنتج', 'حدث خطأ غير متوقع أثناء إنشاء المنتج')
-      setSavingDesignFiles(false)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const calculateFinalPrice = () => {
-    let finalPrice = formData.price
-    if (formData.discountAmount) {
-      finalPrice -= formData.discountAmount
-    }
-    if (formData.discountPercentage) {
-      finalPrice -= (finalPrice * formData.discountPercentage) / 100
-    }
-    return Math.max(0, finalPrice)
-  }
-
-  // Function to extract YouTube video ID from URL
-  const extractYouTubeVideoId = (url: string): string | null => {
-    if (!url) return null
-
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /youtube\.com\/watch\?.*v=([^&\n?#]+)/,
-    ]
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern)
-      if (match) return match[1]
-    }
-
-    return null
-  }
-
-  // Get YouTube video ID for iframe
-  const youtubeVideoId = extractYouTubeVideoId(formData.youtubeLink || '')
-
-  // Function to check if all file uploads are complete
-  const areAllUploadsComplete = () => {
-    // Check if any upload is in progress
-    if (isUploading) return false
-
-    // Check if any files are still marked as temporary in design files
-    const hasTempDesignFiles = formData.designFiles.some((designFile) =>
-      designFile.uploadedFiles.some((file) => file.isTemp)
-    )
-
-    // Check if any files are still marked as temporary in color files
-    const hasTempColorFiles = formData.colors.some((color) => color.uploadedFiles?.some((file) => file.isTemp) || false)
-
-    return !hasTempDesignFiles && !hasTempColorFiles
   }
 
   // Function to check if slug is valid for file upload
@@ -1308,7 +1399,6 @@ export default function AddProduct() {
     }
   }
 
-  // Function to handle slug changes and update file paths
   const handleSlugChange = async (newSlug: string) => {
     // Only proceed if there are files to move
     const hasDesignFiles = formData.designFiles.some((df) => df.uploadedFiles.length > 0)
@@ -1398,6 +1488,17 @@ export default function AddProduct() {
     }
   }
 
+  if (loading || productLoading) {
+    return (
+      <div className="products-container">
+        <div className="loading-spinner">
+          <div className="spinner"></div>
+          <p>جاري تحميل المنتج...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <>
       {/* Alerts Container */}
@@ -1415,36 +1516,10 @@ export default function AddProduct() {
       </div>
 
       <div className="products-container">
-        {/* Global Upload Progress Bar */}
-        {isUploading && (
-          <div className="global-upload-progress">
-            <div className="progress-container">
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: `${uploadProgress}%` }} />
-              </div>
-              <span className="progress-text">{Math.round(uploadProgress)}%</span>
-            </div>
-            <p className="progress-message">جاري رفع الملف...</p>
-          </div>
-        )}
-
-        {/* Global Design Files Saving Progress */}
-        {savingDesignFiles && (
-          <div className="global-upload-progress">
-            <div className="progress-container">
-              <div className="progress-bar">
-                <div className="progress-fill" style={{ width: '100%', animation: 'pulse 2s infinite' }} />
-              </div>
-              <span className="progress-text">جاري المعالجة...</span>
-            </div>
-            <p className="progress-message">جاري حفظ ملفات التصميم في قاعدة البيانات...</p>
-          </div>
-        )}
-
         <div className="products-header">
           <div className="header-content">
-            <h1>إضافة منتج جديد</h1>
-            <p>إنشاء منتج جديد مع ملفات التصميم والفيديو</p>
+            <h1>تعديل المنتج</h1>
+            <p>تحديث معلومات المنتج وملفات التصميم</p>
           </div>
           <button onClick={() => router.push('/admin/products')} className="back-btn">
             <FontAwesomeIcon icon={faArrowRight} />
@@ -1526,11 +1601,6 @@ export default function AddProduct() {
                       </option>
                     ))}
                   </select>
-                  {categories.length === 0 && !categoriesLoading && (
-                    <small style={{ color: '#f56565', marginTop: '0.5rem', display: 'block' }}>
-                      لا توجد تصنيفات متاحة. يرجى إنشاء تصنيف أولاً.
-                    </small>
-                  )}
                 </div>
               </div>
             </div>
@@ -1620,7 +1690,7 @@ export default function AddProduct() {
                 <div className="images-preview">
                   {formData.images.map((image, index) => (
                     <div key={index} className="image-item">
-                      <img src={image} alt={`صورة ${index + 1}`} />
+                      <img src={image.url} alt={image.alt || `صورة ${index + 1}`} />
                       <button type="button" onClick={() => removeImage(index)} className="remove-image-btn">
                         <FontAwesomeIcon icon={faTimes} />
                       </button>
@@ -2096,19 +2166,9 @@ export default function AddProduct() {
             <button type="button" onClick={() => router.push('/admin/products')} className="cancel-btn">
               إلغاء
             </button>
-            <button
-              type="submit"
-              disabled={saving || isUploading || savingDesignFiles || !areAllUploadsComplete()}
-              className="save-btn"
-            >
+            <button type="submit" disabled={saving} className="save-btn">
               <FontAwesomeIcon icon={faSave} />
-              {saving
-                ? 'جاري الحفظ...'
-                : savingDesignFiles
-                ? 'جاري حفظ ملفات التصميم...'
-                : isUploading
-                ? 'جاري رفع الملفات...'
-                : 'حفظ المنتج'}
+              {saving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
             </button>
           </div>
         </form>

@@ -2194,6 +2194,35 @@
   gap: 0.5rem;
 }
 
+/* YouTube Video Preview */
+.youtube-preview {
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  border: 1px solid var(--border-color);
+}
+
+.youtube-preview h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 1rem 0;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+.video-container iframe {
+  display: block;
+  border-radius: 8px;
+}
+
 /* Responsive styles for color files */
 @media (max-width: 768px) {
   .color-file-header {
@@ -2210,5 +2239,13 @@
   .color-files-section,
   .general-files-section {
     padding: 1rem;
+  }
+
+  .youtube-preview {
+    padding: 1rem;
+  }
+
+  .video-container iframe {
+    height: 200px;
   }
 } 

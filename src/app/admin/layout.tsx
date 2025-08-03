@@ -27,11 +27,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   // Helper function to get user initials
-  const getUserInitials = (user) => {
+  const getUserInitials = (user: any) => {
     if (user?.name) {
       return user.name
         .split(' ')
-        .map((name) => name.charAt(0))
+        .map((name: string) => name.charAt(0))
         .join('')
         .toUpperCase()
         .slice(0, 2)

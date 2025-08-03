@@ -29,7 +29,8 @@ async function streamDesignFile(req: NextRequest, context: ApiRouteContext, user
     try {
         await connectDB();
 
-        const { id } = context.params;
+        const params = await context.params;
+        const id = params?.id as string;
 
         if (!id) {
             return NextResponse.json(

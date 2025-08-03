@@ -13,7 +13,7 @@ export default cloudinary;
 export interface CloudinaryUploadOptions {
     folder?: string;
     public_id?: string;
-    transformation?: any;
+    transformation?: Record<string, unknown>;
     resource_type?: 'image' | 'video' | 'raw';
     format?: string;
     quality?: number;

@@ -23,6 +23,7 @@ import { DesignFile, Product } from '@/lib/db/models';
 import { z } from 'zod';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import mongoose from 'mongoose';
 
 // Validation schemas
 const createDesignFileSchema = z.object({
@@ -95,11 +96,30 @@ async function getDesignFiles(req: NextRequest) {
         const { page, limit, productId, fileType, isActive, isPublic, sortBy, sortOrder } = query;
         const skip = (page - 1) * limit;
 
+        console.log('Design Files API Debug:', {
+            productId,
+            query,
+            searchParams: Object.fromEntries(searchParams.entries())
+        });
+
         // Build filter object
         const filter: Record<string, unknown> = {};
 
         if (productId) {
-            filter.productId = productId;
+            // Convert string productId to ObjectId for proper MongoDB query
+            try {
+                filter.productId = new mongoose.Types.ObjectId(productId);
+                console.log('Filter with productId (ObjectId):', filter);
+            } catch (error) {
+                console.error('Invalid productId format:', productId, error);
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Invalid product ID format'
+                    },
+                    { status: 400 }
+                );
+            }
         }
 
         if (fileType) {
@@ -143,6 +163,12 @@ async function getDesignFiles(req: NextRequest) {
         ]);
 
         const totalPages = Math.ceil(total / limit);
+
+        console.log('Design Files Query Results:', {
+            total,
+            designFilesWithProduct,
+            filter
+        });
 
         return NextResponse.json({
             success: true,

@@ -6,7 +6,10 @@ import Image from 'next/image'
 
 export default function AuthDebugPage() {
   const { data: session, status } = useSession()
-  const [debugData, setDebugData] = useState(null)
+  const [debugData, setDebugData] = useState<{
+    error?: string
+    [key: string]: any
+  } | null>(null)
 
   const fetchDebugData = async () => {
     try {

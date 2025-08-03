@@ -25,7 +25,13 @@ import { useTranslation } from 'next-i18next'
 export default function AdminDashboard() {
   const { t } = useTranslation()
   const { data: session, status } = useSession()
-  const [stats, setStats] = useState(null)
+  const [stats, setStats] = useState<{
+    totalUsers: number
+    totalCustomers: number
+    totalAdmins: number
+    totalCategories: number
+    totalProducts: number
+  } | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 

@@ -4,11 +4,11 @@ export interface UploadProgress {
     progress: number
     status: 'idle' | 'uploading' | 'success' | 'error'
     message?: string
-    result?: any
+    result?: Record<string, unknown>
 }
 
 export interface UseFileUploadOptions {
-    onSuccess?: (result: any, fileInfo?: any) => void
+    onSuccess?: (result: Record<string, unknown>, fileInfo?: Record<string, unknown>) => void
     onError?: (error: string) => void
     onProgress?: (progress: number) => void
 }
@@ -22,8 +22,8 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
     const uploadFile = async (
         file: File,
         uploadUrl: string,
-        additionalData?: Record<string, any>,
-        fileInfo?: any
+        additionalData?: Record<string, unknown>,
+        fileInfo?: Record<string, unknown>
     ) => {
         try {
             setUploadProgress({
@@ -40,9 +40,6 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
                 Object.entries(additionalData).forEach(([key, value]) => {
                     if (value !== null && value !== undefined) {
                         formData.append(key, value.toString())
-                    } else if (value === '') {
-                        // Handle empty strings explicitly
-                        formData.append(key, '')
                     }
                 })
             }
@@ -73,7 +70,7 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
                             result
                         })
                         options.onSuccess?.(result, fileInfo)
-                    } catch (error) {
+                    } catch {
                         setUploadProgress({
                             progress: 0,
                             status: 'error',

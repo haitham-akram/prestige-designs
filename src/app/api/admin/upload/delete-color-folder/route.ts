@@ -23,7 +23,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withAdmin } from '@/lib/auth/middleware'
 import { SessionUser, ApiRouteContext } from '@/lib/auth/types'
-import { unlink, rmdir, readdir } from 'fs/promises'
+import { unlink, rmdir, readdir, stat } from 'fs/promises'
 import { join } from 'path'
 import { existsSync } from 'fs'
 import { z } from 'zod'
@@ -65,12 +65,16 @@ async function deleteColorFolder(req: NextRequest, _context: ApiRouteContext, us
             // Get all files in the directory
             const files = await readdir(colorDir)
 
-            // Delete each file
+            // Delete each file if any exist
             for (const file of files) {
                 const filePath = join(colorDir, file)
-                await unlink(filePath)
-                deletedFiles++
-                console.log(`Deleted file: ${filePath}`)
+                const fileStat = await stat(filePath)
+
+                if (fileStat.isFile()) {
+                    await unlink(filePath)
+                    deletedFiles++
+                    console.log(`Deleted file: ${filePath}`)
+                }
             }
 
             // Remove the empty directory

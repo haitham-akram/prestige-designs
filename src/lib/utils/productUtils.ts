@@ -76,7 +76,7 @@ export function calculateDiscountPercentage(price: number, discountAmount: numbe
  * @returns True if product has any discount
  */
 export function isProductOnSale(product: IProduct): boolean {
-    return (
+    return !!(
         (product.discountAmount && product.discountAmount > 0) ||
         (product.discountPercentage && product.discountPercentage > 0)
     );
@@ -183,86 +183,12 @@ export function formatDiscountPercentage(percentage: number): string {
 }
 
 /**
- * Generate meta title for SEO
- * @param product - Product object
- * @returns Meta title
- */
-export function generateMetaTitle(product: IProduct): string {
-    if (product.metaTitle) return product.metaTitle;
-
-    const baseTitle = product.name;
-    const category = (product as any).category?.name || '';
-
-    if (category) {
-        return `${baseTitle} - ${category}`;
-    }
-
-    return baseTitle;
-}
-
-/**
- * Generate meta description for SEO
- * @param product - Product object
- * @returns Meta description
- */
-export function generateMetaDescription(product: IProduct): string {
-    if (product.metaDescription) return product.metaDescription;
-
-    if (product.description) {
-        return product.description.length > 160
-            ? product.description.substring(0, 157) + '...'
-            : product.description;
-    }
-
-    return `Check out ${product.name} - High quality design available for customization.`;
-}
-
-/**
- * Generate product keywords for SEO
- * @param product - Product object
- * @returns Array of keywords
- */
-export function generateKeywords(product: IProduct): string[] {
-    const keywords = new Set<string>();
-
-    // Add existing keywords
-    if (product.keywords) {
-        product.keywords.forEach(keyword => keywords.add(keyword.toLowerCase()));
-    }
-
-    // Add product name words
-    product.name.toLowerCase().split(/\s+/).forEach(word => {
-        if (word.length > 2) keywords.add(word);
-    });
-
-    // Add category name
-    const category = (product as any).category?.name;
-    if (category) {
-        category.toLowerCase().split(/\s+/).forEach(word => {
-            if (word.length > 2) keywords.add(word);
-        });
-    }
-
-    // Add tags
-    if (product.tags) {
-        product.tags.forEach(tag => keywords.add(tag.toLowerCase()));
-    }
-
-    // Add common design keywords
-    keywords.add('design');
-    keywords.add('custom');
-    keywords.add('printable');
-
-    return Array.from(keywords).slice(0, 10); // Limit to 10 keywords
-}
-
-/**
  * Validate color theme object
  * @param colorTheme - Color theme to validate
  * @returns True if valid color theme
  */
 export function isValidColorTheme(colorTheme: IColorTheme): boolean {
-    return (
+    return !!(
         colorTheme.name &&
         colorTheme.name.trim().length > 0 &&
         colorTheme.name.length <= 50 &&
@@ -277,7 +203,7 @@ export function isValidColorTheme(colorTheme: IColorTheme): boolean {
  * @returns True if valid product image
  */
 export function isValidProductImage(image: IProductImage): boolean {
-    return (
+    return !!(
         image.url &&
         isValidImageUrl(image.url) &&
         image.order >= 0 &&
@@ -467,9 +393,7 @@ export function sanitizeProductForResponse(product: IProduct): Partial<IProduct>
         rating: product.rating,
         reviewCount: product.reviewCount,
         purchaseCount: product.purchaseCount,
-        metaTitle: product.metaTitle,
-        metaDescription: product.metaDescription,
-        keywords: product.keywords,
+
         createdAt: product.createdAt,
         updatedAt: product.updatedAt
     };

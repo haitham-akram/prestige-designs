@@ -1,20 +1,10 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faPlus,
-  faSearch,
-  faEdit,
-  faTrash,
-  faEye,
-  faFilter,
-  faSort,
-  faSortUp,
-  faSortDown,
-} from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faSearch, faEdit, faTrash, faEye, faSortUp, faSortDown } from '@fortawesome/free-solid-svg-icons'
 import './products.css'
 
 interface Product {
@@ -51,7 +41,6 @@ interface Category {
 }
 
 export default function AdminProducts() {
-  const { data: session } = useSession()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
@@ -63,11 +52,6 @@ export default function AdminProducts() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalProducts, setTotalProducts] = useState(0)
-
-  useEffect(() => {
-    fetchCategories()
-    fetchProducts()
-  }, [currentPage, searchTerm, selectedCategory, statusFilter, sortBy, sortOrder])
 
   const fetchCategories = async () => {
     try {
@@ -83,7 +67,7 @@ export default function AdminProducts() {
     }
   }
 
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
@@ -119,7 +103,12 @@ export default function AdminProducts() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [currentPage, searchTerm, selectedCategory, statusFilter, sortBy, sortOrder])
+
+  useEffect(() => {
+    fetchCategories()
+    fetchProducts()
+  }, [fetchProducts])
 
   const handleDelete = async (productId: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذا المنتج؟ سيتم حذف جميع الملفات المرتبطة به نهائياً.')) {
@@ -289,9 +278,11 @@ export default function AdminProducts() {
                 <td className="product-name">
                   <div className="product-info">
                     {product.images.length > 0 ? (
-                      <img
+                      <Image
                         src={product.images[0].url}
                         alt={product.images[0].alt || product.name}
+                        width={48}
+                        height={48}
                         className="product-thumbnail"
                       />
                     ) : (
@@ -314,7 +305,10 @@ export default function AdminProducts() {
                 <td className="price-cell">
                   <div className="price-info">
                     <span className="final-price">{formatPrice(product.finalPrice)}</span>
-                    {product.discountAmount && <span className="original-price">{formatPrice(product.price)}</span>}
+                    {(product.discountAmount && product.discountAmount > 0) ||
+                    (product.discountPercentage && product.discountPercentage > 0) ? (
+                      <span className="original-price">{formatPrice(product.price)}</span>
+                    ) : null}
                   </div>
                 </td>
                 <td>

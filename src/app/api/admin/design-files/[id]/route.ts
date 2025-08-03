@@ -65,7 +65,8 @@ async function getDesignFile(req: NextRequest, context: ApiRouteContext) {
     try {
         await connectDB();
 
-        const { id } = context.params;
+        const params = await context.params;
+        const { id } = params as { id: string };
 
         if (!id) {
             return NextResponse.json(
@@ -115,7 +116,8 @@ async function updateDesignFile(req: NextRequest, context: ApiRouteContext, user
     try {
         await connectDB();
 
-        const { id } = context.params;
+        const params = await context.params;
+        const { id } = params as { id: string };
 
         if (!id) {
             return NextResponse.json(
@@ -190,7 +192,8 @@ async function deleteDesignFile(req: NextRequest, context: ApiRouteContext, user
     try {
         await connectDB();
 
-        const { id } = context.params;
+        const params = await context.params;
+        const { id } = params as { id: string };
 
         if (!id) {
             return NextResponse.json(

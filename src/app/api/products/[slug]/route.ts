@@ -21,10 +21,10 @@ import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
 import connectDB from '@/lib/db/connection';
 import { Product, Category } from '@/lib/db/models';
 import { z } from 'zod';
-import { 
+import {
     calculateDiscountPercentage,
     isProductOnSale,
-    sanitizeProductForResponse 
+    sanitizeProductForResponse
 } from '@/lib/utils/productUtils';
 
 const querySchema = z.object({
@@ -40,7 +40,8 @@ async function getProductBySlug(req: NextRequest, context: ApiRouteContext, user
     try {
         await connectDB();
 
-        const { slug } = context.params;
+        const params = await context.params;
+        const slug = params?.slug as string;
         const { searchParams } = new URL(req.url);
         const query = querySchema.parse({
             includeRelated: searchParams.get('includeRelated') || 'true',
@@ -101,13 +102,9 @@ async function getProductBySlug(req: NextRequest, context: ApiRouteContext, user
             isFeatured: product.isFeatured,
             rating: product.rating,
             reviewCount: product.reviewCount,
-            viewCount: product.viewCount + 1, // Include the current view
             purchaseCount: product.purchaseCount,
-            metaTitle: product.metaTitle,
-            metaDescription: product.metaDescription,
-            keywords: product.keywords,
             createdAt: product.createdAt,
-                        // Calculate discount percentage for display
+            // Calculate discount percentage for display
             calculatedDiscountPercentage: calculateDiscountPercentage(product.price, product.discountAmount || 0),
             // Check if product is on sale
             isOnSale: isProductOnSale(product)

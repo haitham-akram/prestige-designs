@@ -341,8 +341,17 @@ ProductSchema.pre('save', function (this: IProduct, next) {
 ProductSchema.pre('save', function (this: IProduct, next) {
     if (this.isModified('price') || this.isModified('discountAmount') || this.isModified('discountPercentage')) {
         let finalPrice = this.price;
-        if ((this.discountAmount || 0) > 0) { finalPrice -= this.discountAmount || 0; }
-        if ((this.discountPercentage || 0) > 0) { finalPrice -= (finalPrice * (this.discountPercentage || 0)) / 100; }
+
+        // Apply discount amount first (if provided)
+        if ((this.discountAmount || 0) > 0) {
+            finalPrice -= this.discountAmount || 0;
+        }
+
+        // Then apply discount percentage (if provided) - this applies to the price AFTER amount discount
+        if ((this.discountPercentage || 0) > 0) {
+            finalPrice -= (finalPrice * (this.discountPercentage || 0)) / 100;
+        }
+
         this.finalPrice = Math.max(0, finalPrice);
     }
     next();

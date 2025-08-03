@@ -28,7 +28,8 @@ async function downloadDesignFile(req: NextRequest, context: ApiRouteContext, us
     try {
         await connectDB();
 
-        const { id } = context.params;
+        const params = await context.params;
+        const id = params?.id as string;
 
         if (!id) {
             return NextResponse.json(

@@ -17,7 +17,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/auth/middleware';
-import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
+import { ApiRouteContext } from '@/lib/auth/types';
 import connectDB from '@/lib/db/connection';
 import { Product, DesignFile } from '@/lib/db/models';
 import { z } from 'zod';
@@ -25,20 +25,107 @@ import { unlink, rmdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
+// Define validation schemas locally
+const colorThemeSchema = z.object({
+    name: z.string()
+        .min(1, 'Color name is required')
+        .max(50, 'Color name cannot exceed 50 characters')
+        .trim(),
+    hex: z.string()
+        .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please provide a valid hex color code'),
+    description: z.string()
+        .max(100, 'Color description cannot exceed 100 characters')
+        .trim()
+        .optional()
+});
+
+const productImageSchema = z.object({
+    url: z.string()
+        .regex(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Please provide a valid image URL'),
+    alt: z.string()
+        .max(200, 'Alt text cannot exceed 200 characters')
+        .trim()
+        .optional(),
+    isPrimary: z.boolean().default(false),
+    order: z.number().default(0)
+});
+
+const createProductSchema = z.object({
+    name: z.string()
+        .min(3, 'Product name must be at least 3 characters')
+        .max(100, 'Product name cannot exceed 100 characters')
+        .trim(),
+    slug: z.string()
+        .min(3, 'Slug must be at least 3 characters')
+        .max(100, 'Slug cannot exceed 100 characters')
+        .regex(/^[a-z0-9-]+$/, 'Slug can only contain lowercase letters, numbers, and hyphens')
+        .trim(),
+    description: z.string()
+        .max(2000, 'Description cannot exceed 2000 characters')
+        .trim()
+        .optional(),
+    images: z.array(z.union([
+        // Accept image objects
+        productImageSchema,
+        // Accept string URLs and transform them to image objects
+        z.string().regex(/^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)$/i, 'Please provide a valid image URL')
+    ]))
+        .min(1, 'At least one product image is required')
+        .transform((images) =>
+            images.map((image, index) =>
+                typeof image === 'string'
+                    ? { url: image, alt: '', isPrimary: index === 0, order: index }
+                    : image
+            )
+        ),
+    youtubeLink: z.string()
+        .regex(/^https?:\/\/(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/).+/, 'Please provide a valid YouTube URL')
+        .optional()
+        .or(z.literal('')),
+    EnableCustomizations: z.boolean().default(false),
+    allowColorChanges: z.boolean().default(false),
+    allowTextEditing: z.boolean().default(false),
+    allowImageReplacement: z.boolean().default(false),
+    allowLogoUpload: z.boolean().default(false),
+    colors: z.array(colorThemeSchema).default([]),
+    categoryId: z.string()
+        .min(1, 'Category is required'),
+    tags: z.array(z.string()
+        .max(30, 'Tag cannot exceed 30 characters')
+        .trim()
+        .toLowerCase())
+        .max(20, 'Cannot have more than 20 tags')
+        .optional(),
+    price: z.number()
+        .min(0, 'Price cannot be negative'),
+    discountAmount: z.number()
+        .min(0, 'Discount amount cannot be negative')
+        .default(0),
+    discountPercentage: z.number()
+        .min(0, 'Discount percentage cannot be negative')
+        .max(100, 'Discount percentage cannot exceed 100')
+        .default(0),
+    isActive: z.boolean().default(true),
+    isFeatured: z.boolean().default(false)
+});
+
 // Validation schema for product ID
 const productIdSchema = z.object({
     id: z.string().min(1, 'Product ID is required')
 });
 
+// Update product schema (partial, all fields optional)
+const updateProductSchema = createProductSchema.partial();
+
 /**
  * GET /api/admin/products/[id]
  * Get a specific product by ID
  */
-async function getProduct(req: NextRequest, context: ApiRouteContext, user: SessionUser) {
+async function getProduct(req: NextRequest, context: ApiRouteContext) {
     try {
         await connectDB();
 
-        const { params } = context;
+        const params = await context.params;
         const validatedParams = productIdSchema.parse(params);
 
         const product = await Product.findById(validatedParams.id)
@@ -78,13 +165,34 @@ async function getProduct(req: NextRequest, context: ApiRouteContext, user: Sess
  * PUT /api/admin/products/[id]
  * Update a specific product
  */
-async function updateProduct(req: NextRequest, context: ApiRouteContext, user: SessionUser) {
+async function updateProduct(req: NextRequest, context: ApiRouteContext) {
     try {
         await connectDB();
 
-        const { params } = context;
+        const params = await context.params;
         const validatedParams = productIdSchema.parse(params);
         const body = await req.json();
+
+        console.log('API received body:', {
+            images: body.images,
+            bodyKeys: Object.keys(body),
+            discountAmount: body.discountAmount,
+            discountPercentage: body.discountPercentage
+        });
+
+        // Validate and transform the request body
+        const validatedBody = updateProductSchema.parse(body);
+
+        console.log('Validated body:', {
+            validatedKeys: Object.keys(validatedBody),
+            discountAmount: validatedBody.discountAmount,
+            discountPercentage: validatedBody.discountPercentage
+        });
+
+        console.log('Validated body:', {
+            images: validatedBody.images,
+            validatedKeys: Object.keys(validatedBody)
+        });
 
         // Find the product first
         const existingProduct = await Product.findById(validatedParams.id);
@@ -95,12 +203,23 @@ async function updateProduct(req: NextRequest, context: ApiRouteContext, user: S
             );
         }
 
-        // Update the product
-        const updatedProduct = await Product.findByIdAndUpdate(
-            validatedParams.id,
-            { ...body, updatedBy: user.id },
-            { new: true, runValidators: true }
-        ).populate('categoryId', 'name');
+        // Find the product first
+        const product = await Product.findById(validatedParams.id);
+        if (!product) {
+            return NextResponse.json(
+                { success: false, message: 'Product not found' },
+                { status: 404 }
+            );
+        }
+
+        // Update the product fields
+        Object.assign(product, validatedBody);
+
+        // Save the product to trigger pre-save middleware for final price calculation
+        const updatedProduct = await product.save();
+
+        // Populate the category
+        await updatedProduct.populate('categoryId', 'name');
 
         return NextResponse.json({
             success: true,
@@ -129,11 +248,11 @@ async function updateProduct(req: NextRequest, context: ApiRouteContext, user: S
  * DELETE /api/admin/products/[id]
  * Hard delete a product and all its associated files
  */
-async function deleteProduct(req: NextRequest, context: ApiRouteContext, user: SessionUser) {
+async function deleteProduct(req: NextRequest, context: ApiRouteContext) {
     try {
         await connectDB();
 
-        const { params } = context;
+        const params = await context.params;
         const validatedParams = productIdSchema.parse(params);
 
         // Find the product first
