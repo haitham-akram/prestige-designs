@@ -9,7 +9,6 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
   faChartLine,
   faFolder,
-  faPalette,
   faUsers,
   faCog,
   faHome,
@@ -17,6 +16,7 @@ import {
   faShoppingCart,
   faBars,
   faBox,
+  faTicketAlt,
 } from '@fortawesome/free-solid-svg-icons'
 import './admin-layout.css'
 
@@ -100,7 +100,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
 
         <div className="admin-nav">
-          <Link href="/admin" className={`nav-item ${isActive('/admin') ? 'active' : ''}`} title="Dashboard">
+          <Link
+            href="/admin/dashboard"
+            className={`nav-item ${isActive('/admin/dashboard') ? 'active' : ''}`}
+            title="Dashboard"
+          >
             <span className="nav-icon">
               <FontAwesomeIcon icon={faChartLine} />
             </span>
@@ -137,14 +141,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <Link
-            href="/admin/designs"
-            className={`nav-item ${isActive('/admin/designs') ? 'active' : ''}`}
-            title="Designs"
+            href="/admin/promo-codes"
+            className={`nav-item ${isActive('/admin/promo-codes') ? 'active' : ''}`}
+            title="Promo Codes"
           >
             <span className="nav-icon">
-              <FontAwesomeIcon icon={faPalette} />
+              <FontAwesomeIcon icon={faTicketAlt} />
             </span>
-            <span className="nav-text">التصاميم</span>
+            <span className="nav-text">رموز الخصم</span>
           </Link>
 
           <Link href="/admin/users" className={`nav-item ${isActive('/admin/users') ? 'active' : ''}`} title="Users">
@@ -192,7 +196,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Mobile/Tablet Bottom Navigation */}
       <nav className="admin-bottom-nav">
-        <Link href="/admin" className={`bottom-nav-item ${isActive('/admin') ? 'active' : ''}`}>
+        <Link href="/admin/dashboard" className={`bottom-nav-item ${isActive('/admin/dashboard') ? 'active' : ''}`}>
           <span className="bottom-nav-icon">
             <FontAwesomeIcon icon={faChartLine} />
           </span>
@@ -216,9 +220,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </span>
         </Link>
 
-        <Link href="/admin/designs" className={`bottom-nav-item ${isActive('/admin/designs') ? 'active' : ''}`}>
+        <Link href="/admin/promo-codes" className={`bottom-nav-item ${isActive('/admin/promo-codes') ? 'active' : ''}`}>
           <span className="bottom-nav-icon">
-            <FontAwesomeIcon icon={faPalette} />
+            <FontAwesomeIcon icon={faTicketAlt} />
           </span>
         </Link>
 

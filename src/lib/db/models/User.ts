@@ -27,6 +27,7 @@ export interface IUser extends Document {
     avatar?: string;
     bio?: string;
     role: 'customer' | 'admin';
+    isActive: boolean;
     isEmailVerified: boolean;
     emailVerificationToken?: string;
     resetPasswordToken?: string;
@@ -96,6 +97,11 @@ const UserSchema = new Schema<IUser>({
         type: String,
         enum: ['customer', 'admin'],
         default: 'customer'
+    },
+
+    isActive: {
+        type: Boolean,
+        default: true
     },
 
     isEmailVerified: {
