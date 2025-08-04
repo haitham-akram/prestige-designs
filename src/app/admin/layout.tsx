@@ -17,6 +17,7 @@ import {
   faBars,
   faBox,
   faTicketAlt,
+  faStar,
 } from '@fortawesome/free-solid-svg-icons'
 import './admin-layout.css'
 
@@ -159,6 +160,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <Link
+            href="/admin/reviews"
+            className={`nav-item ${isActive('/admin/reviews') ? 'active' : ''}`}
+            title="Reviews"
+          >
+            <span className="nav-icon">
+              <FontAwesomeIcon icon={faStar} />
+            </span>
+            <span className="nav-text">التقييمات</span>
+          </Link>
+
+          <Link
             href="/admin/settings"
             className={`nav-item ${isActive('/admin/settings') ? 'active' : ''}`}
             title="Settings"
@@ -229,6 +241,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <Link href="/admin/users" className={`bottom-nav-item ${isActive('/admin/users') ? 'active' : ''}`}>
           <span className="bottom-nav-icon">
             <FontAwesomeIcon icon={faUsers} />
+          </span>
+        </Link>
+
+        <Link href="/admin/reviews" className={`bottom-nav-item ${isActive('/admin/reviews') ? 'active' : ''}`}>
+          <span className="bottom-nav-icon">
+            <FontAwesomeIcon icon={faStar} />
           </span>
         </Link>
 
