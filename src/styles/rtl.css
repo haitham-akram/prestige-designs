@@ -38,8 +38,8 @@ html[dir='rtl'] .admin-main {
   flex: 1 !important;
   margin-right: 0 !important;
   margin-left: 0 !important;
-  padding-right: 300px !important; /* Space for expanded sidebar + 20px gap */
-  padding-left: 2rem !important;
+  padding-right: 280px !important; /* Space for expanded sidebar + 20px gap */
+  /* padding-left: 2rem !important; */
   min-height: 100vh !important;
   background: var(--bg-primary) !important;
   overflow-x: auto !important;
@@ -48,17 +48,17 @@ html[dir='rtl'] .admin-main {
 
 /* Fix admin-main positioning for RTL when sidebar is collapsed */
 html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
-  padding-right: 90px !important; /* Space for collapsed sidebar + 20px gap */
+  padding-right: 70px !important; /* Space for collapsed sidebar + 20px gap */
 }
 
 /* RTL Responsive Design - Fix mobile layout */
 @media (max-width: 1024px) {
   html[dir='rtl'] .admin-main {
-    padding-right: 270px !important; /* Space for smaller sidebar + 20px gap */
+    padding-right: 250px !important; /* Space for smaller sidebar + 20px gap */
   }
   
   html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
-    padding-right: 90px !important;
+    padding-right: 70px !important;
   }
 }
 
@@ -73,7 +73,7 @@ html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
   
   html[dir='rtl'] .admin-main {
     padding-right: 0 !important; /* Remove padding on mobile */
-    padding-left: 1rem !important;
+    padding-left: 0 !important;
     margin-right: 0 !important;
     margin-left: 0 !important;
     padding-bottom: 80px !important; /* Space for bottom navigation */
@@ -101,10 +101,7 @@ html[dir='rtl'] .admin-layout:has(.admin-sidebar.collapsed) .admin-main {
 }
 
 @media (max-width: 480px) {
-  html[dir='rtl'] .admin-main {
-    padding-left: 0.5rem !important;
-    padding-right: 0.5rem !important;
-  }
+ 
   
   /* Extra padding for very small screens */
   html[dir='rtl'] .stat-item {

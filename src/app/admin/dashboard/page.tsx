@@ -17,26 +17,88 @@
 'use client'
 
 import { useSession, signOut } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { useTranslation } from 'next-i18next'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faUsers,
+  faUserTie,
+  faTags,
+  faBox,
+  faTicketAlt,
+  faShoppingCart,
+  faChartLine,
+  faExclamationTriangle,
+  faPercent,
+  faDollarSign,
+} from '@fortawesome/free-solid-svg-icons'
+import './dashboard.css'
+
+interface DashboardStats {
+  totalUsers: number
+  totalCustomers: number
+  totalAdmins: number
+  totalCategories: number
+  totalProducts: number
+  totalPromoCodes: number
+  totalOrders: number
+}
+
+interface PromoCodeStats {
+  overview: {
+    total: number
+    active: number
+    inactive: number
+    expired: number
+    notYetActive: number
+    used: number
+    unused: number
+  }
+  usage: {
+    totalUsage: number
+    averageUsage: number
+    maxUsage: number
+    totalDiscountValue: number
+  }
+  topUsed: Array<{
+    _id: string
+    code: string
+    usageCount: number
+    usageLimit?: number
+    discountType: string
+    discountValue: number
+    description?: string
+    usagePercentage: number
+  }>
+  expiringSoon: Array<{
+    _id: string
+    code: string
+    endDate: string
+    usageCount: number
+    usageLimit?: number
+    daysUntilExpiry: number
+    usagePercentage: number
+  }>
+  discountTypes: Array<{
+    _id: string
+    count: number
+    totalUsage: number
+  }>
+}
 
 export default function AdminDashboard() {
-  const { t } = useTranslation()
   const { data: session, status } = useSession()
-  const [stats, setStats] = useState<{
-    totalUsers: number
-    totalCustomers: number
-    totalAdmins: number
-    totalCategories: number
-    totalProducts: number
-  } | null>(null)
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [promoStats, setPromoStats] = useState<PromoCodeStats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const router = useRouter()
 
+  // Track if data has been loaded to prevent unnecessary reloads
+  const dataLoadedRef = useRef(false)
+
   useEffect(() => {
-    // Only perform redirects after hydration to avoid mismatch
     if (status === 'loading') return
 
     if (status === 'unauthenticated') {
@@ -44,37 +106,51 @@ export default function AdminDashboard() {
       return
     }
 
-    // Redirect non-admin users to customer dashboard
     if (session?.user?.role !== 'admin') {
       router.push('/customer/dashboard')
       return
     }
   }, [status, session, router])
 
-  useEffect(() => {
-    // Fetch dashboard statistics
-    const fetchStats = async () => {
-      try {
-        // This would be an API call to get dashboard stats
-        // For now, we'll use placeholder data
-        setStats({
-          totalUsers: 5,
-          totalCustomers: 4,
-          totalAdmins: 1,
-          totalCategories: 8,
-          totalProducts: 0,
-        })
-      } catch (error) {
-        console.error('Error fetching dashboard stats:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
+  const fetchDashboardData = useCallback(async () => {
+    if (session?.user?.role !== 'admin') return
 
-    if (session?.user?.role === 'admin') {
-      fetchStats()
+    try {
+      setLoading(true)
+      setError('')
+
+      // Fetch basic stats
+      const statsResponse = await fetch('/api/admin/dashboard/stats')
+      if (statsResponse.ok) {
+        const statsData = await statsResponse.json()
+        setStats(statsData.data)
+      }
+
+      // Fetch promo code stats
+      const promoResponse = await fetch('/api/admin/promo-codes/stats')
+      console.log('Promo stats response:', promoResponse.status)
+      if (promoResponse.ok) {
+        const promoData = await promoResponse.json()
+        console.log('Promo stats data:', promoData)
+        setPromoStats(promoData.data)
+      } else {
+        console.error('Failed to fetch promo stats:', promoResponse.status)
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error)
+      setError('Failed to load dashboard data')
+    } finally {
+      setLoading(false)
     }
   }, [session])
+
+  useEffect(() => {
+    // Only fetch data if we haven't loaded it yet and user is admin
+    if (session?.user?.role === 'admin' && !dataLoadedRef.current) {
+      dataLoadedRef.current = true
+      fetchDashboardData()
+    }
+  }, [session, fetchDashboardData])
 
   const handleSignOut = async () => {
     await signOut({
@@ -82,324 +158,259 @@ export default function AdminDashboard() {
     })
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' || loading) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'var(--bg-primary)',
-          color: 'var(--text-primary)',
-        }}
-      >
-        <div className="flex flex-col items-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4"></div>
-          <div>{t('dashboard.loading')}</div>
+      <div className="admin-dashboard">
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            minHeight: '100vh',
+          }}
+        >
+          <div style={{ textAlign: 'center' }}>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mb-4 mx-auto"></div>
+            <div>جاري التحميل...</div>
+          </div>
         </div>
       </div>
     )
   }
 
-  if (!session) {
-    return null // Will redirect to signin
-  }
-
-  if (session.user.role !== 'admin') {
-    return null // Will redirect to customer dashboard
+  if (!session || session.user.role !== 'admin') {
+    return null
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--bg-primary)',
-        color: 'var(--text-primary)',
-      }}
-    >
+    <div className="admin-dashboard">
       {/* Header */}
-      <div
-        style={{
-          background: 'var(--bg-secondary)',
-          borderBottom: '1px solid var(--border-color)',
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-6">
-            <div>
-              <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.title')}
-              </h1>
-              <p style={{ color: 'var(--text-secondary)' }}>{t('dashboard.welcome')}</p>
+      <div className="dashboard-header">
+        <div className="dashboard-header-content">
+          <div>
+            <h1 className="dashboard-title">لوحة التحكم</h1>
+            <p className="dashboard-subtitle">مرحباً بك في لوحة تحكم Prestige Designs</p>
+          </div>
+          <div className="dashboard-user-info">
+            <div className="user-role">
+              الدور: <span className="user-role-value">مدير</span>
             </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.role')}:{' '}
-                <span className="font-semibold" style={{ color: 'var(--accent-primary)' }}>
-                  {t('dashboard.adminRole')}
-                </span>
-              </div>
-              <button
-                onClick={handleSignOut}
-                className="auth-button-secondary px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300"
-              >
-                {t('dashboard.signOut')}
-              </button>
-            </div>
+            <button onClick={handleSignOut} className="sign-out-btn">
+              تسجيل الخروج
+            </button>
           </div>
         </div>
       </div>
 
       {/* Dashboard Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="dashboard-content">
+        {error && (
+          <div
+            style={{
+              background: 'var(--error-color)',
+              color: 'white',
+              padding: '1rem',
+              borderRadius: '0.5rem',
+              marginBottom: '1rem',
+              textAlign: 'center',
+            }}
+          >
+            {error}
+          </div>
+        )}
+
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div
-            className="p-6 rounded-lg border"
-            style={{
-              background: 'var(--bg-secondary)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <div className="flex items-center">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--accent-primary)' }}
-              >
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                </svg>
+        <div className="stats-grid">
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon users">
+                <FontAwesomeIcon icon={faUsers} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('dashboard.totalUsers')}
-                </p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {loading ? '...' : stats?.totalUsers || 0}
-                </p>
+              <div className="stat-info">
+                <p className="stat-label">إجمالي المستخدمين</p>
+                <p className="stat-value">{stats?.totalUsers || 0}</p>
               </div>
             </div>
           </div>
 
-          <div
-            className="p-6 rounded-lg border"
-            style={{
-              background: 'var(--bg-secondary)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <div className="flex items-center">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--accent-secondary)' }}
-              >
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
-                </svg>
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon customers">
+                <FontAwesomeIcon icon={faUserTie} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('dashboard.customers')}
-                </p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {loading ? '...' : stats?.totalCustomers || 0}
-                </p>
+              <div className="stat-info">
+                <p className="stat-label">العملاء</p>
+                <p className="stat-value">{stats?.totalCustomers || 0}</p>
               </div>
             </div>
           </div>
 
-          <div
-            className="p-6 rounded-lg border"
-            style={{
-              background: 'var(--bg-secondary)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <div className="flex items-center">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--success-color)' }}
-              >
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon categories">
+                <FontAwesomeIcon icon={faTags} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('dashboard.categories')}
-                </p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {loading ? '...' : stats?.totalCategories || 0}
-                </p>
+              <div className="stat-info">
+                <p className="stat-label">التصنيفات</p>
+                <p className="stat-value">{stats?.totalCategories || 0}</p>
               </div>
             </div>
           </div>
 
-          <div
-            className="p-6 rounded-lg border"
-            style={{
-              background: 'var(--bg-secondary)',
-              borderColor: 'var(--border-color)',
-            }}
-          >
-            <div className="flex items-center">
-              <div
-                className="w-12 h-12 rounded-full flex items-center justify-center"
-                style={{ background: 'var(--warning-color)' }}
-              >
-                <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 2L3 7v11a1 1 0 001 1h3v-8h6v8h3a1 1 0 001-1V7l-7-5z"
-                    clipRule="evenodd"
-                  />
-                </svg>
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon products">
+                <FontAwesomeIcon icon={faBox} />
               </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
-                  {t('dashboard.products')}
-                </p>
-                <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
-                  {loading ? '...' : stats?.totalProducts || 0}
-                </p>
+              <div className="stat-info">
+                <p className="stat-label">المنتجات</p>
+                <p className="stat-value">{stats?.totalProducts || 0}</p>
               </div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon promocodes">
+                <FontAwesomeIcon icon={faTicketAlt} />
+              </div>
+              <div className="stat-info">
+                <p className="stat-label">رموز الخصم</p>
+                <p className="stat-value">{stats?.totalPromoCodes || 0}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="stat-card">
+            <div className="stat-card-content">
+              <div className="stat-icon orders">
+                <FontAwesomeIcon icon={faShoppingCart} />
+              </div>
+              <div className="stat-info">
+                <p className="stat-label">الطلبات</p>
+                <p className="stat-value">{stats?.totalOrders || 0}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Promo Code Statistics */}
+        <div className="promo-stats-section">
+          <h3 className="promo-stats-title">
+            <FontAwesomeIcon icon={faChartLine} />
+            إحصائيات رموز الخصم
+          </h3>
+
+          {/* Overview Stats */}
+          <div className="promo-stats-grid">
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.overview?.total || 0}</div>
+              <div className="promo-stat-label">إجمالي الرموز</div>
+            </div>
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.overview?.active || 0}</div>
+              <div className="promo-stat-label">نشط</div>
+            </div>
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.overview?.used || 0}</div>
+              <div className="promo-stat-label">مستخدم</div>
+            </div>
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.overview?.expired || 0}</div>
+              <div className="promo-stat-label">منتهي الصلاحية</div>
+            </div>
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.usage?.totalUsage || 0}</div>
+              <div className="promo-stat-label">إجمالي الاستخدام</div>
+            </div>
+            <div className="promo-stat-item">
+              <div className="promo-stat-value">{promoStats?.usage?.averageUsage || 0}</div>
+              <div className="promo-stat-label">متوسط الاستخدام</div>
+            </div>
+          </div>
+
+          {/* Detailed Stats */}
+          <div className="promo-stats-details">
+            {/* Top Used Promo Codes */}
+            <div className="promo-detail-card">
+              <h4 className="promo-detail-title">أكثر الرموز استخداماً</h4>
+              <ul className="promo-detail-list">
+                {promoStats?.topUsed?.slice(0, 5).map((promo) => (
+                  <li key={promo._id} className="promo-detail-item">
+                    <span className="promo-detail-name">{promo.code}</span>
+                    <span className="promo-detail-value">{promo.usageCount} استخدام</span>
+                  </li>
+                )) || <li className="promo-detail-item">لا توجد بيانات</li>}
+              </ul>
+            </div>
+
+            {/* Expiring Soon */}
+            <div className="promo-detail-card">
+              <h4 className="promo-detail-title">
+                <FontAwesomeIcon icon={faExclamationTriangle} style={{ color: 'var(--warning-color)' }} />
+                تنتهي قريباً
+              </h4>
+              <ul className="promo-detail-list">
+                {promoStats?.expiringSoon?.slice(0, 5).map((promo) => (
+                  <li key={promo._id} className="promo-detail-item">
+                    <span className="promo-detail-name">{promo.code}</span>
+                    <span className="promo-detail-value">{promo.daysUntilExpiry} يوم</span>
+                  </li>
+                )) || <li className="promo-detail-item">لا توجد بيانات</li>}
+              </ul>
+            </div>
+
+            {/* Discount Types */}
+            <div className="promo-detail-card">
+              <h4 className="promo-detail-title">
+                <FontAwesomeIcon icon={faPercent} />
+                أنواع الخصم
+              </h4>
+              <ul className="promo-detail-list">
+                {promoStats?.discountTypes?.map((type) => (
+                  <li key={type._id} className="promo-detail-item">
+                    <span className="promo-detail-name">{type._id === 'percentage' ? 'نسبة مئوية' : 'مبلغ ثابت'}</span>
+                    <span className="promo-detail-value">{type.count} رمز</span>
+                  </li>
+                )) || <li className="promo-detail-item">لا توجد بيانات</li>}
+              </ul>
             </div>
           </div>
         </div>
 
         {/* Quick Actions */}
-        <div
-          className="p-6 rounded-lg border mb-8"
-          style={{
-            background: 'var(--bg-secondary)',
-            borderColor: 'var(--border-color)',
-          }}
-        >
-          <h3 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-            {t('dashboard.quickActions')}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <Link
-              href="/admin/categories"
-              className="block p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.manageCategories')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.manageCategoriesDesc')}
-              </p>
+        <div className="quick-actions">
+          <h3 className="quick-actions-title">الإجراءات السريعة</h3>
+          <div className="quick-actions-grid">
+            <Link href="/admin/categories" className="quick-action-card">
+              <h4 className="quick-action-title">إدارة الفئات</h4>
+              <p className="quick-action-desc">إضافة وتعديل وحذف فئات المنتجات</p>
             </Link>
 
-            <button
-              className="text-left p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.manageUsers')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.manageUsersDesc')}
-              </p>
-            </button>
+            <Link href="/admin/products" className="quick-action-card">
+              <h4 className="quick-action-title">إدارة المنتجات</h4>
+              <p className="quick-action-desc">إضافة وتعديل وحذف المنتجات</p>
+            </Link>
 
-            <button
-              className="text-left p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.storeSettings')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.storeSettingsDesc')}
-              </p>
-            </button>
+            <Link href="/admin/promo-codes" className="quick-action-card">
+              <h4 className="quick-action-title">إدارة رموز الخصم</h4>
+              <p className="quick-action-desc">إنشاء وإدارة رموز الخصم والعروض</p>
+            </Link>
 
-            <button
-              className="text-left p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.viewReports')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.viewReportsDesc')}
-              </p>
-            </button>
+            <Link href="/admin/orders" className="quick-action-card">
+              <h4 className="quick-action-title">إدارة الطلبات</h4>
+              <p className="quick-action-desc">عرض وإدارة طلبات العملاء</p>
+            </Link>
 
-            <button
-              className="text-left p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.manageProducts')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.manageProductsDesc')}
-              </p>
-            </button>
+            <Link href="/admin/users" className="quick-action-card">
+              <h4 className="quick-action-title">إدارة المستخدمين</h4>
+              <p className="quick-action-desc">إدارة حسابات المستخدمين والصلاحيات</p>
+            </Link>
 
-            <button
-              className="text-left p-4 rounded-lg border transition-all duration-300 hover:transform hover:scale-105"
-              style={{
-                borderColor: 'var(--border-color)',
-                background: 'var(--bg-primary)',
-              }}
-            >
-              <h4 className="font-medium" style={{ color: 'var(--text-primary)' }}>
-                {t('dashboard.orderManagement')}
-              </h4>
-              <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-                {t('dashboard.orderManagementDesc')}
-              </p>
-            </button>
-          </div>
-        </div>
-
-        {/* Recent Activity */}
-        <div
-          className="p-6 rounded-lg border"
-          style={{
-            background: 'var(--bg-secondary)',
-            borderColor: 'var(--border-color)',
-          }}
-        >
-          <h3 className="text-lg font-medium mb-6" style={{ color: 'var(--text-primary)' }}>
-            {t('dashboard.recentActivity')}
-          </h3>
-          <div className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
-            <div className="mb-4">
-              <svg className="w-16 h-16 mx-auto opacity-50" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z"
-                  clipRule="evenodd"
-                />
-              </svg>
+            <div className="quick-action-card">
+              <h4 className="quick-action-title">إعدادات المتجر</h4>
+              <p className="quick-action-desc">تكوين إعدادات المتجر العامة</p>
             </div>
-            <p>{t('dashboard.noRecentActivity')}</p>
-            <p className="text-sm mt-1">{t('dashboard.recentActivityDesc')}</p>
           </div>
         </div>
       </div>

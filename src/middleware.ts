@@ -81,6 +81,14 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(signInUrl);
     }
 
+    // Check if user is inactive
+    if (token.isActive === false) {
+        // Redirect inactive users to home page
+        const homeUrl = new URL('/', request.url);
+        homeUrl.searchParams.set('deactivated', 'true');
+        return NextResponse.redirect(homeUrl);
+    }
+
     // If route requires admin access
     if (isAdminRoute) {
         // Check if user is admin
