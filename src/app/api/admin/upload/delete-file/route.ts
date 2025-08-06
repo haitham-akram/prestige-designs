@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/auth/middleware';
 import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
-import { deleteFile } from '@/lib/utils/fileUtils';
+import { FileUtils } from '@/lib/utils/fileUtils';
 import { z } from 'zod';
 
 // Validation schema
@@ -48,7 +48,7 @@ async function deleteUploadedFile(req: NextRequest, context: ApiRouteContext, us
         const { fileUrl } = validationResult.data;
 
         // Delete the file from storage
-        const deleteSuccess = await deleteFile(fileUrl);
+        const deleteSuccess = await FileUtils.deleteFile(fileUrl);
 
         if (deleteSuccess) {
             return NextResponse.json({

@@ -63,13 +63,7 @@ const DesignFileSchema = new Schema<IDesignFile>({
     fileUrl: {
         type: String,
         required: [true, 'File URL is required'],
-        validate: {
-            validator: function (v: string) {
-                // Allow both local file paths and external URLs
-                return /^(\/uploads\/designs\/.+|https?:\/\/.+)/.test(v);
-            },
-            message: 'Please provide a valid file URL or local path'
-        }
+        trim: true
     },
 
     fileType: {
@@ -178,15 +172,21 @@ DesignFileSchema.pre('save', function (this: IDesignFile, next) {
     // Maximum file size: 100MB
     const maxFileSize = 100 * 1024 * 1024; // 100MB in bytes
 
+    console.log('🔍 Pre-save middleware - File size:', this.fileSize, 'Max:', maxFileSize);
+
     if (this.fileSize > maxFileSize) {
+        console.log('❌ File size validation failed');
         return next(new Error('File size cannot exceed 100MB'));
     }
 
+    console.log('✅ File size validation passed');
     next();
 });
 
 // Pre-save middleware to set MIME type based on file type
 DesignFileSchema.pre('save', function (this: IDesignFile, next) {
+    console.log('🔍 Pre-save middleware - Setting MIME type for:', this.fileType);
+
     if (!this.mimeType) {
         const mimeTypes: Record<string, string> = {
             'psd': 'image/vnd.adobe.photoshop',
@@ -204,6 +204,7 @@ DesignFileSchema.pre('save', function (this: IDesignFile, next) {
         };
 
         this.mimeType = mimeTypes[this.fileType] || 'application/octet-stream';
+        console.log('✅ MIME type set to:', this.mimeType);
     }
 
     next();

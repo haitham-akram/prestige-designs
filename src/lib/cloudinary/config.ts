@@ -57,4 +57,31 @@ export const deleteImage = async (publicId: string) => {
         console.error('Error deleting image from Cloudinary:', error);
         throw error;
     }
+};
+
+// Utility function to upload file to Cloudinary
+export const uploadToCloudinary = async (file: Buffer | string, options: CloudinaryUploadOptions = {}) => {
+    try {
+        const uploadOptions = {
+            folder: 'prestige-designs',
+            resource_type: 'auto',
+            ...options
+        };
+
+        let uploadResult;
+        if (typeof file === 'string') {
+            // Upload from URL
+            uploadResult = await cloudinary.uploader.upload(file, uploadOptions);
+        } else {
+            // Upload from buffer - convert to base64 string
+            const base64File = file.toString('base64');
+            const dataURI = `data:application/octet-stream;base64,${base64File}`;
+            uploadResult = await cloudinary.uploader.upload(dataURI, uploadOptions);
+        }
+
+        return uploadResult;
+    } catch (error) {
+        console.error('Error uploading to Cloudinary:', error);
+        throw error;
+    }
 }; 
