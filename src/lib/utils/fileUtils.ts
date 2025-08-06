@@ -11,326 +11,277 @@
  * - File organization
  */
 
-import { unlink, rmdir, readdir } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import { writeFile, mkdir, unlink, stat } from 'fs/promises';
+import path from 'path';
 
-// Allowed file types for design files and videos
-export const ALLOWED_DESIGN_FILE_TYPES = {
-    // Design files
-    'psd': 'image/vnd.adobe.photoshop',
-    'ai': 'application/postscript',
-    'eps': 'application/postscript',
-    'pdf': 'application/pdf',
-    'svg': 'image/svg+xml',
-    'zip': 'application/zip',
-    'rar': 'application/vnd.rar',
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'gif': 'image/gif',
-    'webp': 'image/webp',
-    // Video files
-    'mp4': 'video/mp4',
-    'avi': 'video/x-msvideo',
-    'mov': 'video/quicktime',
-    'wmv': 'video/x-ms-wmv',
-    'flv': 'video/x-flv',
-    'webm': 'video/webm',
-    'mkv': 'video/x-matroska'
-} as const;
+export interface FileUploadResult {
+    fileName: string;
+    fileUrl: string;
+    filePath: string;
+    fileSize: number;
+}
 
-// File size limits
-export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
+export interface UploadOptions {
+    orderId?: string;
+    orderNumber?: string;
+    productId?: string;
+    productSlug?: string;
+    colorName?: string;
+}
 
-/**
- * Delete a file from local storage
- * @param filePath - The file path to delete
- * @returns Promise<boolean> - Success status
- */
-export async function deleteFile(filePath: string): Promise<boolean> {
-    try {
-        // Ensure the path is within the uploads directory for security
-        const uploadsDir = join(process.cwd(), 'public', 'uploads');
-        const fullPath = join(process.cwd(), 'public', filePath);
+export class FileUtils {
+    /**
+     * Upload a file to local storage
+     */
+    static async uploadFile(
+        file: Buffer,
+        originalName: string,
+        uploadPath: string
+    ): Promise<FileUploadResult> {
+        try {
+            // Create directory structure
+            const fullUploadPath = path.join(process.cwd(), 'public', uploadPath);
+            await mkdir(fullUploadPath, { recursive: true });
 
-        if (!fullPath.startsWith(uploadsDir)) {
-            console.error('Attempted to delete file outside uploads directory:', filePath);
+            // Generate unique filename
+            const timestamp = Date.now();
+            const fileExtension = path.extname(originalName);
+            const fileName = `${timestamp}_${originalName}`;
+            const filePath = path.join(fullUploadPath, fileName);
+
+            // Write file to local storage
+            await writeFile(filePath, file);
+
+            // Create relative URL for database
+            const relativePath = path.join(uploadPath, fileName);
+            const fileUrl = `/${relativePath.replace(/\\/g, '/')}`;
+
+            return {
+                fileName: originalName,
+                fileUrl,
+                filePath,
+                fileSize: file.length
+            };
+        } catch (error) {
+            console.error('Error uploading file:', error);
+            throw new Error(`Failed to upload file: ${error}`);
+        }
+    }
+
+    /**
+     * Upload design file for an order with simple color-based structure
+     */
+    static async uploadDesignFile(
+        file: Buffer,
+        originalName: string,
+        options: UploadOptions
+    ): Promise<FileUploadResult> {
+        const uploadPath = this.generateUploadPath(options);
+        return this.uploadFile(file, originalName, uploadPath);
+    }
+
+    /**
+     * Generate simple upload path: base folder or color subfolder
+     */
+    static generateUploadPath(options: UploadOptions): string {
+        const { orderId, orderNumber, productId, productSlug, colorName } = options;
+
+        // Determine the order identifier (prefer orderNumber over orderId)
+        const orderIdentifier = orderNumber || orderId;
+        if (!orderIdentifier) {
+            throw new Error('Either orderNumber or orderId is required');
+        }
+
+        // Determine the product identifier (prefer productSlug over productId)
+        const productIdentifier = productSlug || productId;
+        if (!productIdentifier) {
+            throw new Error('Either productSlug or productId is required');
+        }
+
+        // Base path: uploads/orders/{orderNumber}/{productSlug} or uploads/designs/orders/{orderId}/{productId}
+        let uploadPath;
+        if (orderNumber && productSlug) {
+            // New structure: uploads/orders/{orderNumber}/{productSlug}
+            uploadPath = path.join('uploads', 'orders', orderNumber, productSlug);
+        } else {
+            // Legacy structure: uploads/designs/orders/{orderId}/{productId}
+            uploadPath = path.join('uploads', 'designs', 'orders', orderId, productId);
+        }
+
+        // Add color folder only if colorName is provided and not empty
+        if (colorName && colorName.trim()) {
+            uploadPath = path.join(uploadPath, colorName);
+        }
+
+        return uploadPath;
+    }
+
+    /**
+     * Upload design file for an order (legacy method for backward compatibility)
+     */
+    static async uploadDesignFileLegacy(
+        file: Buffer,
+        originalName: string,
+        orderId: string,
+        productId: string,
+        colorName?: string
+    ): Promise<FileUploadResult> {
+        const options: UploadOptions = {
+            orderId,
+            productId,
+            colorName
+        };
+        return this.uploadDesignFile(file, originalName, options);
+    }
+
+    /**
+     * Get file path for a specific order and product
+     */
+    static getOrderProductPath(orderId: string, productId: string, colorName?: string): string {
+        const basePath = path.join('uploads', 'designs', 'orders', orderId, productId);
+
+        if (colorName && colorName.trim()) {
+            return path.join(basePath, colorName);
+        }
+
+        return basePath;
+    }
+
+    /**
+     * List all files for a specific order and product
+     */
+    static async listOrderFiles(orderId: string, productId: string): Promise<string[]> {
+        // This would scan the directory and return all file URLs
+        // Implementation would depend on your needs
+        console.log('List files function not implemented');
+        return [];
+    }
+
+    /**
+     * Delete a file from local storage
+             */
+    static async deleteFile(fileUrl: string): Promise<boolean> {
+        try {
+            const filePath = path.join(process.cwd(), 'public', fileUrl.substring(1));
+
+            // Check if file exists
+            try {
+                await stat(filePath);
+            } catch (error) {
+                console.log('File not found for deletion:', filePath);
+                return false;
+            }
+
+            // Delete the file
+            await unlink(filePath);
+            return true;
+        } catch (error) {
+            console.error('Error deleting file:', error);
             return false;
         }
-
-        if (existsSync(fullPath)) {
-            await unlink(fullPath);
-            console.log(`File deleted successfully: ${filePath}`);
-            return true;
-        } else {
-            console.log(`File not found: ${filePath}`);
-            return true; // File doesn't exist, consider it "deleted"
-        }
-    } catch (error) {
-        console.error('Error deleting file:', error);
-        return false;
     }
-}
 
-/**
- * Delete all files for a specific product
- * @param productId - The product ID
- * @returns Promise<boolean> - Success status
- */
-export async function deleteProductFiles(productId: string): Promise<boolean> {
-    try {
-        const productDir = join(process.cwd(), 'public', 'uploads', 'designs', productId);
-
-        if (!existsSync(productDir)) {
-            console.log(`Product directory not found: ${productDir}`);
+    /**
+             * Check if file exists
+             */
+    static async fileExists(fileUrl: string): Promise<boolean> {
+        try {
+            const filePath = path.join(process.cwd(), 'public', fileUrl.substring(1));
+            await stat(filePath);
             return true;
+        } catch (error) {
+            return false;
         }
-
-        // Get all files in the directory
-        const files = await readdir(productDir);
-
-        // Delete each file
-        for (const file of files) {
-            const filePath = join(productDir, file);
-            await unlink(filePath);
-        }
-
-        // Remove the directory
-        await rmdir(productDir);
-
-        console.log(`Deleted all files for product: ${productId}`);
-        return true;
-    } catch (error) {
-        console.error('Error deleting product files:', error);
-        return false;
     }
-}
 
-/**
- * Validate file type
- * @param fileName - The file name
- * @returns boolean - Whether file type is allowed
- */
-export function isValidFileType(fileName: string): boolean {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? extension in ALLOWED_DESIGN_FILE_TYPES : false;
-}
-
-/**
- * Get MIME type for file
- * @param fileName - The file name
- * @returns string - MIME type or 'application/octet-stream'
- */
-export function getMimeType(fileName: string): string {
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? ALLOWED_DESIGN_FILE_TYPES[extension as keyof typeof ALLOWED_DESIGN_FILE_TYPES] || 'application/octet-stream' : 'application/octet-stream';
-}
-
-/**
- * Validate file size
- * @param fileSize - File size in bytes
- * @returns boolean - Whether file size is within limits
- */
-export function isValidFileSize(fileSize: number): boolean {
-    return fileSize > 0 && fileSize <= MAX_FILE_SIZE;
-}
-
-/**
- * Generate unique filename
- * @param productId - The product ID
- * @param originalFileName - The original file name
- * @returns string - Unique filename
- */
-export function generateUniqueFileName(productId: string, originalFileName: string): string {
-    const timestamp = Date.now();
-    const uniqueFileName = `${productId}_${timestamp}_${originalFileName}`;
-    return uniqueFileName.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
-
-/**
- * Get file path for a design file
- * @param productId - The product ID
- * @param fileName - The file name
- * @returns string - Full file path
- */
-export function getDesignFilePath(productId: string, fileName: string): string {
-    return join(process.cwd(), 'public', 'uploads', 'designs', productId, fileName);
-}
-
-/**
- * Get public URL for a design file
- * @param productId - The product ID
- * @param fileName - The file name
- * @returns string - Public URL
- */
-export function getDesignFileUrl(productId: string, fileName: string): string {
-    return `/uploads/designs/${productId}/${fileName}`;
-}
-
-/**
- * Check if file exists
- * @param filePath - The file path
- * @returns boolean - Whether file exists
- */
-export function fileExists(filePath: string): boolean {
-    return existsSync(filePath);
-}
-
-/**
- * Get file size in human readable format
- * @param bytes - File size in bytes
- * @returns string - Human readable file size
- */
-export function formatFileSize(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-}
-
-/**
- * Check if file is a video
- * @param fileName - The file name
- * @returns boolean - Whether file is a video
- */
-export function isVideoFile(fileName: string): boolean {
-    const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? videoExtensions.includes(extension) : false;
-}
-
-/**
- * Check if file is an image
- * @param fileName - The file name
- * @returns boolean - Whether file is an image
- */
-export function isImageFile(fileName: string): boolean {
-    const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp'];
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? imageExtensions.includes(extension) : false;
-}
-
-/**
- * Check if file is a design file (PSD, AI, etc.)
- * @param fileName - The file name
- * @returns boolean - Whether file is a design file
- */
-export function isDesignFile(fileName: string): boolean {
-    const designExtensions = ['psd', 'ai', 'eps', 'pdf', 'svg'];
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? designExtensions.includes(extension) : false;
-}
-
-/**
- * Check if file is an archive (ZIP, RAR)
- * @param fileName - The file name
- * @returns boolean - Whether file is an archive
- */
-export function isArchiveFile(fileName: string): boolean {
-    const archiveExtensions = ['zip', 'rar'];
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    return extension ? archiveExtensions.includes(extension) : false;
-}
-
-/**
- * Get file category (video, image, design, archive)
- * @param fileName - The file name
- * @returns string - File category
- */
-export function getFileCategory(fileName: string): string {
-    if (isVideoFile(fileName)) return 'video';
-    if (isImageFile(fileName)) return 'image';
-    if (isDesignFile(fileName)) return 'design';
-    if (isArchiveFile(fileName)) return 'archive';
-    return 'other';
-}
-
-/**
- * Clean up orphaned files (files not referenced in database)
- * @param referencedFiles - Array of file URLs that are referenced in database
- * @returns Promise<number> - Number of files deleted
- */
-export async function cleanupOrphanedFiles(referencedFiles: string[]): Promise<number> {
-    try {
-        const designsDir = join(process.cwd(), 'public', 'uploads', 'designs');
-        let deletedCount = 0;
-
-        if (!existsSync(designsDir)) {
+    /**
+             * Get file size
+             */
+    static async getFileSize(fileUrl: string): Promise<number> {
+        try {
+            const filePath = path.join(process.cwd(), 'public', fileUrl.substring(1));
+            const stats = await stat(filePath);
+            return stats.size;
+        } catch (error) {
+            console.error('Error getting file size:', error);
             return 0;
         }
-
-        // Get all product directories
-        const productDirs = await readdir(designsDir);
-
-        for (const productDir of productDirs) {
-            const productPath = join(designsDir, productDir);
-            const files = await readdir(productPath);
-
-            for (const file of files) {
-                const fileUrl = `/uploads/designs/${productDir}/${file}`;
-
-                // If file is not referenced, delete it
-                if (!referencedFiles.includes(fileUrl)) {
-                    const filePath = join(productPath, file);
-                    await unlink(filePath);
-                    deletedCount++;
-                    console.log(`Deleted orphaned file: ${fileUrl}`);
-                }
-            }
-
-            // Remove empty product directories
-            const remainingFiles = await readdir(productPath);
-            if (remainingFiles.length === 0) {
-                await rmdir(productPath);
-                console.log(`Removed empty product directory: ${productDir}`);
-            }
-        }
-
-        return deletedCount;
-    } catch (error) {
-        console.error('Error cleaning up orphaned files:', error);
-        return 0;
     }
-}
 
-/**
- * Get total storage usage for design files
- * @returns Promise<number> - Total size in bytes
- */
-export async function getDesignFilesStorageUsage(): Promise<number> {
-    try {
-        const designsDir = join(process.cwd(), 'public', 'uploads', 'designs');
-        let totalSize = 0;
+    /**
+     * Format file size for display
+     */
+    static formatFileSize(bytes: number): string {
+        if (bytes === 0) return '0 Bytes';
 
-        if (!existsSync(designsDir)) {
-            return 0;
-        }
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
 
-        // This is a simplified implementation
-        // In a production environment, you might want to store file sizes in the database
-        // or implement a more sophisticated file size calculation
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
 
-        const { statSync } = await import('fs');
-        const productDirs = await readdir(designsDir);
+    /**
+             * Get file extension from filename
+             */
+    static getFileExtension(filename: string): string {
+        return path.extname(filename).toLowerCase();
+    }
 
-        for (const productDir of productDirs) {
-            const productPath = join(designsDir, productDir);
-            const files = await readdir(productPath);
+    /**
+     * Validate file type
+     */
+    static isValidDesignFile(filename: string): boolean {
+        const allowedExtensions = [
+            '.psd', '.ai', '.eps', '.pdf', '.svg',
+            '.zip', '.rar', '.png', '.jpg', '.jpeg',
+            '.gif', '.webp', '.mp4', '.avi', '.mov',
+            '.wmv', '.flv', '.webm', '.mkv'
+        ];
 
-            for (const file of files) {
-                const filePath = join(productPath, file);
-                const stats = statSync(filePath);
-                totalSize += stats.size;
-            }
-        }
+        const extension = this.getFileExtension(filename);
+        return allowedExtensions.includes(extension);
+    }
 
-        return totalSize;
-    } catch (error) {
-        console.error('Error calculating storage usage:', error);
+    /**
+     * Get MIME type from file extension
+     */
+    static getMimeType(filename: string): string {
+        const extension = this.getFileExtension(filename);
+
+        const mimeTypes: Record<string, string> = {
+            '.psd': 'image/vnd.adobe.photoshop',
+            '.ai': 'application/postscript',
+            '.eps': 'application/postscript',
+            '.pdf': 'application/pdf',
+            '.svg': 'image/svg+xml',
+            '.zip': 'application/zip',
+            '.rar': 'application/vnd.rar',
+            '.png': 'image/png',
+            '.jpg': 'image/jpeg',
+            '.jpeg': 'image/jpeg',
+            '.gif': 'image/gif',
+            '.webp': 'image/webp',
+            '.mp4': 'video/mp4',
+            '.avi': 'video/x-msvideo',
+            '.mov': 'video/quicktime',
+            '.wmv': 'video/x-ms-wmv',
+            '.flv': 'video/x-flv',
+            '.webm': 'video/webm',
+            '.mkv': 'video/x-matroska'
+        };
+
+        return mimeTypes[extension] || 'application/octet-stream';
+    }
+
+    /**
+     * Clean up orphaned files
+     */
+    static async cleanupOrphanedFiles(): Promise<number> {
+        // This function would scan the uploads directory and remove files
+        // that don't have corresponding database records
+        // Implementation would depend on your specific needs
+        console.log('Cleanup function not implemented');
         return 0;
     }
 } 

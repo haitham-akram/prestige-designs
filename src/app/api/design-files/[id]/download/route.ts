@@ -15,172 +15,138 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { withCustomerOrAdmin } from '@/lib/auth/middleware';
-import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
+import DesignFile from '@/lib/db/models/DesignFile';
+import OrderDesignFile from '@/lib/db/models/OrderDesignFile';
 import connectDB from '@/lib/db/connection';
-import { DesignFile, OrderDesignFile, Order } from '@/lib/db/models';
+import { readFile, stat } from 'fs/promises';
+import path from 'path';
+import Order from '@/lib/db/models/Order';
 
-/**
- * GET /api/design-files/[id]/download
- * Download a specific design file
- */
-async function downloadDesignFile(req: NextRequest, context: ApiRouteContext, user: SessionUser) {
+export async function GET(
+    request: NextRequest,
+    { params }: { params: { id: string } }
+) {
     try {
-        await connectDB();
-
-        const params = await context.params;
-        const id = params?.id as string;
-
-        if (!id) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Design file ID is required'
-                },
-                { status: 400 }
-            );
+        // Check authentication
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        await connectDB();
+
+        const designFileId = params.id;
+
         // Find the design file
-        const designFile = await DesignFile.findById(id);
+        const designFile = await DesignFile.findById(designFileId);
         if (!designFile) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Design file not found'
-                },
-                { status: 404 }
-            );
+            return NextResponse.json({ error: 'Design file not found' }, { status: 404 });
         }
 
         // Check if file is active
         if (!designFile.isActive) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Design file is not available'
-                },
-                { status: 404 }
-            );
+            return NextResponse.json({ error: 'Design file is not available' }, { status: 404 });
         }
 
-        // Check if file is expired
+        // Check if file has expired
         if (designFile.expiresAt && new Date() > designFile.expiresAt) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Design file has expired'
-                },
-                { status: 410 }
-            );
+            return NextResponse.json({ error: 'Design file has expired' }, { status: 410 });
         }
 
-        // Check download limit
-        if (designFile.maxDownloads && designFile.downloadCount >= designFile.maxDownloads) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Download limit reached for this file'
-                },
-                { status: 429 }
-            );
+        // For admin users, allow direct access
+        if (session.user.role === 'admin') {
+            return await serveFile(designFile);
         }
 
-        // Access control based on user role
-        if (user.role === 'admin') {
-            // Admins can download any file
-        } else {
-            // Customers can only download files from their orders via junction table
-            const orderAccess = await OrderDesignFile.findOne({
-                designFileId: designFile._id,
-                isActive: true
-            });
-
-            if (!orderAccess) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: 'Access denied - file not available for download'
-                    },
-                    { status: 403 }
-                );
-            }
-
-            // Verify the order belongs to the customer
-            const order = await Order.findOne({
-                _id: orderAccess.orderId,
-                userId: user.id,
-                status: { $in: ['completed', 'paid'] }
-            });
-
-            if (!order) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: 'Access denied - order not found or not paid'
-                    },
-                    { status: 403 }
-                );
-            }
-
-            // Check if this specific order access is expired
-            if (orderAccess.isExpired()) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: 'Access denied - download access has expired'
-                    },
-                    { status: 410 }
-                );
-            }
-
-            // Check download limit for this specific order
-            if (designFile.maxDownloads && orderAccess.downloadCount >= designFile.maxDownloads) {
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: 'Download limit reached for this file'
-                    },
-                    { status: 429 }
-                );
-            }
-
-            // Increment download count for this specific order
-            await orderAccess.incrementDownloads();
-        }
-
-        // Generate temporary download URL (24 hours)
-        const downloadUrl = designFile.generateDownloadUrl(24);
-
-        // Save the updated design file
-        await designFile.save();
-
-        return NextResponse.json({
-            success: true,
-            message: 'Download URL generated successfully',
-            data: {
-                downloadUrl,
-                expiresAt: designFile.downloadUrlExpiresAt,
-                fileName: designFile.fileName,
-                fileSize: designFile.fileSize,
-                fileType: designFile.fileType,
-                mimeType: designFile.mimeType,
-                downloadCount: designFile.downloadCount + 1
-            }
+        // For customers, check if they have access to this file through an order
+        const orderDesignFile = await OrderDesignFile.findOne({
+            designFileId: designFileId,
+            orderId: { $in: await getUserOrderIds(session.user.id) },
+            isActive: true
         });
 
-    } catch (error) {
-        console.error('Download design file error:', error);
+        if (!orderDesignFile) {
+            return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+        }
 
+        // Check if customer's access has expired
+        if (orderDesignFile.expiresAt && new Date() > orderDesignFile.expiresAt) {
+            return NextResponse.json({ error: 'Your access to this file has expired' }, { status: 410 });
+        }
+
+        // Check download limits
+        if (designFile.maxDownloads && orderDesignFile.downloadCount >= designFile.maxDownloads) {
+            return NextResponse.json({ error: 'Download limit reached' }, { status: 429 });
+        }
+
+        // Increment download count
+        orderDesignFile.downloadCount += 1;
+        orderDesignFile.lastDownloadedAt = new Date();
+        if (!orderDesignFile.firstDownloadedAt) {
+            orderDesignFile.firstDownloadedAt = new Date();
+        }
+        await orderDesignFile.save();
+
+        // Serve the file
+        return await serveFile(designFile);
+
+    } catch (error) {
+        console.error('Error downloading design file:', error);
         return NextResponse.json(
-            {
-                success: false,
-                message: 'Failed to generate download URL'
-            },
+            { error: 'Internal server error' },
             { status: 500 }
         );
     }
 }
 
-// Apply middleware and export handlers
-export const GET = withCustomerOrAdmin(downloadDesignFile); 
+async function serveFile(designFile: any) {
+    try {
+        // Convert URL to file path
+        const filePath = path.join(process.cwd(), 'public', designFile.fileUrl.substring(1));
+
+        // Check if file exists
+        try {
+            await stat(filePath);
+        } catch (error) {
+            return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
+        }
+
+        // Read file
+        const fileBuffer = await readFile(filePath);
+
+        // Set appropriate headers
+        const headers = new Headers();
+        headers.set('Content-Type', designFile.mimeType || 'application/octet-stream');
+        headers.set('Content-Disposition', `attachment; filename="${designFile.fileName}"`);
+        headers.set('Content-Length', fileBuffer.length.toString());
+
+        return new NextResponse(fileBuffer, {
+            status: 200,
+            headers
+        });
+
+    } catch (error) {
+        console.error('Error serving file:', error);
+        return NextResponse.json(
+            { error: 'Error serving file' },
+            { status: 500 }
+        );
+    }
+}
+
+async function getUserOrderIds(userId: string): Promise<string[]> {
+    try {
+        const orders = await Order.find({
+            customerId: userId,
+            orderStatus: { $in: ['completed', 'processing'] },
+            paymentStatus: 'paid'
+        }).select('_id');
+
+        return orders.map(order => order._id.toString());
+    } catch (error) {
+        console.error('Error getting user order IDs:', error);
+        return [];
+    }
+} 

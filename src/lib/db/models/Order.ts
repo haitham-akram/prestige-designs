@@ -532,7 +532,7 @@ OrderSchema.pre('save', function (this: IOrder, next) {
         this.orderHistory.push({
             status: this.orderStatus,
             timestamp: new Date(),
-            note: `Order status changed to ${this.orderStatus}`,
+            note: `تم تغيير حالة الطلب إلى ${this.orderStatus === 'pending' ? 'في الانتظار' : this.orderStatus === 'processing' ? 'قيد المعالجة' : this.orderStatus === 'completed' ? 'مكتمل' : this.orderStatus === 'cancelled' ? 'ملغي' : this.orderStatus}`,
             changedBy: 'system'
         });
     }
@@ -616,7 +616,7 @@ OrderSchema.methods.applyPromoToItem = async function (this: IOrder, itemIndex: 
     this.orderHistory.push({
         status: 'promo_applied',
         timestamp: new Date(),
-        note: `Promo code ${promoCode} applied to ${item.productName} (${discountAmount} discount)`,
+        note: `تم تطبيق كوبون ${promoCode} على ${item.productName} (خصم ${discountAmount})`,
         changedBy: 'system'
     });
 
@@ -642,7 +642,7 @@ OrderSchema.methods.removePromoFromItem = async function (this: IOrder, itemInde
         this.orderHistory.push({
             status: 'promo_removed',
             timestamp: new Date(),
-            note: `Promo code ${oldPromo} removed from ${item.productName}`,
+            note: `تم إزالة كوبون ${oldPromo} من ${item.productName}`,
             changedBy: 'system'
         });
     }
@@ -687,7 +687,7 @@ OrderSchema.methods.markAsPaid = async function (this: IOrder, paypalTransaction
     this.orderHistory.push({
         status: 'paid',
         timestamp: new Date(),
-        note: `Payment completed via PayPal: ${paypalTransactionId}`,
+        note: `تم إكمال الدفع عبر PayPal: ${paypalTransactionId}`,
         changedBy: 'system'
     });
 
@@ -709,7 +709,7 @@ OrderSchema.methods.completeOrder = async function (this: IOrder, downloadLinks:
     this.orderHistory.push({
         status: 'completed',
         timestamp: new Date(),
-        note: 'Order completed and download links generated',
+        note: 'تم إكمال الطلب وإنشاء روابط التحميل',
         changedBy: 'system'
     });
 
@@ -729,8 +729,8 @@ OrderSchema.methods.addAdminNote = async function (this: IOrder, note: string, a
     this.orderHistory.push({
         status: 'note_added',
         timestamp: new Date(),
-        note: `Admin note added: ${note}`,
-        changedBy: adminId
+        note: `تم إضافة ملاحظة المدير: ${note}`,
+        changedBy: adminId // This will now be the admin name
     });
     return this.save();
 };

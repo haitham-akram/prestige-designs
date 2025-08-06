@@ -20,7 +20,7 @@ import { withAdmin } from '@/lib/auth/middleware';
 import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
 import connectDB from '@/lib/db/connection';
 import { DesignFile, Product } from '@/lib/db/models';
-import { deleteFile } from '@/lib/utils/fileUtils';
+import { FileUtils } from '@/lib/utils/fileUtils';
 import { z } from 'zod';
 
 // Validation schemas
@@ -217,34 +217,32 @@ async function deleteDesignFile(req: NextRequest, context: ApiRouteContext, user
             );
         }
 
-        // Check if design file is associated with any orders via junction table
+        // Import OrderDesignFile model
         const { OrderDesignFile } = await import('@/lib/db/models');
-        const orderAccess = await OrderDesignFile.findOne({ designFileId: designFile._id });
 
-        if (orderAccess) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    message: 'Cannot delete design file that is associated with an order'
-                },
-                { status: 400 }
-            );
-        }
+        // Delete all OrderDesignFile relationships first
+        const deletedRelationships = await OrderDesignFile.deleteMany({ designFileId: designFile._id });
+        console.log(`Deleted ${deletedRelationships.deletedCount} order-design file relationships`);
 
         // Delete the actual file from storage if it's a local file
+        let fileDeleted = false;
         if (designFile.fileUrl.startsWith('/uploads/')) {
-            await deleteFile(designFile.fileUrl);
+            fileDeleted = await FileUtils.deleteFile(designFile.fileUrl);
+            console.log(`File deletion result: ${fileDeleted ? 'success' : 'failed'}`);
+        } else {
+            console.log('File is not a local file, skipping file deletion');
         }
 
-        // Soft delete by setting isActive to false
-        await DesignFile.findByIdAndUpdate(id, {
-            isActive: false,
-            updatedBy: user.id
-        });
+        // Hard delete the design file record
+        await DesignFile.findByIdAndDelete(id);
 
         return NextResponse.json({
             success: true,
-            message: 'Design file deleted successfully'
+            message: 'Design file deleted successfully',
+            data: {
+                fileDeleted,
+                relationshipsDeleted: deletedRelationships.deletedCount
+            }
         });
 
     } catch (error) {

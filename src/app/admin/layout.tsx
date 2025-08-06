@@ -1,6 +1,6 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -192,8 +192,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <button
             onClick={() => {
-              // Sign out logic here
-              window.location.href = '/auth/signout'
+              signOut({
+                callbackUrl: '/auth/signin',
+              })
             }}
             className="nav-item nav-signout"
             title="Sign Out"
@@ -264,8 +265,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         <button
           onClick={() => {
-            // Sign out logic here
-            window.location.href = '/auth/signout'
+            signOut({
+              callbackUrl: '/auth/signin',
+            })
           }}
           className="bottom-nav-item bottom-nav-signout"
         >

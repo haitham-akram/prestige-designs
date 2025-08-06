@@ -271,25 +271,30 @@ export default function FileUpload({
         <div className="file-preview-section">
           <h4>الملفات المرفوعة:</h4>
           {uploadedFiles.map((file, index) => (
-            <div key={index} className={`file-item ${file.isTemp ? 'uploading' : 'uploaded'}`}>
+            <div key={index} className={`preview-item-file ${file.isTemp ? 'uploading' : 'uploaded'}`}>
               <div className="file-info">
                 <span className="file-name">{file.fileName}</span>
+              </div>
+              <div className="file-meta-group">
                 <span className="file-type">({file.fileType.toUpperCase()})</span>
                 <span className="file-size">({formatFileSize(file.fileSize)})</span>
                 <span className={`file-status ${file.isTemp ? 'uploading' : 'success'}`}>
                   {file.isTemp ? 'جاري الرفع...' : 'تم الرفع بنجاح'}
                 </span>
               </div>
-              <div className="file-actions">
-                {file.isTemp && onRefresh && (
-                  <button type="button" onClick={onRefresh} className="refresh-file-btn" title="تحديث حالة الملف">
-                    <FontAwesomeIcon icon={faSpinner} />
-                  </button>
-                )}
-                <button type="button" onClick={() => onFileRemove?.(file.fileName)} className="remove-file-btn">
-                  <FontAwesomeIcon icon={faTimes} />
+              {file.isTemp && onRefresh && (
+                <button type="button" onClick={onRefresh} className="preview-refresh-btn" title="تحديث حالة الملف">
+                  <FontAwesomeIcon icon={faSpinner} />
                 </button>
-              </div>
+              )}
+              <button
+                type="button"
+                onClick={() => onFileRemove?.(file.fileName)}
+                className="preview-remove-btn"
+                title="حذف الملف"
+              >
+                <FontAwesomeIcon icon={faTimes} />
+              </button>
             </div>
           ))}
         </div>

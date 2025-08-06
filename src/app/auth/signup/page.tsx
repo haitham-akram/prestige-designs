@@ -36,22 +36,22 @@ export default function SignUpPage() {
 
   const validateForm = () => {
     if (!formData.name.trim()) {
-      setError('Name is required')
+      setError('الاسم مطلوب')
       return false
     }
 
     if (!formData.email.trim()) {
-      setError('Email is required')
+      setError('البريد الإلكتروني مطلوب')
       return false
     }
 
     if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long')
+      setError('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
       return false
     }
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match')
+      setError('كلمات المرور غير متطابقة')
       return false
     }
 
@@ -85,7 +85,7 @@ export default function SignUpPage() {
       const data = await response.json()
 
       if (!response.ok) {
-        setError(data.message || 'Registration failed')
+        setError(data.message || 'فشل في التسجيل')
         setLoading(false)
         return
       }
@@ -101,16 +101,16 @@ export default function SignUpPage() {
       })
 
       if (loginResult?.error) {
-        setError('Registration successful, but auto-login failed. Please sign in manually.')
+        setError('تم التسجيل بنجاح، لكن فشل تسجيل الدخول التلقائي. يرجى تسجيل الدخول يدوياً.')
         setLoading(false)
         return
       }
 
       // Redirect to dashboard
-      router.push('/customer/dashboard')
+      router.push('/dashboard')
     } catch (error) {
       console.error('Registration error:', error)
-      setError('An unexpected error occurred. Please try again.')
+      setError('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.')
       setLoading(false)
     }
   }
@@ -121,11 +121,11 @@ export default function SignUpPage() {
 
     try {
       await signIn(provider, {
-        callbackUrl: '/customer/dashboard',
+        callbackUrl: '/dashboard',
       })
     } catch (error) {
       console.error(`${provider} login error:`, error)
-      setError(`Failed to sign up with ${provider}. Please try again.`)
+      setError(`فشل في التسجيل باستخدام ${provider}. يرجى المحاولة مرة أخرى.`)
       setLoading(false)
     }
   }
@@ -135,11 +135,11 @@ export default function SignUpPage() {
       <div className="auth-container">
         <div className="auth-card">
           <div className="auth-header">
-            <h1 className="auth-title">Welcome to Prestige!</h1>
-            <p className="auth-subtitle">Your account has been created successfully</p>
+            <h1 className="auth-title">مرحباً بك في بريستيج!</h1>
+            <p className="auth-subtitle">تم إنشاء حسابك بنجاح</p>
           </div>
 
-          <div className="success-message">Account created successfully! Redirecting to your dashboard...</div>
+          <div className="success-message">تم إنشاء الحساب بنجاح! جاري التوجيه إلى لوحة التحكم...</div>
         </div>
       </div>
     )
@@ -149,8 +149,8 @@ export default function SignUpPage() {
     <div className="auth-container">
       <div className="auth-card">
         <div className="auth-header">
-          <h1 className="auth-title">Create Account</h1>
-          <p className="auth-subtitle">Join Prestige Designs today</p>
+          <h1 className="auth-title">إنشاء حساب</h1>
+          <p className="auth-subtitle">انضم إلى بريستيج ديزاين اليوم</p>
         </div>
 
         {error && <div className="error-message">{error}</div>}
@@ -185,7 +185,7 @@ export default function SignUpPage() {
                     d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                   />
                 </svg>
-                Sign up with Google
+                التسجيل مع جوجل
               </>
             )}
           </button>
@@ -203,7 +203,7 @@ export default function SignUpPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
                 </svg>
-                Sign up with Twitter
+                التسجيل مع تويتر
               </>
             )}
           </button>
@@ -221,21 +221,21 @@ export default function SignUpPage() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515a.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0a12.64 12.64 0 0 0-.617-1.25a.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057a19.9 19.9 0 0 0 5.993 3.03a.078.078 0 0 0 .084-.028a14.09 14.09 0 0 0 1.226-1.994a.076.076 0 0 0-.041-.106a13.107 13.107 0 0 1-1.872-.892a.077.077 0 0 1-.008-.128a10.2 10.2 0 0 0 .372-.292a.074.074 0 0 1 .077-.010c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127a12.299 12.299 0 0 1-1.873.892a.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028a19.839 19.839 0 0 0 6.002-3.03a.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.956-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419c0-1.333.955-2.419 2.157-2.419c1.21 0 2.176 1.096 2.157 2.42c0 1.333-.946 2.418-2.157 2.418z" />
                 </svg>
-                Sign up with Discord
+                التسجيل مع ديسكورد
               </>
             )}
           </button>
         </div>
 
         <div className="divider">
-          <span>Or create account with email</span>
+          <span>أو إنشاء حساب بالبريد الإلكتروني</span>
         </div>
 
         {/* Registration Form */}
         <form onSubmit={handleSignUp} className="auth-form">
           <div className="form-group">
             <label htmlFor="name" className="form-label">
-              Full Name
+              الاسم الكامل
             </label>
             <input
               type="text"
@@ -243,7 +243,7 @@ export default function SignUpPage() {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              placeholder="Enter your full name"
+              placeholder="أدخل اسمك الكامل"
               className="form-input"
               required
               disabled={loading}
@@ -252,7 +252,7 @@ export default function SignUpPage() {
 
           <div className="form-group">
             <label htmlFor="email" className="form-label">
-              Email Address
+              البريد الإلكتروني
             </label>
             <input
               type="email"
@@ -260,7 +260,7 @@ export default function SignUpPage() {
               name="email"
               value={formData.email}
               onChange={handleInputChange}
-              placeholder="Enter your email"
+              placeholder="أدخل بريدك الإلكتروني"
               className="form-input"
               required
               disabled={loading}
@@ -269,7 +269,7 @@ export default function SignUpPage() {
 
           <div className="form-group">
             <label htmlFor="password" className="form-label">
-              Password
+              كلمة المرور
             </label>
             <input
               type="password"
@@ -277,7 +277,7 @@ export default function SignUpPage() {
               name="password"
               value={formData.password}
               onChange={handleInputChange}
-              placeholder="Create a password (min. 6 characters)"
+              placeholder="أنشئ كلمة مرور (6 أحرف على الأقل)"
               className="form-input"
               required
               disabled={loading}
@@ -286,7 +286,7 @@ export default function SignUpPage() {
 
           <div className="form-group">
             <label htmlFor="confirmPassword" className="form-label">
-              Confirm Password
+              تأكيد كلمة المرور
             </label>
             <input
               type="password"
@@ -294,7 +294,7 @@ export default function SignUpPage() {
               name="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleInputChange}
-              placeholder="Confirm your password"
+              placeholder="أكد كلمة المرور"
               className="form-input"
               required
               disabled={loading}
@@ -305,19 +305,19 @@ export default function SignUpPage() {
             {loading ? (
               <>
                 <div className="spinner" />
-                Creating Account...
+                جاري إنشاء الحساب...
               </>
             ) : (
-              'Create Account'
+              'إنشاء حساب'
             )}
           </button>
         </form>
 
         <div className="auth-footer">
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-            Already have an account?{' '}
+            لديك حساب بالفعل؟{' '}
             <Link href="/auth/signin" className="auth-link">
-              Sign in here
+              سجل دخولك هنا
             </Link>
           </p>
         </div>
