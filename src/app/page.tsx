@@ -1,20 +1,22 @@
 'use client'
 
-import { useSession } from 'next-auth/react'
+// import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import CustomerLayout from './customer-layout'
+import AnimatedSection from '@/components/AnimatedSection'
 import HeroSection from '@/components/customer/HeroSection'
-import PackagesSection from '@/components/customer/PackagesSection'
-import StoreStats from '@/components/customer/StoreStats'
+// import PackagesSection from '@/components/customer/PackagesSection'
+// import StoreStats from '@/components/customer/StoreStats'
 import CategoriesWithProducts from '@/components/customer/CategoriesWithProducts'
-import CustomDesignSection from '@/components/customer/CustomDesignSection'
-import FeaturesSection from '@/components/customer/FeaturesSection'
+// import CustomDesignSection from '@/components/customer/CustomDesignSection'
+// import FeaturesSection from '@/components/customer/FeaturesSection'
 import DiscordSection from '@/components/customer/DiscordSection'
 import ReviewsSection from '@/components/customer/ReviewsSection'
 import FAQSection from '@/components/customer/FAQSection'
+import FeaturedClientsSection from '@/components/customer/FeaturedClientsSection'
 
 export default function HomePage() {
-  const { data: session } = useSession()
+  // const { data: session } = useSession()
   const searchParams = useSearchParams()
   const isDeactivated = searchParams.get('deactivated') === 'true'
 
@@ -36,7 +38,9 @@ export default function HomePage() {
       )}
 
       {/* Hero Section */}
-      <HeroSection />
+      <AnimatedSection animation="fade-up" delay={0}>
+        <HeroSection />
+      </AnimatedSection>
 
       {/* Packages Section */}
       {/* <PackagesSection /> */}
@@ -51,13 +55,24 @@ export default function HomePage() {
       {/* <FeaturesSection /> */}
 
       {/* Discord Section */}
-      <DiscordSection />
+      <AnimatedSection animation="fade-left" delay={200}>
+        <DiscordSection />
+      </AnimatedSection>
+
+      {/* Featured Clients */}
+      <AnimatedSection animation="fade-right" delay={300}>
+        <FeaturedClientsSection />
+      </AnimatedSection>
 
       {/* Reviews Section */}
-      <ReviewsSection />
+      <AnimatedSection animation="scale-up" delay={400}>
+        <ReviewsSection />
+      </AnimatedSection>
 
       {/* FAQ Section */}
-      <FAQSection />
+      <AnimatedSection animation="fade-up" delay={500}>
+        <FAQSection />
+      </AnimatedSection>
     </CustomerLayout>
   )
 }

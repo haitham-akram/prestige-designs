@@ -1,0 +1,321 @@
+.admin-settings-container {
+  padding: 2rem;
+  position: relative;
+}
+
+.settings-header {
+  display: flex;
+  /* flex-direction: row-reverse; */
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  background: var(--gradient-card);
+  padding: 1.5rem 2rem;
+  border-radius: 15px;
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-color);
+}
+
+.settings-header h1 {
+  margin: 0 0 0.5rem 0;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.settings-header .header-content p {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  background: rgba(130, 97, 198, 0.12);
+  border: 1px solid rgba(130, 97, 198, 0.25);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: var(--color-light-primary);
+}
+
+.tab.active {
+  background: var(--color-purple-primary);
+  color: var(--color-dark-primary);
+  box-shadow: 0 0 15px rgba(130, 97, 198, 0.5);
+}
+
+.branding-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.social-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.hero-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.hero-slide-item {
+  margin-top: 1rem;
+  padding: 1rem;
+}
+
+.hero-slide-grid {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 1rem;
+}
+
+.slides-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.hero-slide-image {
+  background: #1f1f25;
+  border: 1px dashed rgba(130, 97, 198, 0.35);
+  padding: 8px;
+  border-radius: 8px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn.btn-danger {
+  background: #7a1f2a;
+  color: #ffdfe0;
+  border: 1px solid rgba(255, 80, 80, 0.7);
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+}
+
+/* FAQ styles */
+.faq-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.faq-item { margin-top: 1rem; padding: 1rem; }
+.faq-list { display: grid; gap: 1rem; }
+.textarea { resize: vertical; }
+
+@media (max-width: 768px) {
+  .faq-tab .form-row { grid-template-columns: 1fr !important; }
+}
+
+.section-title {
+  margin: 0 0 1rem 0;
+  padding: 0.5rem 0.75rem;
+  border-right: 4px solid var(--color-purple-primary);
+  background: rgba(130, 97, 198, 0.08);
+  border-radius: 8px;
+}
+
+.nice-label {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--color-light-primary);
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.text-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid rgba(130, 97, 198, 0.25);
+  background: var(--color-dark-primary);
+  color: var(--color-light-primary);
+  border-radius: 10px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.text-input:focus {
+  border-color: var(--color-purple-primary);
+  box-shadow: 0 0 0 3px rgba(130, 97, 198, 0.15);
+}
+
+.input-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.image-preview {
+  margin-bottom: 0.5rem;
+  background: #1f1f25;
+  border: 1px dashed rgba(130, 97, 198, 0.35);
+  padding: 8px;
+  border-radius: 8px;
+  width: fit-content;
+}
+
+.image-preview img { max-width: 200px; display: block; }
+.image-preview.small img { max-width: 64px; }
+
+.remove-image-btn {
+  margin-top: 6px;
+  background: #7a1f2a;
+  border: 1px solid rgba(255, 80, 80, 0.7);
+  color: #ffdfe0;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
+
+.branding-tab h3 {
+  margin-top: 0;
+}
+
+.save-row {
+  display: flex;
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.btn.btn-primary {
+  background: var(--color-purple-primary);
+  color: var(--color-dark-primary);
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(130, 97, 198, 0.4);
+}
+
+.btn.btn-secondary {
+  background: rgba(130, 97, 198, 0.15);
+  color: var(--color-light-primary);
+  border: 1px solid rgba(130, 97, 198, 0.35);
+  padding: 0.5rem 1rem;
+  border-radius: 10px;
+}
+
+/* Ensure alerts are fixed and visible without scrolling */
+.alerts-container {
+  position: fixed;
+  top: 16px;
+  inset-inline-end: 16px;
+  z-index: 9999;
+}
+
+/* Discord styles */
+.discord-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+/* Featured clients */
+.clients-tab .card {
+  background: var(--color-dark-primary);
+  border: 1px solid rgba(130, 97, 198, 0.15);
+  padding: 1rem;
+  border-radius: 12px;
+}
+
+.clients-list { display: grid; gap: 1rem; }
+.client-item { padding: 1rem; }
+.client-grid { display: grid; grid-template-columns: 160px 1fr; gap: 1rem; }
+.client-image { display: flex; flex-direction: column; align-items: center; }
+.change-image-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.change-image-wrapper .file-upload-container {
+  width: 100%;
+  max-width: 420px; /* wider input */
+}
+.change-image-title {
+  font-weight: 600;
+  color: var(--color-light-primary);
+  margin-bottom: 0.25rem;
+}
+
+@media (max-width: 1024px) {
+  .client-grid { grid-template-columns: 1fr; }
+}
+
+/* Responsive improvements for Hero tab */
+@media (max-width: 1024px) {
+  .hero-slide-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  /* Override inline grid columns in hero form rows to stack vertically */
+  .hero-tab .form-row {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
+  }
+
+  .hero-slide-item {
+    padding: 0.75rem;
+  }
+
+  .hero-slide-image img {
+    width: 100%;
+    height: auto;
+  }
+
+  .slide-actions {
+    flex-direction: row;
+    gap: 0.75rem;
+  }
+}
+
+/* Laptop spacing (1024px–1440px) */
+@media (min-width: 1024px) and (max-width: 1440px) {
+  .hero-slide-item {
+    padding: 1.25rem 1.5rem; /* more breathing room */
+  }
+  .hero-slide-grid {
+    gap: 1.25rem; /* larger gap between image and fields */
+  }
+  .hero-slide-fields {
+    padding-inline: 0.75rem; /* inner horizontal padding */
+  }
+  .hero-slide-fields .form-row {
+    gap: 1rem !important;
+    margin-bottom: 0.75rem; /* vertical rhythm between rows */
+  }
+}
+
+

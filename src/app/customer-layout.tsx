@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactNode, useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -15,6 +15,7 @@ import {
   faSignOutAlt,
   faBox,
 } from '@fortawesome/free-solid-svg-icons'
+import { faDiscord, faWhatsapp, faTelegram, faYoutube, faTiktok } from '@fortawesome/free-brands-svg-icons'
 import './customer-layout.css'
 
 // Types
@@ -37,12 +38,21 @@ interface CustomerLayoutProps {
 }
 
 export default function CustomerLayout({ children }: CustomerLayoutProps) {
-  const { data: session, signOut } = useSession()
+  const { data: session } = useSession()
   const pathname = usePathname()
-  const [categories, setCategories] = useState([])
+  type NavCategory = { _id: string; name: string; slug: string }
+  const [categories, setCategories] = useState<NavCategory[]>([])
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
+  const [branding, setBranding] = useState<{ logoUrl?: string } | null>(null)
+  const [social, setSocial] = useState<{
+    telegram?: string
+    discord?: string
+    whatsapp?: string
+    youtube?: string
+    tiktok?: string
+  }>({})
 
   // Fetch categories for navigation
   useEffect(() => {
@@ -62,6 +72,14 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
     }
 
     fetchCategories()
+    // Fetch site settings for branding and social
+    fetch('/api/settings')
+      .then((r) => r.json())
+      .then((res) => {
+        setBranding(res?.data?.branding || null)
+        setSocial(res?.data?.social || {})
+      })
+      .catch(() => {})
   }, [])
 
   const toggleMenu = () => {
@@ -197,12 +215,13 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             <div className="nav-right">
               <Link href="/" className="logo-link">
                 <Image
-                  src="/site/logo.png"
+                  src={branding?.logoUrl || '/site/logo.png'}
                   alt="Prestige Designs Logo"
                   width={120}
                   height={40}
                   className="logo-image"
                   priority
+                  unoptimized
                 />
               </Link>
             </div>
@@ -255,32 +274,63 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             </div>
 
             <div className="footer-section">
-              <h4>روابط سريعة</h4>
-              <ul>
-                <li>
-                  <Link href="/store">المتجر</Link>
-                </li>
-                <li>
-                  <Link href="/custom-design">تصميم مخصص</Link>
-                </li>
-                <li>
-                  <Link href="/contact">تواصل معنا</Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="footer-section">
               <h4>تواصل معنا</h4>
               <div className="social-links">
-                <a href="#" className="social-link">
-                  Discord
-                </a>
-                <a href="#" className="social-link">
-                  WhatsApp
-                </a>
-                <a href="#" className="social-link">
-                  Instagram
-                </a>
+                {social.discord && (
+                  <a
+                    href={social.discord}
+                    className="social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Discord"
+                  >
+                    <FontAwesomeIcon icon={faDiscord} />
+                  </a>
+                )}
+                {social.whatsapp && (
+                  <a
+                    href={social.whatsapp}
+                    className="social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="WhatsApp"
+                  >
+                    <FontAwesomeIcon icon={faWhatsapp} />
+                  </a>
+                )}
+                {social.telegram && (
+                  <a
+                    href={social.telegram}
+                    className="social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Telegram"
+                  >
+                    <FontAwesomeIcon icon={faTelegram} />
+                  </a>
+                )}
+                {social.youtube && (
+                  <a
+                    href={social.youtube}
+                    className="social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="YouTube"
+                  >
+                    <FontAwesomeIcon icon={faYoutube} />
+                  </a>
+                )}
+                {social.tiktok && (
+                  <a
+                    href={social.tiktok}
+                    className="social-link"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="TikTok"
+                  >
+                    <FontAwesomeIcon icon={faTiktok} />
+                  </a>
+                )}
               </div>
             </div>
           </div>
@@ -292,15 +342,17 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
       </footer>
 
       {/* Floating WhatsApp Button */}
-      <a
-        href="https://wa.me/your-number"
-        className="floating-whatsapp"
-        target="_blank"
-        rel="noopener noreferrer"
-        aria-label="Contact us on WhatsApp"
-      >
-        <span className="whatsapp-icon">💬</span>
-      </a>
+      {social.whatsapp && (
+        <a
+          href={social.whatsapp}
+          className="floating-whatsapp"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Contact us on WhatsApp"
+        >
+          <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
+        </a>
+      )}
     </div>
   )
 }

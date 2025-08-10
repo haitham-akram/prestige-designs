@@ -5,34 +5,25 @@ import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons'
 
+type Slide = { _id?: string; imageUrl: string; title?: string; subtitle?: string; ctaText?: string; ctaHref?: string }
+
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0)
+  const [slides, setSlides] = useState<Slide[]>([])
 
-  const slides = [
-    // {
-    //   id: 1,
-    //   image: '/site/new-1.png',
-    // },
-    // {
-    //   id: 2,
-    //   image: '/site/new-2.png',
-    // },
-    {
-      id: 3,
-      image: '/site/1.jpg',
-    },
-    {
-      id: 4,
-      image: '/site/2.jpg',
-    },
-  ]
+  useEffect(() => {
+    fetch('/api/hero')
+      .then((r) => r.json())
+      .then((res) => setSlides(res?.data || []))
+      .catch(() => setSlides([]))
+  }, [])
 
   // Auto-play functionality
   useEffect(() => {
+    if (slides.length === 0) return
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 8000) // Change slide every 8 seconds
-
+    }, 8000)
     return () => clearInterval(interval)
   }, [slides.length])
 
@@ -49,14 +40,14 @@ export default function HeroSection() {
   }
 
   return (
-    <section className="hero-carousel">
+    <div className="hero-carousel">
       <div className="carousel-container">
         <div className="carousel-wrapper">
           {slides.map((slide, index) => (
-            <div key={slide.id} className={`carousel-slide ${index === currentSlide ? 'active' : ''}`}>
+            <div key={slide._id || index} className={`carousel-slide ${index === currentSlide ? 'active' : ''}`}>
               <Image
-                src={slide.image}
-                alt={`Prestige Designs Slide ${slide.id}`}
+                src={slide.imageUrl}
+                alt={slide.title || `Prestige Designs Slide ${index + 1}`}
                 width={1920}
                 height={1080}
                 className="carousel-image"
@@ -65,6 +56,17 @@ export default function HeroSection() {
                 quality={100}
                 unoptimized={true}
               />
+              {slide.title || slide.subtitle ? (
+                <div className="slide-overlay">
+                  {slide.title ? <h2>{slide.title}</h2> : null}
+                  {slide.subtitle ? <p>{slide.subtitle}</p> : null}
+                  {slide.ctaText && slide.ctaHref ? (
+                    <a href={slide.ctaHref} className="btn btn-primary">
+                      {slide.ctaText}
+                    </a>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -89,6 +91,7 @@ export default function HeroSection() {
           ))}
         </div>
       </div>
-    </section>
+      {/* </section> */}
+    </div>
   )
 }

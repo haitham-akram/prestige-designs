@@ -21,6 +21,10 @@ export { default as OrderDesignFile } from './OrderDesignFile';
 export { default as PromoCode } from './PromoCode';
 export { default as Order } from './Order';
 export { default as Review } from './Review';
+export { default as SiteSettings } from './SiteSettings';
+export { default as HeroSlide } from './HeroSlide';
+export { default as FAQItem } from './FAQItem';
+export { default as FeaturedClient } from './FeaturedClient';
 
 // Type exports for better TypeScript support
 export type { IUser } from './User';
@@ -31,6 +35,10 @@ export type { IOrderDesignFile } from './OrderDesignFile';
 export type { IPromoCode } from './PromoCode';
 export type { IOrder } from './Order';
 export type { IReview } from './Review';
+export type { ISiteSettings } from './SiteSettings';
+export type { IHeroSlide } from './HeroSlide';
+export type { IFAQItem } from './FAQItem';
+export type { IFeaturedClient } from './FeaturedClient';
 
 // Re-export commonly used Mongoose types
 export type { Document, Schema, Model } from 'mongoose';
