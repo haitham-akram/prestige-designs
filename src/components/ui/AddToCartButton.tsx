@@ -8,9 +8,11 @@ import './AddToCartButton.css'
 
 interface AddToCartButtonProps {
   product: {
-    id: string
+    id?: string
+    _id?: string
     name: string
     price: number
+    finalPrice?: number
     originalPrice?: number
     image: string
     category?: string
@@ -23,7 +25,10 @@ export default function AddToCartButton({ product, className = '' }: AddToCartBu
   const [isAdding, setIsAdding] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
 
-  const handleAddToCart = async () => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+
     if (isAdding) return
 
     setIsAdding(true)
@@ -41,8 +46,9 @@ export default function AddToCartButton({ product, className = '' }: AddToCartBu
     }, 2000)
   }
 
-  const currentQuantity = getItemQuantity(product.id)
-  const isInCartState = isInCart(product.id)
+  const productId = product.id || product._id || ''
+  const currentQuantity = getItemQuantity(productId)
+  const isInCartState = isInCart(productId)
 
   return (
     <button
@@ -67,8 +73,6 @@ export default function AddToCartButton({ product, className = '' }: AddToCartBu
       </div>
 
       {isAdding && <div className="loading-spinner"></div>}
-
-      {/* Removed quantity badge - no longer showing red circle */}
     </button>
   )
 }

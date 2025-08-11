@@ -210,6 +210,7 @@ export default function CategoriesWithProducts() {
             <CategoryProductsCarousel
               products={category.products.map((product) => ({
                 id: product._id,
+                slug: product.slug, // Add the slug field
                 name: product.name,
                 price: product.finalPrice,
                 originalPrice: product.price,
@@ -222,7 +223,7 @@ export default function CategoriesWithProducts() {
               }))}
             />
             <div className="category-footer">
-              <Link href={`/category/${category.slug}`} className="btn btn-secondary">
+              <Link href={`/categories/${category.slug}`} className="btn btn-secondary">
                 عرض جميع المنتجات ({category.designCount || 0})
               </Link>
             </div>
@@ -242,6 +243,7 @@ export default function CategoriesWithProducts() {
           <CategoryProductsCarousel
             products={category.products.map((product) => ({
               id: product._id,
+              slug: product.slug, // Add the slug field
               name: product.name,
               price: product.finalPrice,
               originalPrice: product.price,
@@ -254,7 +256,7 @@ export default function CategoriesWithProducts() {
             }))}
           />
           <div className="category-footer">
-            <Link href={`/category/${category.slug}`} className="btn btn-secondary">
+            <Link href={`/categories/${category.slug}`} className="btn btn-secondary">
               عرض جميع المنتجات ({category.designCount || 0})
             </Link>
           </div>
@@ -334,6 +336,7 @@ function CategoryProductsCarousel({
 }: {
   products: Array<{
     id: string
+    slug: string
     name: string
     price: number
     originalPrice: number

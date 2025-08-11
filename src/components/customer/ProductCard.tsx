@@ -8,7 +8,9 @@ import AddToCartButton from '@/components/ui/AddToCartButton'
 
 interface Product {
   id: string
+  _id?: string
   name: string
+  slug?: string
   price: number
   originalPrice: number
   rating: number
@@ -23,8 +25,14 @@ interface ProductCardProps {
 export default function ProductCard({ product }: ProductCardProps) {
   const discountPercentage = Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
 
+  // Ensure we have a slug for routing
+  if (!product.slug) {
+    console.error('Product missing slug:', product)
+    return null // Don't render if no slug
+  }
+
   return (
-    <div className="product-card card">
+    <Link href={`/products/${product.slug}`} className="product-card card">
       <div className="product-image">
         <Image
           src={product.image}
@@ -77,18 +85,33 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
         </div>
 
-        <div className="product-actions">
+        <div className="product-actions" onClick={(e) => e.stopPropagation()}>
           <AddToCartButton product={product} />
           <div className="action-buttons">
-            <button className="action-btn" title="إضافة للمفضلة">
+            <button className="action-btn" title="إضافة للمفضلة" onClick={(e) => e.stopPropagation()}>
               <FontAwesomeIcon icon={faHeart} />
             </button>
-            <button className="action-btn" title="مشاركة">
+            <button className="action-btn" title="مشاركة" onClick={(e) => e.stopPropagation()}>
               <FontAwesomeIcon icon={faShare} />
             </button>
           </div>
         </div>
+
+        <style jsx>{`
+          .product-actions {
+            position: relative;
+            z-index: 10;
+          }
+
+          .action-btn {
+            cursor: pointer;
+          }
+
+          .action-btn:hover {
+            transform: scale(1.1);
+          }
+        `}</style>
       </div>
-    </div>
+    </Link>
   )
 }
