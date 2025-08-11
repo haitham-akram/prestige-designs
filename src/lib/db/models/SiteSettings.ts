@@ -13,6 +13,7 @@ export interface ISiteSettings extends Document {
         whatsapp?: string
         youtube?: string
         tiktok?: string
+        text?: string
     }
     discordBanner?: {
         imageUrl?: string
@@ -38,6 +39,7 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
             whatsapp: String,
             youtube: String,
             tiktok: String,
+            text: String,
         },
         discordBanner: {
             imageUrl: String,

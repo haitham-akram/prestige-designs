@@ -10,7 +10,14 @@ import './settings.css'
 import Image from 'next/image'
 
 type Branding = { logoUrl?: string; logoPublicId?: string; faviconUrl?: string; faviconPublicId?: string }
-type Social = { telegram?: string; discord?: string; whatsapp?: string; youtube?: string; tiktok?: string }
+type Social = {
+  telegram?: string
+  discord?: string
+  whatsapp?: string
+  youtube?: string
+  tiktok?: string
+  text?: string
+}
 type FAQ = {
   _id?: string
   question: string
@@ -295,6 +302,7 @@ export default function AdminSettingsPage() {
           whatsapp: normalizeWhatsApp(social.whatsapp || ''),
           youtube: social.youtube ? normalizeUrl(social.youtube) : '',
           tiktok: social.tiktok ? normalizeUrl(social.tiktok) : '',
+          text: social.text || '',
         },
       }
       const res = await fetch('/api/admin/settings', {
@@ -1008,6 +1016,21 @@ export default function AdminSettingsPage() {
                   value={social.tiktok || ''}
                   onChange={(e) => setSocial((s) => ({ ...s, tiktok: e.target.value }))}
                 />
+              </div>
+              <div className="form-group">
+                <label className="nice-label" htmlFor="social-text">
+                  نص التواصل الاجتماعي
+                </label>
+                <textarea
+                  id="social-text"
+                  className="text-input"
+                  placeholder="نص يظهر في صفحة الموقع (مثال: تابعنا على وسائل التواصل الاجتماعي)"
+                  value={social.text || ''}
+                  onChange={(e) => setSocial((s) => ({ ...s, text: e.target.value }))}
+                  rows={4}
+                  style={{ resize: 'vertical', minHeight: '100px' }}
+                />
+                <span className="input-hint">هذا النص سيظهر في صفحة الموقع مع روابط التواصل الاجتماعي</span>
               </div>
             </div>
           </div>

@@ -3,7 +3,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlay, faHeart, faShare, faShoppingCart, faStar } from '@fortawesome/free-solid-svg-icons'
+import { faPlay, faHeart, faShare, faStar } from '@fortawesome/free-solid-svg-icons'
+import AddToCartButton from '@/components/ui/AddToCartButton'
 
 interface Product {
   id: string
@@ -77,10 +78,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="product-actions">
-          <button className="btn btn-primary btn-small add-to-cart-btn">
-            <FontAwesomeIcon icon={faShoppingCart} />
-            إضافة للسلة
-          </button>
+          <AddToCartButton product={product} />
           <div className="action-buttons">
             <button className="action-btn" title="إضافة للمفضلة">
               <FontAwesomeIcon icon={faHeart} />

@@ -11,6 +11,7 @@ import CategoriesWithProducts from '@/components/customer/CategoriesWithProducts
 // import CustomDesignSection from '@/components/customer/CustomDesignSection'
 // import FeaturesSection from '@/components/customer/FeaturesSection'
 import DiscordSection from '@/components/customer/DiscordSection'
+import SocialSection from '@/components/customer/SocialSection'
 import ReviewsSection from '@/components/customer/ReviewsSection'
 import FAQSection from '@/components/customer/FAQSection'
 import FeaturedClientsSection from '@/components/customer/FeaturedClientsSection'
@@ -59,18 +60,23 @@ export default function HomePage() {
         <DiscordSection />
       </AnimatedSection>
 
+      {/* Social Section */}
+      <AnimatedSection animation="fade-up" delay={250}>
+        <SocialSection />
+      </AnimatedSection>
+
       {/* Featured Clients */}
-      <AnimatedSection animation="fade-right" delay={300}>
+      <AnimatedSection animation="fade-right" delay={350}>
         <FeaturedClientsSection />
       </AnimatedSection>
 
       {/* Reviews Section */}
-      <AnimatedSection animation="scale-up" delay={400}>
+      <AnimatedSection animation="scale-up" delay={450}>
         <ReviewsSection />
       </AnimatedSection>
 
       {/* FAQ Section */}
-      <AnimatedSection animation="fade-up" delay={500}>
+      <AnimatedSection animation="fade-up" delay={550}>
         <FAQSection />
       </AnimatedSection>
     </CustomerLayout>

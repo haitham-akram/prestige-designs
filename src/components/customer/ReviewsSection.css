@@ -11,7 +11,7 @@
   gap: 20px;
   transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  padding: 1rem;
+  padding: 3rem;
 }
 
 .reviews-carousel .carousel-item {
@@ -34,20 +34,76 @@
   display: block;
   width: 100%;
   max-width: 350px;
-  background: var(--color-dark-secondary);
-  border: 1px solid rgba(130, 97, 198, 0.3);
-  border-radius: 14px;
-  padding: 1.5rem;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(135deg, 
+    rgba(130, 97, 198, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 50%, 
+    rgba(130, 97, 198, 0.1) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(130, 97, 198, 0.2);
+  border-radius: 20px;
+  padding: 1.8rem;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   transform: translateY(0);
   position: relative;
   overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.reviews-carousel .review-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(130, 97, 198, 0.1) 0%, 
+    transparent 50%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 20px;
+}
+
+.reviews-carousel .review-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+  transition: left 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 20px;
 }
 
 .reviews-carousel .review-card:hover {
-  transform: translateY(-8px) scale(1.02);
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
-  border-color: rgba(130, 97, 198, 0.6);
+  transform: translateY(-12px) scale(1.03);
+  box-shadow: 
+    0 25px 50px rgba(130, 97, 198, 0.3),
+    0 0 30px rgba(130, 97, 198, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  border-color: rgba(130, 97, 198, 0.4);
+}
+
+.reviews-carousel .review-card:hover::before {
+  opacity: 1;
+}
+
+.reviews-carousel .review-card:hover::after {
+  left: 100%;
 }
 
 .reviews-carousel .review-header {
@@ -60,15 +116,25 @@
 .reviews-carousel .review-avatar {
   width: 50px;
   height: 50px;
-  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  background: linear-gradient(135deg, 
+    rgba(130, 97, 198, 0.8) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(130, 97, 198, 0.8) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 1.5rem;
-  box-shadow: 0 4px 15px rgba(130, 97, 198, 0.3);
+  box-shadow: 
+    0 8px 25px rgba(130, 97, 198, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   position: relative;
   overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .reviews-carousel .review-avatar-img {
@@ -89,6 +155,16 @@
   transform: translate(-50%, -50%);
   font-size: 1.5rem;
   color: var(--color-light-primary);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.reviews-carousel .review-card:hover .review-avatar {
+  transform: scale(1.1);
+  box-shadow: 
+    0 12px 35px rgba(130, 97, 198, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .reviews-carousel .avatar-fallback.fallback-hidden {
@@ -114,14 +190,25 @@
 .reviews-carousel .star {
   font-size: 0.9rem;
   opacity: 0.3;
-  transition: all 0.3s ease;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   color: #666;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
 }
 
 .reviews-carousel .star.filled {
   opacity: 1;
   color: #ffd700;
-  filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.5));
+  text-shadow: 
+    0 0 8px rgba(255, 215, 0, 0.6),
+    0 0 16px rgba(255, 215, 0, 0.3);
+  filter: drop-shadow(0 2px 4px rgba(255, 215, 0, 0.4));
+}
+
+.reviews-carousel .review-card:hover .star.filled {
+  transform: scale(1.1);
+  text-shadow: 
+    0 0 12px rgba(255, 215, 0, 0.8),
+    0 0 20px rgba(255, 215, 0, 0.4);
 }
 
 .reviews-carousel .review-text {
@@ -129,6 +216,13 @@
   line-height: 1.6;
   margin-bottom: 1rem;
   font-size: 0.95rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.reviews-carousel .review-card:hover .review-text {
+  color: var(--color-light-primary);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .reviews-carousel .review-heart {
@@ -137,9 +231,19 @@
   right: 1rem;
   font-size: 1.2rem;
   color: #ff4757;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  text-shadow: 
+    0 0 8px rgba(255, 71, 87, 0.6),
+    0 0 16px rgba(255, 71, 87, 0.3);
+  filter: drop-shadow(0 2px 4px rgba(255, 71, 87, 0.4));
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.reviews-carousel .review-card:hover .review-heart {
+  transform: scale(1.2);
+  text-shadow: 
+    0 0 12px rgba(255, 71, 87, 0.8),
+    0 0 20px rgba(255, 71, 87, 0.4);
 }
 
 .reviews-carousel .carousel-controls {
@@ -201,7 +305,7 @@
   justify-content: center;
   flex: 1;
   max-width: 120px;
-  top: 285px
+  top: 360px
 }
 
 .reviews-carousel .carousel-dot {
@@ -278,7 +382,7 @@
     padding: 1.25rem;
   }
   .reviews-carousel .carousel-dots{
-    top:245px
+    top:345px
   }
 }
 

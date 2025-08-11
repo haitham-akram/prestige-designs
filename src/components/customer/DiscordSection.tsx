@@ -22,26 +22,19 @@ export default function DiscordSection() {
   return (
     <div className="discord-section">
       <div className="container">
-        <div className="discord-banner card-neon">
-          <div className="discord-content">
-            {/* <div className="discord-icon">
-              <Image src="/site/discord-icon.png" alt="Discord" width={40} height={40} className="discord-icon" />
-            </div> */}
-            <a
-              href={links.discord || '#'}
-              className="btn btn-primary btn-large"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              انضم للدسكورد
-            </a>
-          </div>
-          {banner.imageUrl ? (
-            <div className="discord-art">
-              <Image src={banner.imageUrl} alt={banner.title as string} width={640} height={360} unoptimized />
+        <a href={links.discord || '#'} className="discord-banner card-neon" target="_blank" rel="noopener noreferrer">
+          {banner.imageUrl && (
+            <div className="discord-image-container">
+              <Image
+                src={banner.imageUrl}
+                alt={banner.title || 'Discord Community'}
+                fill
+                className="discord-image"
+                unoptimized
+              />
             </div>
-          ) : null}
-        </div>
+          )}
+        </a>
       </div>
     </div>
   )
