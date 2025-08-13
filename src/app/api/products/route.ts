@@ -30,8 +30,21 @@ export async function GET(request: NextRequest) {
         const category = searchParams.get('category')
         const limit = parseInt(searchParams.get('limit') || '10')
         const page = parseInt(searchParams.get('page') || '1')
+        const sortBy = searchParams.get('sortBy') || 'createdAt'
+        const sortOrder = searchParams.get('sortOrder') || 'desc'
         const isActive = searchParams.get('isActive')
         const isFeatured = searchParams.get('isFeatured')
+
+        // Debug logging
+        console.log('API Request Parameters:', {
+            category,
+            limit,
+            page,
+            sortBy,
+            sortOrder,
+            isActive,
+            isFeatured
+        })
 
         // Build filter object
         const filter: any = {}
@@ -42,6 +55,9 @@ export async function GET(request: NextRequest) {
             const categoryDoc = await Category.findOne({ slug: category })
             if (categoryDoc) {
                 filter.categoryId = categoryDoc._id
+                console.log('Found category:', categoryDoc.name, 'ID:', categoryDoc._id)
+            } else {
+                console.log('Category not found for slug:', category)
             }
         }
 
@@ -56,15 +72,41 @@ export async function GET(request: NextRequest) {
         // Calculate skip for pagination
         const skip = (page - 1) * limit
 
+        // Build sort object
+        const sortDirection = sortOrder === 'asc' ? 1 : -1
+        const sortObject: any = {}
+
+        // Map frontend sort fields to database fields
+        let sortField = sortBy
+        if (sortBy === 'price') {
+            sortField = 'finalPrice' // Sort by final price (after discount) instead of base price
+        }
+
+        sortObject[sortField] = sortDirection
+
+        console.log('Sort Object:', sortObject)
+        console.log('Filter Object:', filter)
+
         // Execute query
         const [products, total] = await Promise.all([
             Product.find(filter)
-                .sort({ createdAt: -1 })
+                .populate('categoryId', 'name slug')
+                .sort(sortObject)
                 .skip(skip)
                 .limit(limit)
                 .lean(),
             Product.countDocuments(filter)
         ])
+
+        console.log('Query Results:', {
+            productsFound: products.length,
+            totalProducts: total,
+            firstProduct: products[0] ? {
+                name: products[0].name,
+                category: products[0].categoryId,
+                price: products[0].price
+            } : null
+        })
 
         const totalPages = Math.ceil(total / limit)
 

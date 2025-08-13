@@ -21,6 +21,11 @@ export interface ISiteSettings extends Document {
         title?: string
         description?: string
     }
+    categoriesBanner?: {
+        imageUrl?: string
+        imagePublicId?: string
+        alt?: string
+    }
     updatedAt: Date
     updatedBy?: string
 }
@@ -46,6 +51,11 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
             imagePublicId: String,
             title: String,
             description: String,
+        },
+        categoriesBanner: {
+            imageUrl: String,
+            imagePublicId: String,
+            alt: String,
         },
         updatedAt: { type: Date, default: Date.now },
         updatedBy: { type: String },

@@ -1,0 +1,114 @@
+/* Categories Banner CSS - CSN Prefix */
+
+.csn-banner-section {
+  padding: 3rem 0 3rem 0;
+  position: relative;
+  overflow: hidden;
+}
+
+
+
+.csn-banner-wrapper {
+  position: relative;
+  z-index: 2;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.csn-banner-image {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(130, 97, 198, 0.2);
+  transition: all 0.3s ease;
+}
+
+.csn-banner-image::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.1),
+    transparent
+  );
+  transform: skewX(-15deg);
+  transition: left 0.5s ease;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.csn-banner-image:hover::before {
+  left: 100%;
+  animation: csnReflect 0.8s ease-out;
+}
+
+.csn-banner-image:hover {
+  border-color: var(--color-purple-primary);
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.4),
+    0 0 30px rgba(130, 97, 198, 0.5);
+}
+
+.csn-banner-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.csn-banner-image:hover .csn-banner-img {
+  transform: scale(1.02);
+}
+
+.csn-banner-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: 1rem;
+}
+
+.csn-loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(130, 97, 198, 0.3);
+  border-top: 3px solid var(--color-lime-accent);
+  border-radius: 50%;
+  animation: csnSpin 1s linear infinite;
+}
+
+@keyframes csnSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes csnReflect {
+  0% {
+    transform: translateX(-100%) skewX(-15deg);
+  }
+  100% {
+    transform: translateX(200%) skewX(-15deg);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .csn-banner-section {
+    padding: 1.5rem 0;
+  }
+  
+  .csn-banner-wrapper {
+    margin: 0 1rem;
+  }
+  
+  .csn-banner-image {
+    border-radius: 16px;
+  }
+}

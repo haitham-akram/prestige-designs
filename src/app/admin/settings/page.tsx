@@ -50,7 +50,9 @@ export default function AdminSettingsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
 
-  const [activeTab, setActiveTab] = useState<'branding' | 'social' | 'hero' | 'faq' | 'discord' | 'clients'>('branding')
+  const [activeTab, setActiveTab] = useState<
+    'branding' | 'social' | 'hero' | 'faq' | 'discord' | 'categories' | 'clients'
+  >('branding')
   const [branding, setBranding] = useState<Branding>({})
   const [social, setSocial] = useState<Social>({})
   const [saving, setSaving] = useState(false)
@@ -77,6 +79,12 @@ export default function AdminSettingsPage() {
     description?: string
   }>({})
   const [hasExistingDiscord, setHasExistingDiscord] = useState(false)
+  const [categoriesBanner, setCategoriesBanner] = useState<{
+    imageUrl?: string
+    imagePublicId?: string
+    alt?: string
+  }>({})
+  const [hasExistingCategoriesBanner, setHasExistingCategoriesBanner] = useState(false)
   const [clients, setClients] = useState<FeaturedClient[]>([])
   const [clientsLoading, setClientsLoading] = useState(false)
   const [newClient, setNewClient] = useState<FeaturedClient>({
@@ -109,6 +117,13 @@ export default function AdminSettingsPage() {
               initialDiscord?.description
           )
           setHasExistingDiscord(hadDiscord)
+
+          const initialCategoriesBanner = res.data.categoriesBanner || {}
+          setCategoriesBanner(initialCategoriesBanner)
+          const hadCategoriesBanner = Boolean(
+            initialCategoriesBanner?.imageUrl || initialCategoriesBanner?.imagePublicId || initialCategoriesBanner?.alt
+          )
+          setHasExistingCategoriesBanner(hadCategoriesBanner)
         }
       })
   }, [])
@@ -530,6 +545,47 @@ export default function AdminSettingsPage() {
     }
   }
 
+  // Categories banner upload/save (independent state)
+  const {
+    uploadFile: uploadCategoriesBanner,
+    uploadProgress: categoriesBannerProgress,
+    resetUpload: resetCategoriesBanner,
+  } = useFileUpload({
+    onSuccess: (result: { data?: Array<{ url?: string; publicId?: string }>; urls?: string[] }) => {
+      const url = result?.data?.[0]?.url || result?.urls?.[0]
+      const publicId = result?.data?.[0]?.publicId
+      setCategoriesBanner((b) => ({ ...b, imageUrl: url || '', imagePublicId: publicId }))
+      showSuccess('تم الرفع', 'تم رفع صورة بانر الأقسام بنجاح')
+    },
+    onError: (msg) => showError('فشل الرفع', String(msg || 'حدث خطأ غير متوقع')),
+  })
+
+  const uploadCategoriesBannerImage = async (file: File) => {
+    await uploadCategoriesBanner(file, '/api/admin/upload/image')
+  }
+
+  const saveCategoriesBanner = async () => {
+    try {
+      setSaving(true)
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoriesBanner: categoriesBanner }),
+      })
+      setSaving(false)
+      if (!res.ok) {
+        const err = await res.text()
+        showError('فشل الحفظ', err || 'تعذر حفظ بانر الأقسام')
+        return
+      }
+      showSuccess('تم الحفظ', 'تم حفظ بانر الأقسام بنجاح')
+    } catch (e) {
+      setSaving(false)
+      const message = e instanceof Error ? e.message : 'حدث خطأ غير متوقع'
+      showError('فشل الحفظ', message)
+    }
+  }
+
   // Featured clients CRUD
   const {
     uploadFile: uploadClientImage,
@@ -631,6 +687,7 @@ export default function AdminSettingsPage() {
             ['hero', 'السلايدر'],
             ['faq', 'الأسئلة الشائعة'],
             ['discord', 'قسم الديسكورد'],
+            ['categories', 'بانر الأقسام'],
             ['clients', 'العملاء المميزون'],
           ] as const
         ).map(([key, label]) => (
@@ -749,6 +806,56 @@ export default function AdminSettingsPage() {
             <div className="save-row" style={{ marginTop: '0.5rem' }}>
               <button className="btn btn-primary" onClick={saveDiscord} disabled={saving}>
                 {saving ? 'جار الحفظ...' : hasExistingDiscord ? 'حفظ التغيرات' : 'حفظ القسم'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'categories' && (
+        <div className="categories-tab">
+          <h2 className="section-title">بانر الأقسام</h2>
+          <div className="card">
+            <div className="form-group">
+              <label className="nice-label">صورة البانر</label>
+              <FileUpload
+                key={`categories-banner-upload-${resetKey}`}
+                accept="image/*"
+                onFileSelect={(f) => uploadCategoriesBannerImage(f)}
+                label="رفع الصورة"
+                maxSize={10}
+                externalProgress={categoriesBannerProgress}
+                onReset={resetCategoriesBanner}
+                placeholder="اختر صورة أو اسحب صورة"
+                disabled={!!categoriesBanner.imageUrl}
+              />
+              {categoriesBanner.imageUrl && (
+                <div className="image-preview">
+                  <Image src={categoriesBanner.imageUrl} alt="categories banner" unoptimized width={320} height={180} />
+                  <button
+                    type="button"
+                    className="remove-image-btn"
+                    onClick={() =>
+                      setCategoriesBanner((b) => ({ ...b, imageUrl: undefined, imagePublicId: undefined }))
+                    }
+                  >
+                    حذف
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="form-group">
+              <label className="nice-label">النص البديل (Alt Text)</label>
+              <input
+                className="text-input"
+                value={categoriesBanner.alt || ''}
+                onChange={(e) => setCategoriesBanner((b) => ({ ...b, alt: e.target.value }))}
+                placeholder="وصف الصورة للقراء الشاشة"
+              />
+            </div>
+            <div className="save-row" style={{ marginTop: '0.5rem' }}>
+              <button className="btn btn-primary" onClick={saveCategoriesBanner} disabled={saving}>
+                {saving ? 'جار الحفظ...' : hasExistingCategoriesBanner ? 'حفظ التغيرات' : 'حفظ البانر'}
               </button>
             </div>
           </div>

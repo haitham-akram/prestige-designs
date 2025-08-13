@@ -8,6 +8,8 @@ import HeroSection from '@/components/customer/HeroSection'
 // import PackagesSection from '@/components/customer/PackagesSection'
 // import StoreStats from '@/components/customer/StoreStats'
 import CategoriesWithProducts from '@/components/customer/CategoriesWithProducts'
+import CategoriesBanner from '@/components/customer/CategoriesBanner'
+import CategoriesSection from '@/components/customer/CategoriesSection'
 // import CustomDesignSection from '@/components/customer/CustomDesignSection'
 // import FeaturesSection from '@/components/customer/FeaturesSection'
 import DiscordSection from '@/components/customer/DiscordSection'
@@ -46,8 +48,18 @@ export default function HomePage() {
       {/* Packages Section */}
       {/* <PackagesSection /> */}
 
-      {/* Categories with Products */}
+      {/* Categories Banner */}
+      <AnimatedSection animation="fade-up" delay={100}>
+        <CategoriesBanner />
+      </AnimatedSection>
+
+      {/* First Category with Products */}
       <CategoriesWithProducts />
+
+      {/* Categories Section */}
+      <AnimatedSection animation="fade-up" delay={150}>
+        <CategoriesSection />
+      </AnimatedSection>
 
       {/* Custom Design Section */}
       {/* <CustomDesignSection /> */}

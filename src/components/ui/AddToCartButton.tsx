@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useCart } from '@/contexts/CartContext'
+import { useCart, CartItemCustomization } from '@/contexts/CartContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart, faCheck } from '@fortawesome/free-solid-svg-icons'
 import './AddToCartButton.css'
@@ -16,11 +16,13 @@ interface AddToCartButtonProps {
     originalPrice?: number
     image: string
     category?: string
+    customizations?: CartItemCustomization
   }
   className?: string
+  onAddToCart?: () => void
 }
 
-export default function AddToCartButton({ product, className = '' }: AddToCartButtonProps) {
+export default function AddToCartButton({ product, className = '', onAddToCart }: AddToCartButtonProps) {
   const { addItem, isInCart, getItemQuantity } = useCart()
   const [isAdding, setIsAdding] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -39,6 +41,11 @@ export default function AddToCartButton({ product, className = '' }: AddToCartBu
     addItem(product)
     setShowSuccess(true)
     setIsAdding(false)
+
+    // Call the onAddToCart callback if provided
+    if (onAddToCart) {
+      onAddToCart()
+    }
 
     // Hide success state after 2 seconds
     setTimeout(() => {
@@ -72,7 +79,13 @@ export default function AddToCartButton({ product, className = '' }: AddToCartBu
         )}
       </div>
 
-      {isAdding && <div className="loading-spinner"></div>}
+      {isAdding && (
+        <div className="loading-dots">
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+          <div className="loading-dot"></div>
+        </div>
+      )}
     </button>
   )
 }

@@ -188,51 +188,7 @@ export default function CategoriesWithProducts() {
   // Removed unused getCategoryStyle function
 
   const renderCategoryContent = (category: CategoryWithProducts) => {
-    // If category has image, show image first, then title
-    if (category.image) {
-      return (
-        <div className="category-with-image">
-          <AnimatedElement className="category-hero-image" animation="scale-up">
-            <Image
-              src={category.image}
-              alt={category.name}
-              width={1200}
-              height={400}
-              className="hero-bg-image"
-              priority
-            />
-          </AnimatedElement>
-          <AnimatedElement className="category-title-section" animation="fade-up" delay={200}>
-            <h2 className="category-title">{category.name}</h2>
-            {category.description && <p className="category-details-show">{category.description}</p>}
-          </AnimatedElement>
-          <AnimatedElement className="products-section" animation="fade-up" delay={400}>
-            <CategoryProductsCarousel
-              products={category.products.map((product) => ({
-                id: product._id,
-                slug: product.slug, // Add the slug field
-                name: product.name,
-                price: product.finalPrice,
-                originalPrice: product.price,
-                rating: product.rating,
-                image:
-                  product.images.find((img) => img.isPrimary)?.url ||
-                  product.images[0]?.url ||
-                  '/placeholder-product.jpg',
-                category: category.name,
-              }))}
-            />
-            <div className="category-footer">
-              <Link href={`/categories/${category.slug}`} className="btn btn-secondary">
-                عرض جميع المنتجات ({category.designCount || 0})
-              </Link>
-            </div>
-          </AnimatedElement>
-        </div>
-      )
-    }
-
-    // For categories without images, use default style
+    // Always use default style (without category images)
     return (
       <div className="category-default">
         <AnimatedElement className="category-header" animation="fade-up">
@@ -278,11 +234,6 @@ export default function CategoriesWithProducts() {
               priority
               className="logo-image"
             />
-          </div>
-          <div className="loader-spinner">
-            <div className="spinner-ring"></div>
-            <div className="spinner-ring"></div>
-            <div className="spinner-ring"></div>
           </div>
           <p className="loader-subtitle">جاري تحميل المنتجات...</p>
           <div className="loading-dots">

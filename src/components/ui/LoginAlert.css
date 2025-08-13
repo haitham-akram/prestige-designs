@@ -1,0 +1,247 @@
+/* Login Alert CSS - Beautiful Dark Theme with Animations */
+
+.lac-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lac-overlay.closing {
+  opacity: 0;
+}
+
+.lac-alert {
+  background: linear-gradient(135deg, rgba(37, 37, 48, 0.95), rgba(32, 32, 40, 0.98));
+  border: 1px solid rgba(130, 97, 198, 0.3);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 90%;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  transform: scale(1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  animation: lacSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.lac-alert.closing {
+  transform: scale(0.9);
+  opacity: 0;
+}
+
+@keyframes lacSlideIn {
+  from {
+    transform: scale(0.8) translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.lac-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lac-close:hover {
+  background: rgba(130, 97, 198, 0.1);
+  color: var(--color-purple-primary);
+  transform: scale(1.1);
+}
+
+.lac-icon {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.lac-icon svg {
+  font-size: 3rem;
+  color: var(--color-purple-primary);
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  filter: drop-shadow(0 0 20px rgba(130, 97, 198, 0.3));
+}
+
+.lac-content {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.lac-content h2 {
+  color: var(--text-primary);
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin: 0 0 1rem 0;
+  text-align: center !important;
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  display: block;
+  width: 100%;
+}
+
+.lac-content p {
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+  text-align: center;
+}
+
+.lac-subtitle {
+  color: var(--color-lime-accent) !important;
+  font-weight: 600;
+  font-size: 1.1rem !important;
+  margin-top: 1.5rem !important;
+  text-align: center !important;
+}
+
+.lac-benefits {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.lac-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background: rgba(37, 37, 48, 0.4);
+  border-radius: 12px;
+  border: 1px solid rgba(130, 97, 198, 0.2);
+  transition: all 0.3s ease;
+}
+
+.lac-benefit-item:hover {
+  border-color: rgba(130, 97, 198, 0.4);
+  background: rgba(37, 37, 48, 0.6);
+  transform: translateX(-5px);
+}
+
+.lac-benefit-item svg {
+  color: var(--color-lime-accent);
+  font-size: 1.1rem;
+  width: 20px;
+}
+
+.lac-benefit-item span {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.lac-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lac-btn {
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  text-decoration: none;
+}
+
+.lac-btn.lac-login-btn {
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  color: white;
+  box-shadow: 0 4px 16px rgba(130, 97, 198, 0.3);
+}
+
+.lac-btn.lac-login-btn:hover {
+  background: linear-gradient(135deg, #03ecfd, #00d4e3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(3, 236, 253, 0.4);
+  color: var(--color-dark-primary);
+}
+
+.lac-btn.lac-continue-btn {
+  background: rgba(37, 37, 48, 0.6);
+  color: var(--text-secondary);
+  border: 1px solid rgba(130, 97, 198, 0.3);
+}
+
+.lac-btn.lac-continue-btn:hover {
+  background: rgba(37, 37, 48, 0.8);
+  color: var(--text-primary);
+  border-color: rgba(130, 97, 198, 0.5);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .lac-alert {
+    padding: 2rem;
+    margin: 1rem;
+  }
+
+  .lac-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .lac-icon svg {
+    font-size: 2.5rem;
+  }
+
+  .lac-benefit-item {
+    padding: 0.5rem;
+  }
+
+  .lac-benefit-item span {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .lac-alert {
+    padding: 1.5rem;
+  }
+
+  .lac-content h2 {
+    font-size: 1.3rem;
+  }
+
+  .lac-btn {
+    padding: 0.875rem 1.25rem;
+    font-size: 0.95rem;
+  }
+}

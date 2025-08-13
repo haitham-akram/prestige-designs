@@ -2,16 +2,23 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useCart } from '@/contexts/CartContext'
+import { useSession } from 'next-auth/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart, faTimes, faTrash } from '@fortawesome/free-solid-svg-icons'
 import Image from 'next/image'
+import { translateColorNames } from '@/utils/colorTranslations'
+import { useRouter } from 'next/navigation'
+import LoginAlert from './LoginAlert'
 import './CartDropdown.css'
 
 export default function CartDropdown() {
   const { state, removeItem, updateQuantity } = useCart()
+  const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const [showLoginAlert, setShowLoginAlert] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -59,6 +66,8 @@ export default function CartDropdown() {
             </div>
           )}
         </div>
+
+        <LoginAlert isOpen={showLoginAlert} onClose={() => setShowLoginAlert(false)} />
       </div>
     )
   }
@@ -82,12 +91,17 @@ export default function CartDropdown() {
             </div>
             <div className="cart-preview-items">
               {state.items.slice(0, 3).map((item) => (
-                <div key={item.id} className="cart-preview-item">
+                <div key={item.cartItemId} className="cart-preview-item">
                   <div className="cart-preview-item-image">
                     <Image src={item.image} alt={item.name} width={40} height={40} className="preview-image" />
                   </div>
                   <div className="cart-preview-item-details">
                     <p className="cart-preview-item-name">{item.name}</p>
+                    {item.customizations?.colors && item.customizations.colors.length > 0 && (
+                      <p className="cart-preview-item-colors">
+                        {translateColorNames(item.customizations.colors.map((c) => c.name)).join(', ')}
+                      </p>
+                    )}
                     <p className="cart-preview-item-price">
                       {formatPrice(item.price)} × {item.quantity}
                     </p>
@@ -115,13 +129,18 @@ export default function CartDropdown() {
 
           <div className="cart-items">
             {state.items.map((item) => (
-              <div key={item.id} className="cart-item">
+              <div key={item.cartItemId} className="cart-item">
                 <div className="cart-item-image">
                   <Image src={item.image} alt={item.name} width={60} height={60} className="item-image" />
                 </div>
 
                 <div className="cart-item-details">
                   <h4 className="cart-item-name">{item.name}</h4>
+                  {item.customizations?.colors && item.customizations.colors.length > 0 && (
+                    <p className="cart-item-colors">
+                      {translateColorNames(item.customizations.colors.map((c) => c.name)).join(', ')}
+                    </p>
+                  )}
                   <p className="cart-item-price">
                     {formatPrice(item.price)}
                     {item.originalPrice && (
@@ -130,18 +149,24 @@ export default function CartDropdown() {
                   </p>
 
                   <div className="cart-item-quantity">
-                    <button className="quantity-btn" onClick={() => handleQuantityChange(item.id, item.quantity - 1)}>
+                    <button
+                      className="quantity-btn"
+                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity - 1)}
+                    >
                       -
                     </button>
                     <span className="quantity-value">{item.quantity}</span>
-                    <button className="quantity-btn" onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
+                    <button
+                      className="quantity-btn"
+                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity + 1)}
+                    >
                       +
                     </button>
                   </div>
                 </div>
 
                 <div className="cart-item-actions">
-                  <button className="remove-item-btn" onClick={() => removeItem(item.id)}>
+                  <button className="remove-item-btn" onClick={() => removeItem(item.cartItemId)}>
                     <FontAwesomeIcon icon={faTrash} />
                   </button>
                 </div>
@@ -163,10 +188,27 @@ export default function CartDropdown() {
               )}
             </div>
 
-            <button className="checkout-btn">إتمام الطلب</button>
+            <button
+              className="checkout-btn"
+              onClick={() => {
+                console.log('Checkout button clicked, session:', session)
+                setIsOpen(false)
+                if (session?.user) {
+                  console.log('User is logged in, navigating to checkout')
+                  router.push('/checkout')
+                } else {
+                  console.log('User is not logged in, showing login alert')
+                  setShowLoginAlert(true)
+                }
+              }}
+            >
+              إتمام الطلب
+            </button>
           </div>
         </div>
       )}
+
+      <LoginAlert isOpen={showLoginAlert} onClose={() => setShowLoginAlert(false)} />
     </div>
   )
 }

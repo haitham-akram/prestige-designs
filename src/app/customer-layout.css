@@ -6,7 +6,7 @@
   --color-dark-secondary: #252530;  /* Secondary dark (cards, inputs) */
   --color-purple-primary: #8261c6;  /* Purple primary (buttons, links) */
   --color-pink-accent: #e260ef;     /* Pink accent (highlights, hover) */
-  --color-lime-accent: #d8e864;     /* Lime green (success, special) */
+  --color-lime-accent: #03ecfd;     /* Cyan blue (success, special) */
   --color-light-primary: #fcebff;   /* Very light pink (text, backgrounds) */
 
   /* Gradients */
@@ -311,7 +311,7 @@ body::before {
 }
 
 .login-btn:hover {
-  background: rgba(216, 232, 100, 0.1) !important;
+  background: rgba(3, 236, 253, 0.1) !important;
 }
 
 /* Logout Button */
@@ -353,7 +353,7 @@ body::before {
   padding: 0.4rem 0.6rem;
   border-radius: var(--border-radius);
   position: relative;
-  font-size: 0.8rem;
+  font-size: 1.1rem;
   white-space: nowrap;
 }
 
@@ -2365,7 +2365,7 @@ body::before {
 
 .text-lime {
   color: var(--color-lime-accent);
-  text-shadow: 0 0 10px rgba(216, 232, 100, 0.5);
+  text-shadow: 0 0 10px rgba(3, 236, 253, 0.5);
 }
 
 .border-accent {
@@ -2748,7 +2748,7 @@ body::before {
   color: var(--color-lime-accent);
   margin-bottom: 1rem;
   text-align: center;
-  text-shadow: 0 0 20px rgba(216, 232, 100, 0.5);
+  text-shadow: 0 0 20px rgba(3, 236, 253, 0.5);
 }
 
 .category-title-section .category-details-show {

@@ -23,18 +23,18 @@ export default function FAQSection() {
   return (
     <div className="faq-section">
       <div className="container">
-        <div className="section-header">
-          <h2 className="section-title">الأسئلة الشائعة</h2>
+        <div className="faq-section-header">
+          <h2 className="faq-section-title">الأسئلة الشائعة</h2>
         </div>
 
         <div className="faq-list">
           {faqs.map((faq) => (
-            <div key={faq._id} className="faq-item">
+            <div key={faq._id} className={`faq-item ${openFaq === faq._id ? 'faq-open' : ''}`}>
               <button className="faq-question" onClick={() => toggleFaq(faq._id!)}>
                 <span>{faq.question}</span>
-                <span className={`faq-arrow ${openFaq === faq._id ? 'open' : ''}`}>▼</span>
+                <span className={`faq-arrow ${openFaq === faq._id ? 'faq-open' : ''}`}>▼</span>
               </button>
-              <div className={`faq-answer ${openFaq === faq._id ? 'open' : ''}`}>
+              <div className={`faq-answer ${openFaq === faq._id ? 'faq-open' : ''}`}>
                 <p>{faq.answer}</p>
               </div>
             </div>

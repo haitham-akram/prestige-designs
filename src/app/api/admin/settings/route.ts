@@ -54,6 +54,12 @@ export async function PUT(req: NextRequest) {
         }
     }
 
+    if (body.categoriesBanner) {
+        for (const [key, value] of Object.entries(body.categoriesBanner)) {
+            setUpdate[`categoriesBanner.${key}`] = value
+        }
+    }
+
     const doc = await SiteSettings.findOneAndUpdate(
         {},
         { $set: setUpdate },
@@ -79,6 +85,12 @@ export async function PUT(req: NextRequest) {
         const oldDiscordPublicId = existing?.discordBanner?.imagePublicId
         if (newDiscordPublicId && oldDiscordPublicId && newDiscordPublicId !== oldDiscordPublicId) {
             await deleteImage(oldDiscordPublicId)
+        }
+        // Categories banner
+        const newCategoriesPublicId = body?.categoriesBanner?.imagePublicId
+        const oldCategoriesPublicId = existing?.categoriesBanner?.imagePublicId
+        if (newCategoriesPublicId && oldCategoriesPublicId && newCategoriesPublicId !== oldCategoriesPublicId) {
+            await deleteImage(oldCategoriesPublicId)
         }
     } catch (e) {
         console.error('Cloudinary cleanup error (settings):', e)

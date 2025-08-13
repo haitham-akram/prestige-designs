@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import '../../../styles/auth.css'
+import '../../../styles/sign.css'
 
 interface FormData {
   name: string
@@ -132,39 +132,39 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="auth-container">
-        <div className="auth-card">
-          <div className="auth-header">
-            <h1 className="auth-title">مرحباً بك في بريستيج!</h1>
-            <p className="auth-subtitle">تم إنشاء حسابك بنجاح</p>
+      <div className="sign-container">
+        <div className="sign-card">
+          <div className="sign-header">
+            <h1 className="sign-title">مرحباً بك في بريستيج!</h1>
+            <p className="sign-subtitle">تم إنشاء حسابك بنجاح</p>
           </div>
 
-          <div className="success-message">تم إنشاء الحساب بنجاح! جاري التوجيه إلى لوحة التحكم...</div>
+          <div className="sign-success-message">تم إنشاء الحساب بنجاح! جاري التوجيه إلى لوحة التحكم...</div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">إنشاء حساب</h1>
-          <p className="auth-subtitle">انضم إلى بريستيج ديزاين اليوم</p>
+    <div className="sign-container">
+      <div className="sign-card">
+        <div className="sign-header">
+          <h1 className="sign-title">إنشاء حساب</h1>
+          <p className="sign-subtitle">انضم إلى بريستيج ديزاين اليوم</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="sign-error-message">{error}</div>}
 
         {/* Social Login Section */}
-        <div className="social-section">
+        <div className="sign-social-section">
           <button
             type="button"
             onClick={() => handleSocialLogin('google')}
             disabled={loading}
-            className="btn btn-google"
+            className="sign-btn sign-btn-google"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -194,10 +194,10 @@ export default function SignUpPage() {
             type="button"
             onClick={() => handleSocialLogin('twitter')}
             disabled={loading}
-            className="btn btn-twitter"
+            className="sign-btn sign-btn-twitter"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -212,10 +212,10 @@ export default function SignUpPage() {
             type="button"
             onClick={() => handleSocialLogin('discord')}
             disabled={loading}
-            className="btn btn-discord"
+            className="sign-btn sign-btn-discord"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -227,14 +227,14 @@ export default function SignUpPage() {
           </button>
         </div>
 
-        <div className="divider">
+        <div className="sign-divider">
           <span>أو إنشاء حساب بالبريد الإلكتروني</span>
         </div>
 
         {/* Registration Form */}
-        <form onSubmit={handleSignUp} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="name" className="form-label">
+        <form onSubmit={handleSignUp} className="sign-form">
+          <div className="sign-form-group">
+            <label htmlFor="name" className="sign-form-label">
               الاسم الكامل
             </label>
             <input
@@ -244,14 +244,14 @@ export default function SignUpPage() {
               value={formData.name}
               onChange={handleInputChange}
               placeholder="أدخل اسمك الكامل"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
+          <div className="sign-form-group">
+            <label htmlFor="email" className="sign-form-label">
               البريد الإلكتروني
             </label>
             <input
@@ -261,14 +261,14 @@ export default function SignUpPage() {
               value={formData.email}
               onChange={handleInputChange}
               placeholder="أدخل بريدك الإلكتروني"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
+          <div className="sign-form-group">
+            <label htmlFor="password" className="sign-form-label">
               كلمة المرور
             </label>
             <input
@@ -278,14 +278,14 @@ export default function SignUpPage() {
               value={formData.password}
               onChange={handleInputChange}
               placeholder="أنشئ كلمة مرور (6 أحرف على الأقل)"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="confirmPassword" className="form-label">
+          <div className="sign-form-group">
+            <label htmlFor="confirmPassword" className="sign-form-label">
               تأكيد كلمة المرور
             </label>
             <input
@@ -295,16 +295,16 @@ export default function SignUpPage() {
               value={formData.confirmPassword}
               onChange={handleInputChange}
               placeholder="أكد كلمة المرور"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary">
+          <button type="submit" disabled={loading} className="sign-btn sign-btn-primary">
             {loading ? (
               <>
-                <div className="spinner" />
+                <div className="sign-spinner" />
                 جاري إنشاء الحساب...
               </>
             ) : (
@@ -313,10 +313,10 @@ export default function SignUpPage() {
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div className="sign-footer">
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
             لديك حساب بالفعل؟{' '}
-            <Link href="/auth/signin" className="auth-link">
+            <Link href="/auth/signin" className="sign-link">
               سجل دخولك هنا
             </Link>
           </p>

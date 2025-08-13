@@ -195,7 +195,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                     categories.map((category) => (
                       <li key={category._id}>
                         <Link
-                          href={`/category/${category.slug}`}
+                          href={`/categories/${category.slug}`}
                           className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
                           onClick={closeMenu}
                         >
@@ -243,7 +243,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                   categories.map((category) => (
                     <li key={category._id}>
                       <Link
-                        href={`/category/${category.slug}`}
+                        href={`/categories/${category.slug}`}
                         className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
                         onClick={closeMenu}
                       >

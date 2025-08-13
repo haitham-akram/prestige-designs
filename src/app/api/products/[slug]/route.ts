@@ -110,6 +110,25 @@ async function getProductBySlug(req: NextRequest, context: ApiRouteContext, user
             isOnSale: isProductOnSale(product)
         };
 
+        console.log('🔍 API Debug - Raw Product from DB:', {
+            _id: product._id,
+            name: product.name,
+            slug: product.slug,
+            images: product.images,
+            imagesLength: product.images?.length,
+            imagesType: typeof product.images,
+            categoryId: product.categoryId
+        });
+
+        console.log('📦 API Debug - Prepared Product Data:', {
+            _id: productData._id,
+            name: productData.name,
+            slug: productData.slug,
+            images: productData.images,
+            imagesLength: productData.images?.length,
+            category: productData.category
+        });
+
         let relatedProducts = [];
 
         // Get related products if requested
@@ -166,13 +185,32 @@ async function getProductBySlug(req: NextRequest, context: ApiRouteContext, user
                     }
                 }
             ]);
+
+            console.log('🔗 API Debug - Related Products:', {
+                count: relatedProducts.length,
+                products: relatedProducts.map(p => ({
+                    name: p.name,
+                    slug: p.slug,
+                    images: p.images,
+                    imagesLength: p.images?.length
+                }))
+            });
         }
 
-        return NextResponse.json({
+        const response = {
             success: true,
             data: productData,
             relatedProducts: query.includeRelated === 'true' ? relatedProducts : undefined
+        };
+
+        console.log('📤 API Debug - Final Response:', {
+            success: response.success,
+            dataKeys: Object.keys(response.data),
+            dataImages: response.data.images,
+            relatedProductsCount: response.relatedProducts?.length || 0
         });
+
+        return NextResponse.json(response);
 
     } catch (error) {
         console.error('Get product by slug error:', error);
