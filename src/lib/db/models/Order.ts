@@ -53,8 +53,8 @@ export interface IOrderItem {
     customizations?: {
         colors?: { name: string; hex: string; }[]; // Selected color themes
         textChanges?: { field: string; value: string; }[]; // Text modifications
-        uploadedImages?: string[];     // URLs to uploaded images
-        uploadedLogo?: string;         // URL to uploaded logo
+        uploadedImages?: { url: string; publicId: string; }[]; // Uploaded images with Cloudinary info
+        uploadedLogo?: { url: string; publicId: string; }; // Uploaded logo with Cloudinary info
         customizationNotes?: string;   // Customer notes for this item
     };
 }
@@ -237,8 +237,14 @@ const OrderItemSchema = new Schema<IOrderItem>({
             field: { type: String, trim: true },
             value: { type: String, trim: true }
         }],
-        uploadedImages: [{ type: String }],
-        uploadedLogo: { type: String },
+        uploadedImages: [{
+            url: { type: String, trim: true },
+            publicId: { type: String, trim: true }
+        }],
+        uploadedLogo: {
+            url: { type: String, trim: true },
+            publicId: { type: String, trim: true }
+        },
         customizationNotes: { type: String, trim: true }
     }
 }, { _id: false });

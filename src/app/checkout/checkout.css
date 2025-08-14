@@ -628,3 +628,108 @@
     padding: 1.5rem;
   }
 }
+
+/* PayPal Integration Styles */
+.payment-method input[type="radio"]:disabled + label {
+  color: #999;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.payment-method input[type="radio"]:disabled + label.disabled {
+  color: #999;
+}
+
+.payment-info {
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: rgba(37, 37, 48, 0.5);
+  border-radius: 8px;
+  border-left: 4px solid var(--color-purple-primary);
+}
+
+.payment-description {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.supported-cards {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.loading-text {
+  font-size: 0.8rem;
+  color: #ffc107;
+  margin-left: 0.5rem;
+}
+
+.submit-order-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: rgba(108, 117, 125, 0.8);
+}
+
+.submit-order-btn:disabled:hover {
+  background: rgba(108, 117, 125, 0.8);
+  transform: none;
+}
+
+/* PayPal Buttons Section */
+.paypal-buttons-section {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: rgba(37, 37, 48, 0.6);
+  border-radius: 15px;
+  border: 1px solid rgba(130, 97, 198, 0.3);
+}
+
+.paypal-buttons-section h4 {
+  color: var(--text-primary);
+  font-size: 1.3rem;
+  margin: 0 0 1.5rem 0;
+  text-align: center;
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+#paypal-button-container {
+  margin-bottom: 1rem;
+}
+
+.processing-payment {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(40, 167, 69, 0.1);
+  border: 1px solid rgba(40, 167, 69, 0.3);
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+
+.processing-payment .loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(40, 167, 69, 0.3);
+  border-top: 3px solid #28a745;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.processing-payment p {
+  color: #28a745;
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

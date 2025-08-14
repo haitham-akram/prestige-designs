@@ -5,17 +5,7 @@ import { useCart } from '@/contexts/CartContext'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faShoppingCart,
-  faCreditCard,
-  faUser,
-  faEnvelope,
-  faPhone,
-  faMapMarkerAlt,
-  faTrash,
-  faArrowRight,
-  faPaypal,
-} from '@fortawesome/free-solid-svg-icons'
+import { faShoppingCart, faUser, faEnvelope, faPhone, faTrash, faArrowRight } from '@fortawesome/free-solid-svg-icons'
 import { faPaypal as faPaypalBrand } from '@fortawesome/free-brands-svg-icons'
 import CustomerLayout from '@/app/customer-layout'
 import './checkout.css'
@@ -25,11 +15,13 @@ interface CheckoutForm {
   lastName: string
   email: string
   phone: string
-  address: string
-  city: string
-  country: string
-  zipCode: string
   notes: string
+}
+
+declare global {
+  interface Window {
+    paypal?: any
+  }
 }
 
 export default function CheckoutPage() {
@@ -64,10 +56,6 @@ export default function CheckoutPage() {
       lastName: '',
       email: '',
       phone: '',
-      address: '',
-      city: '',
-      country: '',
-      zipCode: '',
       notes: '',
     })
 
@@ -80,6 +68,35 @@ export default function CheckoutPage() {
       type: 'percentage' | 'fixed'
     } | null>(null)
     const [isValidatingPromo, setIsValidatingPromo] = useState(false)
+
+    // PayPal state
+    const [paypalLoaded, setPaypalLoaded] = useState(false)
+    const [isProcessingOrder, setIsProcessingOrder] = useState(false)
+    const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal')
+
+    // Load PayPal SDK
+    useEffect(() => {
+      if (typeof window !== 'undefined' && !window.paypal && !paypalLoaded) {
+        const script = document.createElement('script')
+        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons`
+        script.onload = () => {
+          setPaypalLoaded(true)
+          console.log('PayPal SDK loaded successfully')
+          // Initialize PayPal buttons after SDK loads
+          if (currentOrderId) {
+            initializePayPalButtons()
+          }
+        }
+        script.onerror = () => {
+          console.error('Failed to load PayPal SDK')
+        }
+        document.body.appendChild(script)
+      } else if (window.paypal && paypalLoaded && currentOrderId) {
+        // PayPal is already loaded, initialize buttons
+        initializePayPalButtons()
+      }
+    }, [paypalLoaded, currentOrderId])
 
     // Redirect if not logged in
     useEffect(() => {
@@ -188,10 +205,190 @@ export default function CheckoutPage() {
       setPromoCodeSuccess('')
     }
 
+    // Initialize PayPal buttons
+    const initializePayPalButtons = () => {
+      if (!window.paypal || !currentOrderId) {
+        console.log('PayPal not loaded or no current order ID')
+        return
+      }
+
+      // Clear any existing PayPal buttons
+      const paypalContainer = document.getElementById('paypal-button-container')
+      if (paypalContainer) {
+        paypalContainer.innerHTML = ''
+      }
+
+      window.paypal
+        .Buttons({
+          createOrder: async () => {
+            try {
+              console.log('Creating PayPal order for order ID:', currentOrderId)
+              const response = await fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ orderId: currentOrderId }),
+              })
+
+              if (!response.ok) {
+                throw new Error('Failed to create PayPal order')
+              }
+
+              const data = await response.json()
+              console.log('PayPal order created:', data.paypalOrderId)
+              return data.paypalOrderId
+            } catch (error) {
+              console.error('Error creating PayPal order:', error)
+              alert('فشل في إنشاء طلب الدفع')
+              throw error
+            }
+          },
+          onApprove: async (data: any) => {
+            try {
+              console.log('Payment approved, capturing payment...')
+              setIsProcessingOrder(true)
+
+              const response = await fetch('/api/paypal/capture-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  paypalOrderId: data.orderID,
+                  orderId: currentOrderId,
+                }),
+              })
+
+              if (!response.ok) {
+                throw new Error('Failed to capture payment')
+              }
+
+              const result = await response.json()
+              console.log('Payment captured successfully:', result)
+
+              // Clear cart and redirect to success page
+              clearCart()
+              router.push(`/checkout/success?orderId=${currentOrderId}`)
+            } catch (error) {
+              console.error('Error capturing payment:', error)
+              alert('حدث خطأ أثناء معالجة الدفع')
+            } finally {
+              setIsProcessingOrder(false)
+            }
+          },
+          onError: (err: any) => {
+            console.error('PayPal payment error:', err)
+            alert('حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
+            setIsProcessingOrder(false)
+          },
+          onCancel: (data: any) => {
+            console.log('Payment cancelled by user:', data)
+            alert('تم إلغاء عملية الدفع')
+            setIsProcessingOrder(false)
+          },
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal',
+          },
+        })
+        .render('#paypal-button-container')
+    }
+
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
-      // Handle order submission logic here
-      console.log('Order submitted:', { formData, items: state.items, appliedPromoCode })
+
+      // Validate form
+      if (!formData.firstName || !formData.lastName || !formData.email) {
+        alert('يرجى ملء جميع الحقول المطلوبة')
+        return
+      }
+
+      if (selectedPaymentMethod !== 'paypal') {
+        alert('حالياً، دفع PayPal هو الطريقة الوحيدة المتاحة')
+        return
+      }
+
+      try {
+        setIsProcessingOrder(true)
+
+        // Calculate final total
+        const finalTotal =
+          (state.totalPrice || 0) -
+          (appliedPromoCode
+            ? appliedPromoCode.type === 'percentage'
+              ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
+              : appliedPromoCode.discount
+            : 0)
+
+        // Create order in database
+        const orderResponse = await fetch('/api/orders/create', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            customerEmail: formData.email,
+            customerPhone: formData.phone,
+            items: state.items.map((item) => ({
+              productId: item.id,
+              productName: item.name,
+              productSlug: item.name.toLowerCase().replace(/\s+/g, '-'),
+              quantity: item.quantity,
+              originalPrice: item.originalPrice || item.price,
+              discountAmount: (item.originalPrice || item.price) - item.price,
+              unitPrice: item.price,
+              totalPrice: item.price * item.quantity,
+              hasCustomizations: !!(
+                item.customizations &&
+                (item.customizations.colors?.length ||
+                  item.customizations.textChanges?.length ||
+                  item.customizations.uploadedImages?.length ||
+                  item.customizations.uploadedLogo ||
+                  item.customizations.customizationNotes)
+              ),
+              customizations: item.customizations,
+            })),
+            subtotal: state.subtotal || 0,
+            totalPromoDiscount: appliedPromoCode
+              ? appliedPromoCode.type === 'percentage'
+                ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
+                : appliedPromoCode.discount
+              : 0,
+            totalPrice: finalTotal,
+            appliedPromoCodes: appliedPromoCode ? [appliedPromoCode.code] : [],
+            customerNotes: formData.notes,
+          }),
+        })
+
+        if (!orderResponse.ok) {
+          const errorData = await orderResponse.json()
+          throw new Error(errorData.message || 'فشل في إنشاء الطلب')
+        }
+
+        const orderData = await orderResponse.json()
+        console.log('Order created successfully:', orderData)
+        setCurrentOrderId(orderData.orderId)
+
+        // Initialize PayPal buttons after order creation
+        if (paypalLoaded && window.paypal) {
+          // Small delay to ensure order ID is set
+          setTimeout(() => {
+            initializePayPalButtons()
+          }, 100)
+        } else {
+          alert('PayPal لم يتم تحميله بعد، يرجى المحاولة مرة أخرى')
+        }
+      } catch (error) {
+        console.error('Error creating order:', error)
+        const errorMessage = error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى'
+        alert(`حدث خطأ في إنشاء الطلب: ${errorMessage}`)
+      } finally {
+        setIsProcessingOrder(false)
+      }
     }
 
     // Debug: Check for corrupted cart data
@@ -425,33 +622,6 @@ export default function CheckoutPage() {
               </div>
 
               <div className="form-section">
-                <h3>عنوان التوصيل</h3>
-                <div className="form-group">
-                  <label>
-                    <FontAwesomeIcon icon={faMapMarkerAlt} />
-                    العنوان
-                  </label>
-                  <input type="text" name="address" value={formData.address} onChange={handleInputChange} required />
-                </div>
-
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>المدينة</label>
-                    <input type="text" name="city" value={formData.city} onChange={handleInputChange} required />
-                  </div>
-                  <div className="form-group">
-                    <label>الدولة</label>
-                    <input type="text" name="country" value={formData.country} onChange={handleInputChange} required />
-                  </div>
-                </div>
-
-                <div className="form-group">
-                  <label>الرمز البريدي</label>
-                  <input type="text" name="zipCode" value={formData.zipCode} onChange={handleInputChange} required />
-                </div>
-              </div>
-
-              <div className="form-section">
                 <h3>ملاحظات إضافية</h3>
                 <div className="form-group">
                   <label>ملاحظات الطلب (اختياري)</label>
@@ -469,33 +639,55 @@ export default function CheckoutPage() {
                 <h3>طريقة الدفع</h3>
                 <div className="payment-methods">
                   <div className="payment-method">
-                    <input type="radio" id="paypal" name="payment" value="paypal" defaultChecked />
+                    <input
+                      type="radio"
+                      id="paypal"
+                      name="payment"
+                      value="paypal"
+                      checked={selectedPaymentMethod === 'paypal'}
+                      onChange={(e) => setSelectedPaymentMethod(e.target.value)}
+                    />
                     <label htmlFor="paypal">
                       <FontAwesomeIcon icon={faPaypalBrand} />
-                      PayPal
-                    </label>
-                  </div>
-                  <div className="payment-method">
-                    <input type="radio" id="card" name="payment" value="card" />
-                    <label htmlFor="card">
-                      <FontAwesomeIcon icon={faCreditCard} />
-                      بطاقة ائتمان
-                    </label>
-                  </div>
-                  <div className="payment-method">
-                    <input type="radio" id="cash" name="payment" value="cash" />
-                    <label htmlFor="cash">
-                      <FontAwesomeIcon icon={faCreditCard} />
-                      الدفع عند الاستلام
+                      PayPal & Credit Cards
+                      {!paypalLoaded && <span className="loading-text"> (جاري التحميل...)</span>}
                     </label>
                   </div>
                 </div>
+
+                {selectedPaymentMethod === 'paypal' && (
+                  <div className="payment-info">
+                    <p className="payment-description">
+                      💳 يمكنك الدفع باستخدام حساب PayPal أو بطاقة ائتمان/خصم مباشرة دون إنشاء حساب PayPal
+                    </p>
+                    <div className="supported-cards">
+                      <small>البطاقات المقبولة: Visa, Mastercard, American Express, Discover</small>
+                    </div>
+                  </div>
+                )}
+
+                {/* PayPal buttons container - shows after order is created */}
+                {currentOrderId && paypalLoaded && (
+                  <div className="paypal-buttons-section">
+                    <h4>إتمام الدفع</h4>
+                    <div id="paypal-button-container"></div>
+                    {isProcessingOrder && (
+                      <div className="processing-payment">
+                        <div className="loading-spinner"></div>
+                        <p>جاري معالجة الدفع...</p>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
-              <button type="submit" className="submit-order-btn">
-                <span>إتمام الطلب</span>
-                <FontAwesomeIcon icon={faArrowRight} />
-              </button>
+              {/* Show submit button only if no order is created yet */}
+              {!currentOrderId && (
+                <button type="submit" className="submit-order-btn" disabled={isProcessingOrder || !paypalLoaded}>
+                  <span>{isProcessingOrder ? 'جاري إنشاء الطلب...' : 'إنشاء الطلب والمتابعة للدفع'}</span>
+                  <FontAwesomeIcon icon={faArrowRight} />
+                </button>
+              )}
             </form>
           </div>
         </div>
