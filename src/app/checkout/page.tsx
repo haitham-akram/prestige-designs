@@ -71,32 +71,77 @@ export default function CheckoutPage() {
 
     // PayPal state
     const [paypalLoaded, setPaypalLoaded] = useState(false)
+    const [paypalSdkError, setPaypalSdkError] = useState(false)
     const [isProcessingOrder, setIsProcessingOrder] = useState(false)
     const [currentOrderId, setCurrentOrderId] = useState<string | null>(null)
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal')
+    const [paypalButtonsRendered, setPaypalButtonsRendered] = useState(false)
 
     // Load PayPal SDK
     useEffect(() => {
-      if (typeof window !== 'undefined' && !window.paypal && !paypalLoaded) {
-        const script = document.createElement('script')
-        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons`
-        script.onload = () => {
+      const loadPayPalSDK = () => {
+        if (typeof window === 'undefined') return
+
+        // Reset error state
+        setPaypalSdkError(false)
+
+        // Check if PayPal is already loaded
+        if (window.paypal) {
+          console.log('PayPal SDK already loaded')
           setPaypalLoaded(true)
-          console.log('PayPal SDK loaded successfully')
-          // Initialize PayPal buttons after SDK loads
-          if (currentOrderId) {
-            initializePayPalButtons()
-          }
+          return
         }
+
+        // Check if script tag already exists
+        const existingScript = document.querySelector('script[src*="paypal.com/sdk"]')
+        if (existingScript) {
+          console.log('PayPal script already exists, waiting for load')
+          return
+        }
+
+        const script = document.createElement('script')
+        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG`
+
+        script.onload = () => {
+          console.log('PayPal SDK loaded successfully')
+          setPaypalLoaded(true)
+          setPaypalSdkError(false)
+        }
+
         script.onerror = () => {
           console.error('Failed to load PayPal SDK')
+          setPaypalSdkError(true)
+          setPaypalLoaded(false)
         }
-        document.body.appendChild(script)
-      } else if (window.paypal && paypalLoaded && currentOrderId) {
-        // PayPal is already loaded, initialize buttons
-        initializePayPalButtons()
+
+        document.head.appendChild(script)
       }
-    }, [paypalLoaded, currentOrderId])
+
+      loadPayPalSDK()
+    }, [])
+
+    // Initialize PayPal buttons when conditions are met
+    useEffect(() => {
+      if (paypalLoaded && currentOrderId && !paypalButtonsRendered && !isProcessingOrder) {
+        console.log('Initializing PayPal buttons...')
+        const timer = setTimeout(() => {
+          initializePayPalButtons()
+        }, 200) // Small delay to ensure DOM is ready
+
+        return () => clearTimeout(timer)
+      }
+    }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder])
+
+    // Reset PayPal buttons when order changes
+    useEffect(() => {
+      if (currentOrderId) {
+        setPaypalButtonsRendered(false)
+        const container = document.getElementById('paypal-button-container')
+        if (container) {
+          container.innerHTML = ''
+        }
+      }
+    }, [currentOrderId])
 
     // Redirect if not logged in
     useEffect(() => {
@@ -218,6 +263,8 @@ export default function CheckoutPage() {
         paypalContainer.innerHTML = ''
       }
 
+      console.log('Rendering PayPal buttons for order:', currentOrderId)
+
       window.paypal
         .Buttons({
           createOrder: async () => {
@@ -244,7 +291,7 @@ export default function CheckoutPage() {
               throw error
             }
           },
-          onApprove: async (data: any) => {
+          onApprove: async (data: { orderID: string }) => {
             try {
               console.log('Payment approved, capturing payment...')
               setIsProcessingOrder(true)
@@ -277,12 +324,12 @@ export default function CheckoutPage() {
               setIsProcessingOrder(false)
             }
           },
-          onError: (err: any) => {
+          onError: (err: unknown) => {
             console.error('PayPal payment error:', err)
             alert('حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
             setIsProcessingOrder(false)
           },
-          onCancel: (data: any) => {
+          onCancel: (data: { orderID: string }) => {
             console.log('Payment cancelled by user:', data)
             alert('تم إلغاء عملية الدفع')
             setIsProcessingOrder(false)
@@ -295,6 +342,15 @@ export default function CheckoutPage() {
           },
         })
         .render('#paypal-button-container')
+        .then(() => {
+          console.log('PayPal buttons rendered successfully')
+          setPaypalButtonsRendered(true)
+        })
+        .catch((error: unknown) => {
+          console.error('Failed to render PayPal buttons:', error)
+          alert('فشل في تحميل أزرار الدفع، يرجى إعادة تحميل الصفحة')
+          setPaypalButtonsRendered(false)
+        })
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -371,17 +427,13 @@ export default function CheckoutPage() {
 
         const orderData = await orderResponse.json()
         console.log('Order created successfully:', orderData)
+
+        // Reset PayPal button state and set new order ID
+        setPaypalButtonsRendered(false)
         setCurrentOrderId(orderData.orderId)
 
-        // Initialize PayPal buttons after order creation
-        if (paypalLoaded && window.paypal) {
-          // Small delay to ensure order ID is set
-          setTimeout(() => {
-            initializePayPalButtons()
-          }, 100)
-        } else {
-          alert('PayPal لم يتم تحميله بعد، يرجى المحاولة مرة أخرى')
-        }
+        // PayPal buttons will be initialized by the useEffect hook
+        console.log('Order created, PayPal buttons will be initialized automatically')
       } catch (error) {
         console.error('Error creating order:', error)
         const errorMessage = error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى'
@@ -650,7 +702,9 @@ export default function CheckoutPage() {
                     <label htmlFor="paypal">
                       <FontAwesomeIcon icon={faPaypalBrand} />
                       PayPal & Credit Cards
-                      {!paypalLoaded && <span className="loading-text"> (جاري التحميل...)</span>}
+                      {!paypalLoaded && !paypalSdkError && <span className="loading-text"> (جاري التحميل...)</span>}
+                      {paypalSdkError && <span className="error-text"> (فشل التحميل)</span>}
+                      {paypalLoaded && <span className="success-text"> ✓</span>}
                     </label>
                   </div>
                 </div>
@@ -667,14 +721,38 @@ export default function CheckoutPage() {
                 )}
 
                 {/* PayPal buttons container - shows after order is created */}
-                {currentOrderId && paypalLoaded && (
+                {currentOrderId && (
                   <div className="paypal-buttons-section">
                     <h4>إتمام الدفع</h4>
-                    <div id="paypal-button-container"></div>
-                    {isProcessingOrder && (
-                      <div className="processing-payment">
+                    {paypalLoaded ? (
+                      <>
+                        <div className="paypal-container-wrapper">
+                          <div id="paypal-button-container"></div>
+                        </div>
+                        {!paypalButtonsRendered && !isProcessingOrder && (
+                          <div className="loading-paypal">
+                            <div className="loading-spinner"></div>
+                            <p>جاري تحميل أزرار الدفع...</p>
+                          </div>
+                        )}
+                        {isProcessingOrder && (
+                          <div className="processing-payment">
+                            <div className="loading-spinner"></div>
+                            <p>جاري معالجة الدفع...</p>
+                          </div>
+                        )}
+                      </>
+                    ) : paypalSdkError ? (
+                      <div className="paypal-error">
+                        <p>فشل في تحميل PayPal. يرجى إعادة تحميل الصفحة والمحاولة مرة أخرى.</p>
+                        <button onClick={() => window.location.reload()} className="retry-btn">
+                          إعادة تحميل الصفحة
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="loading-paypal">
                         <div className="loading-spinner"></div>
-                        <p>جاري معالجة الدفع...</p>
+                        <p>جاري تحميل PayPal...</p>
                       </div>
                     )}
                   </div>
@@ -683,8 +761,20 @@ export default function CheckoutPage() {
 
               {/* Show submit button only if no order is created yet */}
               {!currentOrderId && (
-                <button type="submit" className="submit-order-btn" disabled={isProcessingOrder || !paypalLoaded}>
-                  <span>{isProcessingOrder ? 'جاري إنشاء الطلب...' : 'إنشاء الطلب والمتابعة للدفع'}</span>
+                <button
+                  type="submit"
+                  className="submit-order-btn"
+                  disabled={isProcessingOrder || !paypalLoaded || paypalSdkError}
+                >
+                  <span>
+                    {isProcessingOrder
+                      ? 'جاري إنشاء الطلب...'
+                      : paypalSdkError
+                      ? 'فشل في تحميل PayPal - يرجى إعادة تحميل الصفحة'
+                      : !paypalLoaded
+                      ? 'جاري تحميل PayPal...'
+                      : 'إنشاء الطلب والمتابعة للدفع'}
+                  </span>
                   <FontAwesomeIcon icon={faArrowRight} />
                 </button>
               )}

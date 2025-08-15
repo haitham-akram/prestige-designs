@@ -733,3 +733,144 @@
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
 }
+
+/* PayPal Loading and Error States */
+.loading-paypal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(130, 97, 198, 0.1);
+  border: 1px solid rgba(130, 97, 198, 0.3);
+  border-radius: 10px;
+  margin-top: 1rem;
+}
+
+.loading-paypal .loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid rgba(130, 97, 198, 0.3);
+  border-top: 3px solid var(--color-purple-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-paypal p {
+  color: var(--color-purple-primary);
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.paypal-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(220, 53, 69, 0.1);
+  border: 1px solid rgba(220, 53, 69, 0.3);
+  border-radius: 10px;
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.paypal-error p {
+  color: #dc3545;
+  font-weight: 600;
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.retry-btn {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.retry-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(220, 53, 69, 0.3);
+}
+
+/* Payment Method Loading States */
+.loading-text {
+  color: var(--color-purple-primary);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.error-text {
+  color: #dc3545;
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
+.success-text {
+  color: #28a745;
+  font-size: 0.9rem;
+  margin-left: 0.5rem;
+}
+
+/* PayPal Dark Theme Fix - Force light background for PayPal iframe content */
+.paypal-container-wrapper {
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 12px;
+  margin: 1rem 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+}
+
+#paypal-button-container {
+  background: transparent;
+  border-radius: 8px;
+}
+
+#paypal-button-container iframe {
+  background: white !important;
+  border-radius: 8px;
+}
+
+/* PayPal Card Form Dark Theme Fix */
+.paypal-card-field-container {
+  background: white !important;
+  color: #333 !important;
+  border-radius: 8px;
+  padding: 1rem;
+  margin: 0.5rem 0;
+}
+
+/* Force PayPal form elements to have proper styling */
+[data-paypal-checkout-sandbox] iframe,
+[data-paypal-checkout] iframe {
+  background: white !important;
+}
+
+/* Override PayPal's dark styling for better visibility */
+.paypal-buttons iframe,
+.paypal-checkout iframe {
+  background-color: #ffffff !important;
+  border: 1px solid #ddd !important;
+  border-radius: 8px !important;
+}
+
+/* PayPal form inputs styling override */
+.paypal-container-wrapper input,
+.paypal-container-wrapper label,
+.paypal-container-wrapper select {
+  color: #333 !important;
+  background: #fff !important;
+}
+
+/* PayPal button styling */
+.paypal-container-wrapper .paypal-button {
+  background: #0070ba !important;
+  color: white !important;
+}
