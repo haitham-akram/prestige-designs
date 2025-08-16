@@ -926,6 +926,25 @@ export default function AddProduct() {
       return
     }
 
+    // Validate color variant files - each color must have at least one file
+    if (formData.colors && formData.colors.length > 0) {
+      const colorsWithoutFiles = []
+      
+      for (const color of formData.colors) {
+        if (!color.uploadedFiles || color.uploadedFiles.length === 0) {
+          colorsWithoutFiles.push(color.name)
+        }
+      }
+      
+      if (colorsWithoutFiles.length > 0) {
+        showWarning(
+          'ملفات الألوان مطلوبة', 
+          `يجب رفع ملف واحد على الأقل لكل لون. الألوان التالية تحتاج ملفات: ${colorsWithoutFiles.join('، ')}`
+        )
+        return
+      }
+    }
+
     setSaving(true)
     try {
       // Create the product first
@@ -1074,6 +1093,10 @@ export default function AddProduct() {
                   description: `ملف ${color.name}`,
                   isActive: true,
                   isPublic: false,
+                  // Color variant fields
+                  colorVariantName: color.name,
+                  colorVariantHex: color.hex,
+                  isColorVariant: true,
                 }
                 console.log('Saving color file with productId:', productId)
                 console.log('Color file data:', designFileData)
