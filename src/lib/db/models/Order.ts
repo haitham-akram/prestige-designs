@@ -101,10 +101,12 @@ export interface IOrder extends Document {
     paidAt?: Date;                   // When payment was completed
 
     // Order status
-    orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded';
+    orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled' | 'refunded' | 'awaiting_customization' | 'under_customization';
 
     // Digital delivery
     deliveryMethod: 'digital_download'; // All products are digital
+    deliveryType?: 'auto_delivery' | 'custom_work' | 'awaiting_info'; // How the order should be processed
+    requiresCustomWork: boolean;     // Indicates if order needs custom design work
     downloadLinks?: string[];        // URLs to download processed files
     downloadExpiry?: Date;           // When download links expire
     emailSent: boolean;              // Has completion email been sent
@@ -359,13 +361,27 @@ const OrderSchema = new Schema<IOrder>({
     orderStatus: {
         type: String,
         enum: {
-            values: ['pending', 'processing', 'completed', 'cancelled', 'refunded'],
+            values: ['pending', 'processing', 'completed', 'cancelled', 'refunded', 'awaiting_customization', 'under_customization'],
             message: 'Invalid order status'
         },
         default: 'pending'
     },
 
     // Digital delivery
+    deliveryType: {
+        type: String,
+        enum: {
+            values: ['auto_delivery', 'custom_work', 'awaiting_info'],
+            message: 'Invalid delivery type'
+        },
+        default: null
+    },
+
+    requiresCustomWork: {
+        type: Boolean,
+        default: false
+    },
+
     deliveryMethod: {
         type: String,
         enum: {
@@ -487,6 +503,9 @@ OrderSchema.index({ paypalTransactionId: 1 });
 OrderSchema.index({ customerId: 1, orderStatus: 1 });
 OrderSchema.index({ orderStatus: 1, createdAt: -1 });
 OrderSchema.index({ paymentStatus: 1, orderStatus: 1 });
+OrderSchema.index({ deliveryType: 1 });
+OrderSchema.index({ requiresCustomWork: 1 });
+OrderSchema.index({ orderStatus: 1, deliveryType: 1 });
 
 // Pre-save middleware to calculate totals and promo codes
 OrderSchema.pre('save', function (this: IOrder, next) {
