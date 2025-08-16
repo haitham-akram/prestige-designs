@@ -479,6 +479,10 @@ export class PayPalService {
             }
         } catch (error) {
             console.error('❌ Error checking delivery type:', error);
+            if (error instanceof Error) {
+                console.error('Error message:', error.message);
+                console.error('Stack trace:', error.stack);
+            }
             // Default to custom work if there's an error
             return {
                 deliveryType: 'custom_work',

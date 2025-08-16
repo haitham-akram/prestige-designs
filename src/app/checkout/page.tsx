@@ -385,6 +385,12 @@ export default function CheckoutPage() {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault()
 
+      // Prevent multiple submissions
+      if (isProcessingOrder) {
+        console.log('⚠️ Already processing order, ignoring duplicate submission');
+        return;
+      }
+
       // Validate form
       if (!formData.firstName || !formData.lastName || !formData.email) {
         alert('يرجى ملء جميع الحقول المطلوبة')
@@ -398,15 +404,25 @@ export default function CheckoutPage() {
 
       try {
         setIsProcessingOrder(true)
+        console.log('🔄 Starting order creation process...');
 
-        // Calculate final total
-        const finalTotal =
-          (state.totalPrice || 0) -
+        // Calculate final total and actual discount amount
+        const subtotalAmount = state.totalPrice || 0;
+        const finalTotal = subtotalAmount - 
           (appliedPromoCode
             ? appliedPromoCode.type === 'percentage'
-              ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
+              ? (subtotalAmount * appliedPromoCode.discount) / 100
               : appliedPromoCode.discount
-            : 0)
+            : 0);
+        
+        const actualDiscountAmount = subtotalAmount - finalTotal;
+
+        console.log('💰 Pricing calculation:', {
+          subtotal: subtotalAmount,
+          promoCode: appliedPromoCode,
+          finalTotal,
+          actualDiscountAmount
+        });
 
         // Create order in database
         const orderResponse = await fetch('/api/orders/create', {
@@ -439,11 +455,7 @@ export default function CheckoutPage() {
               customizations: item.customizations,
             })),
             subtotal: state.subtotal || 0,
-            totalPromoDiscount: appliedPromoCode
-              ? appliedPromoCode.type === 'percentage'
-                ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
-                : appliedPromoCode.discount
-              : 0,
+            totalPromoDiscount: actualDiscountAmount,
             totalPrice: finalTotal,
             appliedPromoCodes: appliedPromoCode ? [appliedPromoCode.code] : [],
             customerNotes: formData.notes,
