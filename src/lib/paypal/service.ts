@@ -299,17 +299,26 @@ export class PayPalService {
 
             await order.save();
 
-            // Check if order has customizable products
-            const hasCustomizations = order.hasCustomizableProducts;
+            // Check delivery type based on color variant availability
+            const deliveryResult = await this.checkDeliveryType(order);
+            order.deliveryType = deliveryResult.deliveryType;
+            order.requiresCustomWork = deliveryResult.requiresCustomWork;
 
-            if (hasCustomizations) {
-                // Send email about customization processing
-                await this.sendCustomizationEmail(order);
-                console.log('📧 Customization email sent');
-            } else {
-                // Auto-complete the order and send files
+            await order.save();
+
+            if (deliveryResult.deliveryType === 'auto_delivery' && !deliveryResult.requiresCustomWork) {
+                // Auto-complete the order and send files immediately
                 await this.autoCompleteOrder(order);
-                console.log('🎉 Order auto-completed and files sent');
+                console.log('🎉 Order auto-completed with immediate delivery');
+            } else if (deliveryResult.deliveryType === 'auto_delivery' && deliveryResult.requiresCustomWork) {
+                // Send immediate files and customization email for remaining items
+                await this.sendImmediateFiles(order, deliveryResult.availableFiles);
+                await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
+                console.log('📧 Immediate files sent and customization email sent for remaining items');
+            } else {
+                // All items require custom work - send customization email only
+                await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
+                console.log('📧 Customization email sent for all items');
             }
 
             console.log('✅ Order completion process finished');
@@ -321,19 +330,241 @@ export class PayPalService {
     }
 
     /**
+     * Check delivery type based on color variant availability
+     */
+    private static async checkDeliveryType(order: IOrder): Promise<{
+        deliveryType: 'auto_delivery' | 'custom_work',
+        requiresCustomWork: boolean,
+        availableFiles: any[],
+        customWorkItems: any[]
+    }> {
+        try {
+            const DesignFile = (await import('@/lib/db/models')).DesignFile;
+            
+            const availableFiles = [];
+            const customWorkItems = [];
+            
+            for (const item of order.items) {
+                if (!item.hasCustomizations) {
+                    // No customizations - can deliver immediately if files exist
+                    const generalFiles = await DesignFile.find({ 
+                        productId: item.productId, 
+                        isColorVariant: false, 
+                        isActive: true 
+                    }).lean();
+                    
+                    if (generalFiles.length > 0) {
+                        availableFiles.push({
+                            ...item,
+                            files: generalFiles
+                        });
+                    } else {
+                        customWorkItems.push(item);
+                    }
+                    continue;
+                }
+
+                // Check if item has color customizations
+                const colorCustomizations = item.customizations?.colors;
+                if (!colorCustomizations || colorCustomizations.length === 0) {
+                    // Has customizations but no colors - requires custom work
+                    customWorkItems.push(item);
+                    continue;
+                }
+
+                // Check if all requested colors have available files
+                let hasAllColorFiles = true;
+                const itemFiles = [];
+
+                for (const color of colorCustomizations) {
+                    const colorFiles = await DesignFile.find({
+                        productId: item.productId,
+                        colorVariantHex: color.hex,
+                        isColorVariant: true,
+                        isActive: true
+                    }).lean();
+                    
+                    if (colorFiles.length === 0) {
+                        hasAllColorFiles = false;
+                        break;
+                    }
+                    itemFiles.push(...colorFiles);
+                }
+
+                if (hasAllColorFiles) {
+                    availableFiles.push({
+                        ...item,
+                        files: itemFiles
+                    });
+                } else {
+                    customWorkItems.push(item);
+                }
+            }
+
+            // Determine delivery type
+            if (availableFiles.length > 0 && customWorkItems.length === 0) {
+                return {
+                    deliveryType: 'auto_delivery',
+                    requiresCustomWork: false,
+                    availableFiles,
+                    customWorkItems
+                };
+            } else if (availableFiles.length > 0 && customWorkItems.length > 0) {
+                return {
+                    deliveryType: 'auto_delivery',
+                    requiresCustomWork: true,
+                    availableFiles,
+                    customWorkItems
+                };
+            } else {
+                return {
+                    deliveryType: 'custom_work',
+                    requiresCustomWork: true,
+                    availableFiles: [],
+                    customWorkItems
+                };
+            }
+        } catch (error) {
+            console.error('❌ Error checking delivery type:', error);
+            // Default to custom work if there's an error
+            return {
+                deliveryType: 'custom_work',
+                requiresCustomWork: true,
+                availableFiles: [],
+                customWorkItems: order.items
+            };
+        }
+    }
+
+    /**
+     * Send immediate files for items with available color variants
+     */
+    private static async sendImmediateFiles(order: IOrder, availableFiles: any[]): Promise<void> {
+        try {
+            const { OrderDesignFile } = await import('@/lib/db/models');
+            
+            // Create OrderDesignFile records for immediate delivery
+            for (const item of availableFiles) {
+                for (const file of item.files) {
+                    await OrderDesignFile.create({
+                        orderId: order._id,
+                        designFileId: file._id,
+                        downloadCount: 0,
+                        lastDownloadedAt: null,
+                        isActive: true
+                    });
+                }
+            }
+
+            // Send immediate delivery email
+            const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+            const downloadLinks = availableFiles.flatMap(item => 
+                item.files.map((file: any) => ({
+                    fileName: file.fileName,
+                    downloadUrl: `${baseUrl}/api/download/${order._id}/${file._id}`
+                }))
+            );
+
+            // Create email content
+            const itemsList = availableFiles.map(item => 
+                `• ${item.productName} (${item.quantity}x) - ${item.files.length} ملف`
+            ).join('\n');
+
+            const customMessage = `
+                <div style="padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #22c55e; margin-bottom: 15px;">✅ ملفاتك جاهزة للتحميل</h3>
+                    <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
+                        تم تجهيز الملفات التالية وهي متاحة للتحميل فورا:
+                    </p>
+                    <pre style="background: #e9ecef; padding: 10px; border-radius: 4px; font-size: 14px;">
+${itemsList}
+                    </pre>
+                    <p style="color: #495057; line-height: 1.6; margin: 15px 0;">
+                        يمكنك تحميل الملفات من الروابط أدناه. الروابط صالحة لمدة 30 يوما.
+                    </p>
+                    ${downloadLinks.map(link => 
+                        `<p><a href="${link.downloadUrl}" style="color: #8261c6; text-decoration: none;">📥 تحميل ${link.fileName}</a></p>`
+                    ).join('')}
+                </div>
+            `;
+
+            // Send email (using the existing email sending logic)
+            const transporter = await import('nodemailer').then(nm => {
+                return nm.default.createTransport({
+                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+                    port: parseInt(process.env.SMTP_PORT || '587'),
+                    secure: false,
+                    auth: {
+                        user: process.env.SMTP_USER,
+                        pass: process.env.SMTP_PASS
+                    }
+                });
+            });
+
+            const mailOptions = {
+                from: process.env.SMTP_FROM || 'noreply@prestigedesigns.com',
+                to: order.customerEmail,
+                subject: `ملفاتك جاهزة - ${order.orderNumber}`,
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; direction: rtl;">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <h1 style="color: #8261c6; margin: 0;">Prestige Designs</h1>
+                        </div>
+                        
+                        <h2 style="color: #495057; text-align: center;">مرحبا ${order.customerName}</h2>
+                        <p style="color: #6c757d; text-align: center; margin-bottom: 30px;">
+                            رقم الطلب: <strong>${order.orderNumber}</strong>
+                        </p>
+                        
+                        ${customMessage}
+                        
+                        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; text-align: center;">
+                            <p style="color: #6c757d; font-size: 14px; margin: 0;">
+                                شكرا لثقتك بنا | Prestige Designs
+                            </p>
+                        </div>
+                    </div>
+                `
+            };
+
+            await transporter.sendMail(mailOptions);
+            console.log('✅ Immediate files email sent');
+            
+        } catch (error) {
+            console.error('❌ Error sending immediate files:', error);
+            // Don't throw error to avoid breaking the order completion process
+        }
+    }
+
+    /**
      * Send customization processing email
      */
-    private static async sendCustomizationEmail(order: IOrder): Promise<void> {
+    private static async sendCustomizationEmail(order: IOrder, customWorkItems?: any[]): Promise<void> {
         try {
-            const { EmailService } = await import('@/lib/services/emailService');
+            // Create a custom HTML message for customization processing  
+            let customizationDetails = '';
+            if (customWorkItems && customWorkItems.length > 0) {
+                const itemsList = customWorkItems.map(item => 
+                    `• ${item.productName} (${item.quantity}x)`
+                ).join('\n');
+                
+                customizationDetails = `
+                    <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
+                        العناصر التي تتطلب عمل مخصص:
+                    </p>
+                    <pre style="background: #e9ecef; padding: 10px; border-radius: 4px; font-size: 14px;">
+${itemsList}
+                    </pre>
+                `;
+            }
 
-            // Create a custom HTML message for customization processing
             const customMessage = `
                 <div style="padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
                     <h3 style="color: #8261c6; margin-bottom: 15px;">🎨 طلبك قيد المعالجة</h3>
                     <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
                         تم استلام طلبك بنجاح وتأكيد الدفع. سيتم العمل على تخصيص التصاميم حسب متطلباتك وإرسالها إليك في أقرب وقت ممكن.
                     </p>
+                    ${customizationDetails}
                     <p style="color: #6c757d; font-size: 14px;">
                         شكراً لثقتك بنا. سنتواصل معك في حال احتجنا لأي توضيحات إضافية.
                     </p>
