@@ -22,6 +22,7 @@ interface CheckoutForm {
 declare global {
   interface Window {
     paypal?: any
+    paypalRetryCount?: number
   }
 }
 
@@ -122,6 +123,39 @@ export default function CheckoutPage() {
       loadPayPalSDK()
     }, [])
 
+    // Retry PayPal SDK loading
+    const retryPayPalSDK = () => {
+      console.log('Retrying PayPal SDK loading...')
+      setPaypalSdkError(false)
+      setPaypalLoaded(false)
+      setPaypalButtonsRendered(false)
+
+      // Remove any existing PayPal scripts
+      const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk"]')
+      existingScripts.forEach((script) => script.remove())
+
+      // Reset retry counter
+      window.paypalRetryCount = 0
+
+      // Create new script element
+      const script = document.createElement('script')
+      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG`
+
+      script.onload = () => {
+        console.log('PayPal SDK loaded successfully on retry')
+        setPaypalLoaded(true)
+        setPaypalSdkError(false)
+      }
+
+      script.onerror = () => {
+        console.error('Failed to load PayPal SDK on retry')
+        setPaypalSdkError(true)
+        setPaypalLoaded(false)
+      }
+
+      document.head.appendChild(script)
+    }
+
     // Initialize PayPal buttons when conditions are met
     useEffect(() => {
       if (paypalLoaded && currentOrderId && !paypalButtonsRendered && !isProcessingOrder) {
@@ -132,6 +166,7 @@ export default function CheckoutPage() {
 
         return () => clearTimeout(timer)
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder])
 
     // Reset PayPal buttons when order changes
@@ -224,21 +259,15 @@ export default function CheckoutPage() {
           }))
         )
 
-        const response = await fetch('/api/admin/promo-codes/validate', {
+        const response = await fetch('/api/promo-codes/validate', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             code: promoCode.trim(),
-            orderAmount: state.totalPrice,
-            cartItems: state.items.map((item) => ({
-              productId: item.id, // Use item.id, not item.productId
-              _id: item.id, // Use item.id, not item._id
-              name: item.name,
-              quantity: item.quantity,
-              price: item.price,
-            })),
+            orderValue: state.subtotal || 0, // Original subtotal for minimum order checks
+            currentTotal: state.totalPrice || 0, // Current total after existing discounts for promo calculation
           }),
         })
 
@@ -281,10 +310,42 @@ export default function CheckoutPage() {
 
     // Initialize PayPal buttons
     const initializePayPalButtons = () => {
-      if (!window.paypal || !currentOrderId) {
-        console.log('PayPal not loaded or no current order ID')
+      console.log('Attempting to initialize PayPal buttons...', {
+        paypalLoaded,
+        currentOrderId,
+        windowPaypal: !!window.paypal,
+        paypalButtons: !!window.paypal?.Buttons,
+      })
+
+      if (!window.paypal) {
+        console.log('PayPal SDK not loaded yet')
+        setPaypalSdkError(true)
         return
       }
+
+      if (!window.paypal.Buttons || typeof window.paypal.Buttons !== 'function') {
+        console.log('PayPal Buttons not available yet, retrying in 1 second...')
+        // Retry with longer delay and limit retries
+        const retryCount = window.paypalRetryCount || 0
+        if (retryCount < 5) {
+          window.paypalRetryCount = retryCount + 1
+          setTimeout(() => {
+            initializePayPalButtons()
+          }, 1000)
+        } else {
+          console.error('Max PayPal retry attempts reached')
+          setPaypalSdkError(true)
+        }
+        return
+      }
+
+      if (!currentOrderId) {
+        console.log('No current order ID')
+        return
+      }
+
+      // Clear retry counter on successful initialization attempt
+      window.paypalRetryCount = 0
 
       // Clear any existing PayPal buttons
       const paypalContainer = document.getElementById('paypal-button-container')
@@ -294,92 +355,99 @@ export default function CheckoutPage() {
 
       console.log('Rendering PayPal buttons for order:', currentOrderId)
 
-      window.paypal
-        .Buttons({
-          createOrder: async () => {
-            try {
-              console.log('Creating PayPal order for order ID:', currentOrderId)
-              const response = await fetch('/api/paypal/create-order', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ orderId: currentOrderId }),
-              })
+      try {
+        window.paypal
+          .Buttons({
+            createOrder: async () => {
+              try {
+                console.log('Creating PayPal order for order ID:', currentOrderId)
+                const response = await fetch('/api/paypal/create-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({ orderId: currentOrderId }),
+                })
 
-              if (!response.ok) {
-                throw new Error('Failed to create PayPal order')
+                if (!response.ok) {
+                  throw new Error('Failed to create PayPal order')
+                }
+
+                const data = await response.json()
+                console.log('PayPal order created:', data.paypalOrderId)
+                return data.paypalOrderId
+              } catch (error) {
+                console.error('Error creating PayPal order:', error)
+                alert('فشل في إنشاء طلب الدفع')
+                throw error
               }
+            },
+            onApprove: async (data: { orderID: string }) => {
+              try {
+                console.log('Payment approved, capturing payment...')
+                setIsProcessingOrder(true)
 
-              const data = await response.json()
-              console.log('PayPal order created:', data.paypalOrderId)
-              return data.paypalOrderId
-            } catch (error) {
-              console.error('Error creating PayPal order:', error)
-              alert('فشل في إنشاء طلب الدفع')
-              throw error
-            }
-          },
-          onApprove: async (data: { orderID: string }) => {
-            try {
-              console.log('Payment approved, capturing payment...')
-              setIsProcessingOrder(true)
+                const response = await fetch('/api/paypal/capture-payment', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    paypalOrderId: data.orderID,
+                    orderId: currentOrderId,
+                  }),
+                })
 
-              const response = await fetch('/api/paypal/capture-payment', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  paypalOrderId: data.orderID,
-                  orderId: currentOrderId,
-                }),
-              })
+                if (!response.ok) {
+                  throw new Error('Failed to capture payment')
+                }
 
-              if (!response.ok) {
-                throw new Error('Failed to capture payment')
+                const result = await response.json()
+                console.log('Payment captured successfully:', result)
+
+                // Clear cart and redirect to success page
+                clearCart()
+                router.push(`/checkout/success?orderId=${currentOrderId}`)
+              } catch (error) {
+                console.error('Error capturing payment:', error)
+                alert('حدث خطأ أثناء معالجة الدفع')
+              } finally {
+                setIsProcessingOrder(false)
               }
-
-              const result = await response.json()
-              console.log('Payment captured successfully:', result)
-
-              // Clear cart and redirect to success page
-              clearCart()
-              router.push(`/checkout/success?orderId=${currentOrderId}`)
-            } catch (error) {
-              console.error('Error capturing payment:', error)
-              alert('حدث خطأ أثناء معالجة الدفع')
-            } finally {
+            },
+            onError: (err: unknown) => {
+              console.error('PayPal payment error:', err)
+              alert('حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
               setIsProcessingOrder(false)
-            }
-          },
-          onError: (err: unknown) => {
-            console.error('PayPal payment error:', err)
-            alert('حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
-            setIsProcessingOrder(false)
-          },
-          onCancel: (data: { orderID: string }) => {
-            console.log('Payment cancelled by user:', data)
-            alert('تم إلغاء عملية الدفع')
-            setIsProcessingOrder(false)
-          },
-          style: {
-            layout: 'vertical',
-            color: 'gold',
-            shape: 'rect',
-            label: 'paypal',
-          },
-        })
-        .render('#paypal-button-container')
-        .then(() => {
-          console.log('PayPal buttons rendered successfully')
-          setPaypalButtonsRendered(true)
-        })
-        .catch((error: unknown) => {
-          console.error('Failed to render PayPal buttons:', error)
-          alert('فشل في تحميل أزرار الدفع، يرجى إعادة تحميل الصفحة')
-          setPaypalButtonsRendered(false)
-        })
+            },
+            onCancel: (data: { orderID: string }) => {
+              console.log('Payment cancelled by user:', data)
+              alert('تم إلغاء عملية الدفع')
+              setIsProcessingOrder(false)
+            },
+            style: {
+              layout: 'vertical',
+              color: 'gold',
+              shape: 'rect',
+              label: 'paypal',
+            },
+          })
+          .render('#paypal-button-container')
+          .then(() => {
+            console.log('PayPal buttons rendered successfully')
+            setPaypalButtonsRendered(true)
+            setPaypalSdkError(false) // Clear any previous errors
+          })
+          .catch((error: unknown) => {
+            console.error('Failed to render PayPal buttons:', error)
+            setPaypalSdkError(true)
+            setPaypalButtonsRendered(false)
+          })
+      } catch (error) {
+        console.error('Error initializing PayPal buttons:', error)
+        setPaypalSdkError(true)
+        setPaypalButtonsRendered(false)
+      }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -387,8 +455,8 @@ export default function CheckoutPage() {
 
       // Prevent multiple submissions
       if (isProcessingOrder) {
-        console.log('⚠️ Already processing order, ignoring duplicate submission');
-        return;
+        console.log('⚠️ Already processing order, ignoring duplicate submission')
+        return
       }
 
       // Validate form
@@ -404,25 +472,38 @@ export default function CheckoutPage() {
 
       try {
         setIsProcessingOrder(true)
-        console.log('🔄 Starting order creation process...');
+        console.log('🔄 Starting order creation process...')
 
         // Calculate final total and actual discount amount
-        const subtotalAmount = state.totalPrice || 0;
-        const finalTotal = subtotalAmount - 
-          (appliedPromoCode
-            ? appliedPromoCode.type === 'percentage'
-              ? (subtotalAmount * appliedPromoCode.discount) / 100
-              : appliedPromoCode.discount
-            : 0);
-        
-        const actualDiscountAmount = subtotalAmount - finalTotal;
+        // Use current total (after product discounts) as the base for promo code calculation
+        const subtotalAmount = state.subtotal || 0 // Original subtotal for proportional distribution
+        const currentTotal = state.totalPrice || 0 // Current total after existing discounts
+        const promoDiscountAmount = appliedPromoCode
+          ? appliedPromoCode.type === 'percentage'
+            ? (currentTotal * appliedPromoCode.discount) / 100 // Apply promo to current total
+            : Math.min(appliedPromoCode.discount, currentTotal) // Fixed amount can't exceed current total
+          : 0
+
+        // Final total = current cart total (after product discounts) - promo discount
+        const finalTotal = Math.max(0, currentTotal - promoDiscountAmount)
 
         console.log('💰 Pricing calculation:', {
           subtotal: subtotalAmount,
+          currentTotal: currentTotal,
           promoCode: appliedPromoCode,
+          promoDiscountAmount: promoDiscountAmount,
           finalTotal,
-          actualDiscountAmount
-        });
+          itemBreakdown: state.items.map((item) => {
+            const itemSubtotal = (item.originalPrice || item.price) * item.quantity
+            const itemPromoDiscount =
+              promoDiscountAmount > 0 ? (itemSubtotal / subtotalAmount) * promoDiscountAmount : 0
+            return {
+              name: item.name,
+              itemSubtotal,
+              itemPromoDiscount: itemPromoDiscount.toFixed(2),
+            }
+          }),
+        })
 
         // Create order in database
         const orderResponse = await fetch('/api/orders/create', {
@@ -434,28 +515,39 @@ export default function CheckoutPage() {
             customerName: `${formData.firstName} ${formData.lastName}`,
             customerEmail: formData.email,
             customerPhone: formData.phone,
-            items: state.items.map((item) => ({
-              productId: item.id,
-              productName: item.name,
-              productSlug: item.name.toLowerCase().replace(/\s+/g, '-'),
-              quantity: item.quantity,
-              originalPrice: item.originalPrice || item.price,
-              discountAmount: (item.originalPrice || item.price) - item.price,
-              unitPrice: item.price,
-              totalPrice: item.price * item.quantity,
-              hasCustomizations: !!(
-                item.customizations &&
-                (item.customizations.textChanges?.length ||
-                  item.customizations.uploadedImages?.length ||
-                  item.customizations.uploadedLogo ||
-                  item.customizations.customizationNotes)
-                // NOTE: Predefined color selections are NOT customizations
-                // They are product variants that can be auto-delivered if files exist
-              ),
-              customizations: item.customizations,
-            })),
+            items: state.items.map((item) => {
+              // Calculate promo discount per item (proportional to item value)
+              const itemSubtotal = (item.originalPrice || item.price) * item.quantity
+              const itemPromoDiscount =
+                promoDiscountAmount > 0 ? (itemSubtotal / subtotalAmount) * promoDiscountAmount : 0
+
+              return {
+                productId: item.id,
+                productName: item.name,
+                productSlug: item.name.toLowerCase().replace(/\s+/g, '-'),
+                quantity: item.quantity,
+                originalPrice: item.originalPrice || item.price,
+                discountAmount: (item.originalPrice || item.price) - item.price,
+                unitPrice: item.price,
+                totalPrice: item.price * item.quantity - itemPromoDiscount,
+                promoCode: appliedPromoCode?.code || '',
+                promoDiscount: itemPromoDiscount,
+                hasCustomizations: !!(
+                  (
+                    item.customizations &&
+                    (item.customizations.textChanges?.length ||
+                      item.customizations.uploadedImages?.length ||
+                      item.customizations.uploadedLogo ||
+                      item.customizations.customizationNotes)
+                  )
+                  // NOTE: Predefined color selections are NOT customizations
+                  // They are product variants that can be auto-delivered if files exist
+                ),
+                customizations: item.customizations,
+              }
+            }),
             subtotal: state.subtotal || 0,
-            totalPromoDiscount: actualDiscountAmount,
+            totalPromoDiscount: promoDiscountAmount,
             totalPrice: finalTotal,
             appliedPromoCodes: appliedPromoCode ? [appliedPromoCode.code] : [],
             customerNotes: formData.notes,
@@ -772,28 +864,30 @@ export default function CheckoutPage() {
                   <div className="paypal-buttons-section">
                     <h4>إتمام الدفع</h4>
                     {paypalLoaded ? (
-                      <>
-                        <div className="paypal-container-wrapper">
-                          <div id="paypal-button-container"></div>
-                        </div>
+                      <div className="paypal-container-wrapper">
+                        <div id="paypal-button-container"></div>
+
+                        {/* Loading overlay - positioned absolutely over the container */}
                         {!paypalButtonsRendered && !isProcessingOrder && (
-                          <div className="loading-paypal">
+                          <div className="paypal-loading-overlay">
                             <div className="loading-spinner"></div>
                             <p>جاري تحميل أزرار الدفع...</p>
                           </div>
                         )}
+
+                        {/* Processing overlay */}
                         {isProcessingOrder && (
-                          <div className="processing-payment">
+                          <div className="paypal-processing-overlay">
                             <div className="loading-spinner"></div>
                             <p>جاري معالجة الدفع...</p>
                           </div>
                         )}
-                      </>
+                      </div>
                     ) : paypalSdkError ? (
                       <div className="paypal-error">
-                        <p>فشل في تحميل PayPal. يرجى إعادة تحميل الصفحة والمحاولة مرة أخرى.</p>
-                        <button onClick={() => window.location.reload()} className="retry-btn">
-                          إعادة تحميل الصفحة
+                        <p>فشل في تحميل PayPal. يرجى المحاولة مرة أخرى.</p>
+                        <button onClick={retryPayPalSDK} className="retry-btn">
+                          إعادة المحاولة
                         </button>
                       </div>
                     ) : (

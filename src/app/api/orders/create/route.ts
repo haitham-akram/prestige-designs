@@ -43,6 +43,8 @@ const orderItemSchema = z.object({
     discountAmount: z.number().min(0, 'Discount amount must be non-negative'),
     unitPrice: z.number().min(0, 'Unit price must be non-negative'),
     totalPrice: z.number().min(0, 'Total price must be non-negative'),
+    promoCode: z.string().optional(),
+    promoDiscount: z.number().min(0, 'Promo discount must be non-negative').optional(),
     hasCustomizations: z.boolean(),
     customizations: customizationSchema.optional(),
 });
@@ -114,65 +116,108 @@ export async function POST(request: NextRequest) {
 
         await connectDB();
 
-        // Generate order number - ensure uniqueness
+        // Check for existing pending orders to avoid duplicates
+        // Look for orders with same user, same items (by productId), and pending payment status
+        const productIds = orderData.items.map(item => item.productId);
+        const existingOrder = await Order.findOne({
+            customerId: session.user.id,
+            paymentStatus: 'pending',
+            orderStatus: 'pending',
+            'items.productId': { $all: productIds },
+            // Only consider recent orders (within last 30 minutes) to avoid updating very old orders
+            createdAt: { $gte: new Date(Date.now() - 30 * 60 * 1000) }
+        }).sort({ createdAt: -1 }); // Get the most recent one
+
+        let order;
         let orderNumber;
-        let isUnique = false;
-        let attempts = 0;
-        
-        while (!isUnique && attempts < 5) {
-            const orderCount = await Order.countDocuments();
-            orderNumber = `PD-${new Date().getFullYear()}-${String(orderCount + 1 + attempts).padStart(3, '0')}`;
-            
-            // Check if this order number already exists
-            const existingOrder = await Order.findOne({ orderNumber });
-            if (!existingOrder) {
-                isUnique = true;
-            } else {
-                attempts++;
-            }
-        }
-        
-        if (!isUnique) {
-            throw new Error('Failed to generate unique order number');
-        }
+        let isNewOrder = false;
 
         // Check if any items have customizations
         const hasCustomizableProducts = orderData.items.some(item => item.hasCustomizations);
 
-        // Create new order
-        const order = new Order({
-            orderNumber,
-            customerId: session.user.id,
-            customerEmail: orderData.customerEmail,
-            customerName: orderData.customerName,
-            customerPhone: orderData.customerPhone,
-            customerAddress: orderData.customerAddress,
-            items: orderData.items,
-            subtotal: orderData.subtotal,
-            totalPromoDiscount: orderData.totalPromoDiscount,
-            totalPrice: orderData.totalPrice,
-            appliedPromoCodes: orderData.appliedPromoCodes,
-            paymentMethod: 'paypal',
-            paymentStatus: 'pending',
-            orderStatus: 'pending',
-            deliveryMethod: 'digital_download',
-            hasCustomizableProducts,
-            customizationStatus: hasCustomizableProducts ? 'pending' : 'none',
-            emailSent: false,
-            customerNotes: orderData.customerNotes,
-            orderHistory: [
-                {
-                    status: 'pending',
-                    timestamp: new Date(),
-                    note: 'تم إنشاء الطلب وهو في انتظار الدفع',
-                    changedBy: 'system'
+        if (existingOrder) {
+            // Update existing order instead of creating a new one
+            console.log('🔄 Updating existing pending order:', existingOrder.orderNumber);
+
+            existingOrder.items = orderData.items;
+            existingOrder.subtotal = orderData.subtotal;
+            existingOrder.totalPromoDiscount = orderData.totalPromoDiscount;
+            existingOrder.totalPrice = orderData.totalPrice;
+            existingOrder.appliedPromoCodes = orderData.appliedPromoCodes;
+            existingOrder.customerNotes = orderData.customerNotes;
+            existingOrder.hasCustomizableProducts = orderData.items.some(item => item.hasCustomizations);
+            existingOrder.customizationStatus = existingOrder.hasCustomizableProducts ? 'pending' : 'none';
+            existingOrder.updatedAt = new Date();
+
+            // Add to order history
+            existingOrder.orderHistory.push({
+                status: 'updated',
+                timestamp: new Date(),
+                note: 'تم تحديث تفاصيل الطلب',
+                changedBy: 'system'
+            });
+
+            await existingOrder.save();
+            order = existingOrder;
+            orderNumber = existingOrder.orderNumber;
+
+            console.log('✅ Order updated successfully:', orderNumber);
+        } else {
+            // Create new order - generate order number first
+            isNewOrder = true;
+            let isUnique = false;
+            let attempts = 0;
+
+            while (!isUnique && attempts < 5) {
+                const orderCount = await Order.countDocuments();
+                orderNumber = `PD-${new Date().getFullYear()}-${String(orderCount + 1 + attempts).padStart(3, '0')}`;
+
+                // Check if this order number already exists
+                const existingOrderCheck = await Order.findOne({ orderNumber });
+                if (!existingOrderCheck) {
+                    isUnique = true;
+                } else {
+                    attempts++;
                 }
-            ]
-        });
+            }
 
-        await order.save();
+            if (!isUnique) {
+                throw new Error('Failed to generate unique order number');
+            }
 
-        console.log('✅ Order created successfully:', orderNumber);
+            // Create new order
+            order = new Order({
+                orderNumber,
+                customerId: session.user.id,
+                customerEmail: orderData.customerEmail,
+                customerName: orderData.customerName,
+                items: orderData.items,
+                subtotal: orderData.subtotal,
+                totalPromoDiscount: orderData.totalPromoDiscount,
+                totalPrice: orderData.totalPrice,
+                appliedPromoCodes: orderData.appliedPromoCodes,
+                paymentMethod: 'paypal',
+                paymentStatus: 'pending',
+                orderStatus: 'pending',
+                deliveryMethod: 'digital_download',
+                hasCustomizableProducts,
+                customizationStatus: hasCustomizableProducts ? 'pending' : 'none',
+                emailSent: false,
+                customerNotes: orderData.customerNotes,
+                orderHistory: [
+                    {
+                        status: 'pending',
+                        timestamp: new Date(),
+                        note: 'تم إنشاء الطلب وهو في انتظار الدفع',
+                        changedBy: 'system'
+                    }
+                ]
+            });
+
+            await order.save();
+
+            console.log('✅ Order created successfully:', orderNumber);
+        }
 
         return NextResponse.json({
             success: true,

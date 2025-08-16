@@ -584,16 +584,16 @@ export default function EditProduct() {
     // Validate color variant files - each color must have at least one file
     if (formData.colors && formData.colors.length > 0) {
       const colorsWithoutFiles = []
-      
+
       for (const color of formData.colors) {
         if (!color.uploadedFiles || color.uploadedFiles.length === 0) {
           colorsWithoutFiles.push(color.name)
         }
       }
-      
+
       if (colorsWithoutFiles.length > 0) {
         showWarning(
-          'ملفات الألوان مطلوبة', 
+          'ملفات الألوان مطلوبة',
           `يجب رفع ملف واحد على الأقل لكل لون. الألوان التالية تحتاج ملفات: ${colorsWithoutFiles.join('، ')}`
         )
         return
@@ -1828,7 +1828,9 @@ export default function EditProduct() {
             {/* Color Variants Section - Standalone */}
             <div className="form-section">
               <h2>متغيرات الألوان</h2>
-              <p className="section-description">أضف متغيرات الألوان المختلفة لهذا المنتج مع الملفات المقترنة بكل لون</p>
+              <p className="section-description">
+                أضف متغيرات الألوان المختلفة لهذا المنتج مع الملفات المقترنة بكل لون
+              </p>
 
               <div className="color-themes-section">
                 {formData.colors.map((color, index) => (

@@ -91,7 +91,7 @@ export class PayPalService {
 
             console.log('📊 Items total:', itemsTotal.toFixed(2));
             console.log('📊 Final total:', totalAmount.toFixed(2));
-            
+
             // Check if there's a discount applied
             const hasDiscount = Math.abs(itemsTotal - totalAmount) > 0.01; // Account for floating point precision
             console.log('🎫 Has discount:', hasDiscount);
@@ -351,9 +351,9 @@ export class PayPalService {
     }
 
     /**
-     * Check delivery type based on color variant availability
+     * Check delivery type based on color variant availability (PUBLIC FOR TESTING)
      */
-    private static async checkDeliveryType(order: IOrder): Promise<{
+    static async checkDeliveryType(order: IOrder): Promise<{
         deliveryType: 'auto_delivery' | 'custom_work',
         requiresCustomWork: boolean,
         availableFiles: any[],
@@ -362,40 +362,40 @@ export class PayPalService {
         try {
             console.log('🔍 Checking delivery type for order:', order.orderNumber);
             console.log('📦 Order items:', JSON.stringify(order.items, null, 2));
-            
+
             const DesignFile = (await import('@/lib/db/models')).DesignFile;
-            
+
             const availableFiles = [];
             const customWorkItems = [];
-            
+
             for (const item of order.items) {
                 console.log('🔍 Checking item:', item.productName, 'hasCustomizations:', item.hasCustomizations);
-                
+
                 // Check if item has REAL customizations (text, uploads, notes)
                 // Color selections are NOT customizations - they are product variants
                 const hasRealCustomizations = item.hasCustomizations || (
                     item.customizations && (
                         (item.customizations.textChanges && item.customizations.textChanges.length > 0) ||
                         (item.customizations.uploadedImages && item.customizations.uploadedImages.length > 0) ||
-                        (item.customizations.uploadedLogo) ||
+                        (item.customizations.uploadedLogo && item.customizations.uploadedLogo.url && item.customizations.uploadedLogo.url.trim().length > 0) ||
                         (item.customizations.customizationNotes && item.customizations.customizationNotes.trim().length > 0)
                     )
                 );
-                
+
                 if (!hasRealCustomizations) {
                     // Check for predefined color variants OR no colors at all
                     const colorCustomizations = item.customizations?.colors;
                     console.log('🎨 Color selections (predefined variants):', JSON.stringify(colorCustomizations, null, 2));
-                    
+
                     if (!colorCustomizations || colorCustomizations.length === 0) {
                         // No color selection - check for general files
                         console.log('🔍 No color selections, checking general files');
-                        const generalFiles = await DesignFile.find({ 
-                            productId: item.productId, 
-                            isColorVariant: false, 
-                            isActive: true 
+                        const generalFiles = await DesignFile.find({
+                            productId: item.productId,
+                            isColorVariant: false,
+                            isActive: true
                         }).lean();
-                        
+
                         if (generalFiles.length > 0) {
                             console.log('✅ Found general files for immediate delivery');
                             availableFiles.push({
@@ -414,15 +414,29 @@ export class PayPalService {
 
                         for (const color of colorCustomizations) {
                             console.log('🔍 Checking predefined color variant files for:', color.name, color.hex);
-                            const colorFiles = await DesignFile.find({
+                            console.log('🔍 Query params:', {
                                 productId: item.productId,
                                 colorVariantHex: color.hex,
                                 isColorVariant: true,
                                 isActive: true
+                            });
+
+                            // Convert productId to ObjectId if it's a string
+                            import('mongoose').then(({ Types }) => {
+                                const productObjectId = typeof item.productId === 'string' ?
+                                    new Types.ObjectId(item.productId) : item.productId;
+                            });
+
+                            const colorFiles = await DesignFile.find({
+                                productId: item.productId, // Try with original first
+                                colorVariantHex: color.hex,
+                                isColorVariant: true,
+                                isActive: true
                             }).lean();
-                            
+
                             console.log(`📁 Found ${colorFiles.length} files for color ${color.name} (${color.hex})`);
-                            
+                            console.log('📁 Files found:', colorFiles.map(f => ({ fileName: f.fileName, productId: f.productId, colorVariantHex: f.colorVariantHex })));
+
                             if (colorFiles.length === 0) {
                                 hasAllColorFiles = false;
                                 break;
@@ -451,7 +465,7 @@ export class PayPalService {
 
             // Determine delivery type
             console.log(`📊 Delivery analysis: ${availableFiles.length} auto-delivery items, ${customWorkItems.length} custom work items`);
-            
+
             if (availableFiles.length > 0 && customWorkItems.length === 0) {
                 console.log('🚀 Full auto-delivery');
                 return {
@@ -499,7 +513,7 @@ export class PayPalService {
     private static async sendImmediateFiles(order: IOrder, availableFiles: any[]): Promise<void> {
         try {
             const { OrderDesignFile } = await import('@/lib/db/models');
-            
+
             // Create OrderDesignFile records for immediate delivery
             for (const item of availableFiles) {
                 for (const file of item.files) {
@@ -515,7 +529,7 @@ export class PayPalService {
 
             // Send immediate delivery email
             const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-            const downloadLinks = availableFiles.flatMap(item => 
+            const downloadLinks = availableFiles.flatMap(item =>
                 item.files.map((file: any) => ({
                     fileName: file.fileName,
                     downloadUrl: `${baseUrl}/api/download/${order._id}/${file._id}`
@@ -523,7 +537,7 @@ export class PayPalService {
             );
 
             // Create email content
-            const itemsList = availableFiles.map(item => 
+            const itemsList = availableFiles.map(item =>
                 `• ${item.productName} (${item.quantity}x) - ${item.files.length} ملف`
             ).join('\n');
 
@@ -539,9 +553,9 @@ ${itemsList}
                     <p style="color: #495057; line-height: 1.6; margin: 15px 0;">
                         يمكنك تحميل الملفات من الروابط أدناه. الروابط صالحة لمدة 30 يوما.
                     </p>
-                    ${downloadLinks.map(link => 
-                        `<p><a href="${link.downloadUrl}" style="color: #8261c6; text-decoration: none;">📥 تحميل ${link.fileName}</a></p>`
-                    ).join('')}
+                    ${downloadLinks.map(link =>
+                `<p><a href="${link.downloadUrl}" style="color: #8261c6; text-decoration: none;">📥 تحميل ${link.fileName}</a></p>`
+            ).join('')}
                 </div>
             `;
 
@@ -586,7 +600,7 @@ ${itemsList}
 
             await transporter.sendMail(mailOptions);
             console.log('✅ Immediate files email sent');
-            
+
         } catch (error) {
             console.error('❌ Error sending immediate files:', error);
             // Don't throw error to avoid breaking the order completion process
@@ -601,10 +615,10 @@ ${itemsList}
             // Create a custom HTML message for customization processing  
             let customizationDetails = '';
             if (customWorkItems && customWorkItems.length > 0) {
-                const itemsList = customWorkItems.map(item => 
+                const itemsList = customWorkItems.map(item =>
                     `• ${item.productName} (${item.quantity}x)`
                 ).join('\n');
-                
+
                 customizationDetails = `
                     <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
                         العناصر التي تتطلب عمل مخصص:
@@ -688,12 +702,171 @@ ${itemsList}
     }
 
     /**
+     * Process PayPal refund for a transaction using REST API
+     */
+    static async processRefund(
+        transactionId: string,
+        amount?: { currency_code: string; value: string },
+        reason?: string
+    ): Promise<{
+        success: boolean;
+        refundId?: string;
+        status?: string;
+        error?: string;
+    }> {
+        try {
+            console.log('🔄 Processing PayPal refund for transaction:', transactionId);
+            console.log('💰 Refund amount:', amount || 'Full refund');
+            console.log('📝 Reason:', reason || 'Admin cancellation');
+
+            // Get PayPal access token
+            const accessToken = await this.getAccessToken();
+            if (!accessToken) {
+                throw new Error('Failed to get PayPal access token');
+            }
+
+            // PayPal API endpoint for refunds
+            const isProduction = process.env.NODE_ENV === 'production';
+            const baseUrl = isProduction
+                ? 'https://api-m.paypal.com'
+                : 'https://api-m.sandbox.paypal.com';
+
+            const refundUrl = `${baseUrl}/v2/payments/captures/${transactionId}/refund`;
+
+            // Prepare refund request body
+            const refundRequestBody: Record<string, unknown> = {
+                note_to_payer: reason || 'تم إلغاء طلبك وسيتم استرداد المبلغ'
+            };
+
+            // Include amount if specified (otherwise PayPal will refund full amount)
+            if (amount) {
+                refundRequestBody.amount = amount;
+            }
+
+            // Process the refund
+            console.log('💳 Sending refund request to PayPal...');
+            const refundResponse = await fetch(refundUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${accessToken}`,
+                    'PayPal-Request-Id': `refund-${Date.now()}` // Unique request ID
+                },
+                body: JSON.stringify(refundRequestBody)
+            });
+
+            if (!refundResponse.ok) {
+                const errorData = await refundResponse.json();
+                console.error('❌ PayPal refund API error:', errorData);
+                throw new Error(
+                    errorData.details?.map((detail: { description: string }) => detail.description).join(', ')
+                    || errorData.message
+                    || 'Failed to process refund'
+                );
+            }
+
+            const refundData = await refundResponse.json();
+            console.log('✅ PayPal refund response:', refundData);
+
+            return {
+                success: true,
+                refundId: refundData.id,
+                status: refundData.status
+            };
+
+        } catch (error: unknown) {
+            console.error('❌ PayPal refund error:', error);
+
+            let errorMessage = 'Failed to process PayPal refund';
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            }
+
+            return {
+                success: false,
+                error: errorMessage
+            };
+        }
+    }
+
+    /**
+     * Get PayPal access token
+     */
+    private static async getAccessToken(): Promise<string | null> {
+        try {
+            const clientId = process.env.PAYPAL_CLIENT_ID;
+            const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
+
+            if (!clientId || !clientSecret) {
+                throw new Error('Missing PayPal credentials');
+            }
+
+            // PayPal API endpoint for access token
+            const isProduction = process.env.NODE_ENV === 'production';
+            const baseUrl = isProduction
+                ? 'https://api-m.paypal.com'
+                : 'https://api-m.sandbox.paypal.com';
+
+            const tokenResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: 'grant_type=client_credentials'
+            });
+
+            if (!tokenResponse.ok) {
+                throw new Error('Failed to get access token');
+            }
+
+            const tokenData = await tokenResponse.json();
+            return tokenData.access_token;
+
+        } catch (error) {
+            console.error('❌ Error getting PayPal access token:', error);
+            return null;
+        }
+    }
+
+    /**
      * Auto-complete order without customizations
      */
     private static async autoCompleteOrder(order: IOrder): Promise<void> {
         try {
-            // Complete the order and send files
+            console.log('🚀 Auto-completing order with immediate delivery...');
+
+            // First, check delivery type and create OrderDesignFiles records
+            const deliveryResult = await this.checkDeliveryType(order);
+
+            if (deliveryResult.deliveryType !== 'auto_delivery' || deliveryResult.requiresCustomWork) {
+                throw new Error('Order is not eligible for auto-completion');
+            }
+
+            console.log('📁 Creating OrderDesignFiles records...');
+            const { OrderDesignFile } = await import('@/lib/db/models');
+
+            // Create OrderDesignFiles records for all available files
+            for (const item of deliveryResult.availableFiles) {
+                console.log(`📁 Processing files for item: ${item.productName}`);
+                for (const file of item.files) {
+                    console.log(`📁 Creating record for file: ${file.fileName}`);
+                    await OrderDesignFile.create({
+                        orderId: order._id,
+                        designFileId: file._id,
+                        downloadCount: 0,
+                        lastDownloadedAt: null,
+                        isActive: true
+                    });
+                }
+            }
+
+            console.log('✅ OrderDesignFiles records created successfully');
+
+            // Now complete the order and send files
             await completeOrderAndSendFiles(order._id.toString());
+            console.log('🎉 Order auto-completed successfully');
+
         } catch (error) {
             console.error('❌ Error auto-completing order:', error);
             // If auto-completion fails, just mark as processing

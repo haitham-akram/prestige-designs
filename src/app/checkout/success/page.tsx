@@ -177,7 +177,7 @@ function CheckoutSuccessContent() {
         )}
 
         <div className="pal-action-buttons">
-          <button onClick={() => router.push('/customer/dashboard')} className="pal-btn-primary">
+          <button onClick={() => router.push('/customer/orders')} className="pal-btn-primary">
             <FontAwesomeIcon icon={faEye} />
             عرض طلباتي
           </button>

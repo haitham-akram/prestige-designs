@@ -50,6 +50,9 @@ interface Order {
   items: OrderItem[]
   totalAmount?: number
   totalPrice?: number
+  subtotal?: number
+  totalPromoDiscount?: number
+  appliedPromoCodes?: string[]
   orderStatus: 'pending' | 'processing' | 'completed' | 'cancelled'
   paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded'
   customizationStatus: 'none' | 'pending' | 'processing' | 'completed'

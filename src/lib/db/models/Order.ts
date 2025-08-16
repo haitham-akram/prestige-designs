@@ -519,9 +519,12 @@ OrderSchema.pre('save', function (this: IOrder, next) {
         return sum + (item.promoDiscount || 0);
     }, 0);
 
-    // Calculate final total price
+    // Calculate final total price (item totals minus promo discounts)
     this.totalPrice = this.items.reduce((sum, item) => {
-        return sum + item.totalPrice;
+        const itemTotal = item.totalPrice;
+        const itemPromoDiscount = item.promoDiscount || 0;
+        const itemFinalPrice = itemTotal - itemPromoDiscount;
+        return sum + itemFinalPrice;
     }, 0);
 
     // Update applied promo codes list

@@ -24,6 +24,7 @@ import {
   faHistory,
   faNotesMedical,
 } from '@fortawesome/free-solid-svg-icons'
+import RefundVerification from '@/components/admin/RefundVerification'
 import './order-detail.css'
 
 // Types
@@ -66,6 +67,8 @@ interface Order {
   totalAmount?: number
   totalPrice?: number
   subtotal?: number
+  totalPromoDiscount?: number
+  appliedPromoCodes?: string[]
   tax?: number
   shipping?: number
   discount?: number
@@ -141,7 +144,7 @@ export default function OrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'details' | 'files' | 'history' | 'notes'>('details')
+  const [activeTab, setActiveTab] = useState<'details' | 'files' | 'history' | 'notes' | 'refund'>('details')
 
   // Fetch order details
   const fetchOrder = async () => {
@@ -257,7 +260,14 @@ export default function OrderDetailPage() {
 
   // Handle cancel order
   const handleCancelOrder = async () => {
-    if (!confirm('هل أنت متأكد من إلغاء الطلب؟ سيتم إرسال بريد إلكتروني للعميل وإلغاء الطلب نهائياً.')) {
+    const confirmMessage =
+      order?.paymentStatus === 'paid'
+        ? `هل أنت متأكد من إلغاء الطلب؟ سيتم استرداد المبلغ ${order.totalPrice?.toFixed(
+            2
+          )} دولار إلى العميل وإرسال بريد إلكتروني بالتفاصيل.`
+        : 'هل أنت متأكد من إلغاء الطلب؟ سيتم إرسال بريد إلكتروني للعميل وإلغاء الطلب نهائياً.'
+
+    if (!confirm(confirmMessage)) {
       return
     }
 
@@ -278,7 +288,15 @@ export default function OrderDetailPage() {
       const result = await response.json()
       console.log('Cancel result:', result)
 
-      setSuccess('تم إلغاء الطلب بنجاح')
+      // Show success message with refund information
+      if (result.refundResult?.success) {
+        setSuccess(`تم إلغاء الطلب بنجاح واسترداد المبلغ ${order?.totalPrice?.toFixed(2)} دولار`)
+      } else if (order?.paymentStatus === 'paid') {
+        setSuccess('تم إلغاء الطلب بنجاح - يرجى معالجة الاسترداد يدوياً')
+      } else {
+        setSuccess('تم إلغاء الطلب بنجاح')
+      }
+
       fetchOrder() // Refresh order data
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to cancel order')
@@ -342,7 +360,8 @@ export default function OrderDetailPage() {
             )}
             {order.orderStatus !== 'completed' && order.orderStatus !== 'cancelled' && (
               <button onClick={handleCancelOrder} className="btn btn-danger" disabled={loading}>
-                {loading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTimes} />} إلغاء الطلب
+                {loading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTimes} />}
+                {order.paymentStatus === 'paid' ? 'إلغاء + استرداد' : 'إلغاء الطلب'}
               </button>
             )}
             <button onClick={() => router.push('/admin/orders')} className="btn btn-secondary">
@@ -470,6 +489,14 @@ export default function OrderDetailPage() {
           <button className={`tab-btn ${activeTab === 'notes' ? 'active' : ''}`} onClick={() => setActiveTab('notes')}>
             <FontAwesomeIcon icon={faNotesMedical} /> الملاحظات
           </button>
+          {(order.paymentStatus === 'paid' || order.paymentStatus === 'refunded') && (
+            <button
+              className={`tab-btn ${activeTab === 'refund' ? 'active' : ''}`}
+              onClick={() => setActiveTab('refund')}
+            >
+              <FontAwesomeIcon icon={faCreditCard} /> تحقق من الاسترداد
+            </button>
+          )}
         </div>
 
         {/* Tab Content */}
@@ -577,6 +604,24 @@ export default function OrderDetailPage() {
                       <div className="summary-row">
                         <span>الخصم:</span>
                         <span>-{formatCurrency(order.discount)}</span>
+                      </div>
+                    )}
+                    {order.totalPromoDiscount && order.totalPromoDiscount > 0 && (
+                      <div className="summary-row promo-discount">
+                        <span>خصم كود الخصم:</span>
+                        <span>-{formatCurrency(order.totalPromoDiscount)}</span>
+                      </div>
+                    )}
+                    {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 && (
+                      <div className="summary-row promo-codes">
+                        <span>أكواد الخصم المطبقة:</span>
+                        <span className="promo-codes-list">
+                          {order.appliedPromoCodes.map((code, index) => (
+                            <span key={index} className="promo-code-badge">
+                              {code}
+                            </span>
+                          ))}
+                        </span>
                       </div>
                     )}
                     <div className="summary-row total">
@@ -808,6 +853,12 @@ export default function OrderDetailPage() {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'refund' && (
+            <div className="refund-tab">
+              <RefundVerification orderId={orderId} />
             </div>
           )}
         </div>

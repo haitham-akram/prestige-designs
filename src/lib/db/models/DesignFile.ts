@@ -40,12 +40,12 @@ export interface IDesignFile extends Document {
     downloadUrlExpiresAt?: Date; // When download URL expires
     createdBy: string;           // Admin who uploaded the file
     updatedBy?: string;          // Admin who last updated the file
-    
+
     // Color variant support
     colorVariantName?: string;   // Arabic color name: "أحمر", "أزرق", null for general files
     colorVariantHex?: string;    // Hex color code: "#FF0000", "#0000FF", null for general files
     isColorVariant: boolean;     // true if file is for specific color variant
-    
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -257,27 +257,27 @@ DesignFileSchema.statics.getPublicByProduct = async function (productId: string)
 
 // Static method to get files by color variant
 DesignFileSchema.statics.getByColorVariant = async function (productId: string, colorHex: string, isActive: boolean = true) {
-    return this.find({ 
-        productId, 
-        colorVariantHex: colorHex, 
-        isColorVariant: true, 
-        isActive 
+    return this.find({
+        productId,
+        colorVariantHex: colorHex,
+        isColorVariant: true,
+        isActive
     }).sort({ createdAt: -1 }).lean();
 };
 
 // Static method to get general (non-color-variant) files by product
 DesignFileSchema.statics.getGeneralByProduct = async function (productId: string, isActive: boolean = true) {
-    return this.find({ 
-        productId, 
-        isColorVariant: false, 
-        isActive 
+    return this.find({
+        productId,
+        isColorVariant: false,
+        isActive
     }).sort({ createdAt: -1 }).lean();
 };
 
 // Static method to validate color variant files for a product
 DesignFileSchema.statics.validateColorVariantFiles = async function (productId: string, requiredColors: { name: string; hex: string }[]) {
     const missingColors = [];
-    
+
     for (const color of requiredColors) {
         const files = await this.find({
             productId,
@@ -285,12 +285,12 @@ DesignFileSchema.statics.validateColorVariantFiles = async function (productId: 
             isColorVariant: true,
             isActive: true
         });
-        
+
         if (files.length === 0) {
             missingColors.push(color);
         }
     }
-    
+
     return {
         isValid: missingColors.length === 0,
         missingColors

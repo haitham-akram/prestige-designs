@@ -98,9 +98,12 @@ export default function CategoriesSection() {
                   <Image
                     src={category.image || '/placeholder-product.jpg'}
                     alt={category.name}
-                    width={200}
-                    height={200}
+                    width={400}
+                    height={400}
                     className="csn-category-img"
+                    quality={100}
+                    unoptimized={true}
+                    loading="lazy"
                   />
                   <div className="csn-category-overlay"></div>
                 </div>

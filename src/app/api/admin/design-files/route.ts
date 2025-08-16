@@ -50,7 +50,7 @@ const createDesignFileSchema = z.object({
         .max(500, 'Description cannot exceed 500 characters')
         .trim()
         .optional(),
-    
+
     // Color variant fields (optional)
     colorVariantName: z.string()
         .max(50, 'Color variant name cannot exceed 50 characters')

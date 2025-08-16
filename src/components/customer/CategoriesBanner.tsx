@@ -63,6 +63,8 @@ export default function CategoriesBanner() {
               height={400}
               className="csn-banner-img"
               priority
+              quality={100}
+              unoptimized={true}
             />
           </div>
         </div>
