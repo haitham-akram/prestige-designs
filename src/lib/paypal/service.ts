@@ -81,12 +81,36 @@ export class PayPalService {
     static async createOrder(orderRequest: PayPalCreateOrderRequest): Promise<PayPalOrderResponse> {
         try {
             console.log('🔄 Creating PayPal order...', orderRequest.orderId);
+            console.log('💰 Total amount (after discounts):', orderRequest.totalAmount);
 
             // Calculate totals and ensure proper formatting
-            const totalAmount = orderRequest.totalAmount;
+            const totalAmount = parseFloat(orderRequest.totalAmount);
             const itemsTotal = orderRequest.items.reduce((sum, item) => {
                 return sum + (parseFloat(item.unitAmount.value) * parseInt(item.quantity));
-            }, 0).toFixed(2);
+            }, 0);
+
+            console.log('📊 Items total:', itemsTotal.toFixed(2));
+            console.log('📊 Final total:', totalAmount.toFixed(2));
+            
+            // Check if there's a discount applied
+            const hasDiscount = Math.abs(itemsTotal - totalAmount) > 0.01; // Account for floating point precision
+            console.log('🎫 Has discount:', hasDiscount);
+
+            // Create amount object - only include breakdown if no discount to avoid PayPal validation errors
+            const amountObject: any = {
+                currencyCode: PAYPAL_CONFIG.currency,
+                value: totalAmount.toFixed(2)
+            };
+
+            // Only include breakdown if totals match (no discount applied)
+            if (!hasDiscount) {
+                amountObject.breakdown = {
+                    itemTotal: {
+                        currencyCode: PAYPAL_CONFIG.currency,
+                        value: itemsTotal.toFixed(2),
+                    }
+                };
+            }
 
             // Create order body
             const orderBody = {
@@ -97,16 +121,7 @@ export class PayPalService {
                         description: `Prestige Designs Order - ${orderRequest.orderId}`,
                         customId: orderRequest.orderId,
                         softDescriptor: 'PRESTIGE DESIGNS',
-                        amount: {
-                            currencyCode: PAYPAL_CONFIG.currency,
-                            value: totalAmount,
-                            breakdown: {
-                                itemTotal: {
-                                    currencyCode: PAYPAL_CONFIG.currency,
-                                    value: itemsTotal,
-                                }
-                            }
-                        },
+                        amount: amountObject,
                         items: orderRequest.items.map(item => ({
                             name: item.name,
                             description: item.description || item.name,
@@ -268,6 +283,12 @@ export class PayPalService {
                 throw new Error('Order not found');
             }
 
+            // Check if order is already completed to prevent duplicate processing
+            if (order.paymentStatus === 'paid') {
+                console.log('⚠️ Order already completed, skipping duplicate processing');
+                return order;
+            }
+
             // Update order with payment info
             order.paymentStatus = 'paid';
             order.paypalTransactionId = paypalData.transactionId;
@@ -339,70 +360,100 @@ export class PayPalService {
         customWorkItems: any[]
     }> {
         try {
+            console.log('🔍 Checking delivery type for order:', order.orderNumber);
+            console.log('📦 Order items:', JSON.stringify(order.items, null, 2));
+            
             const DesignFile = (await import('@/lib/db/models')).DesignFile;
             
             const availableFiles = [];
             const customWorkItems = [];
             
             for (const item of order.items) {
-                if (!item.hasCustomizations) {
-                    // No customizations - can deliver immediately if files exist
-                    const generalFiles = await DesignFile.find({ 
-                        productId: item.productId, 
-                        isColorVariant: false, 
-                        isActive: true 
-                    }).lean();
+                console.log('🔍 Checking item:', item.productName, 'hasCustomizations:', item.hasCustomizations);
+                
+                // Check if item has REAL customizations (text, uploads, notes)
+                // Color selections are NOT customizations - they are product variants
+                const hasRealCustomizations = item.hasCustomizations || (
+                    item.customizations && (
+                        (item.customizations.textChanges && item.customizations.textChanges.length > 0) ||
+                        (item.customizations.uploadedImages && item.customizations.uploadedImages.length > 0) ||
+                        (item.customizations.uploadedLogo) ||
+                        (item.customizations.customizationNotes && item.customizations.customizationNotes.trim().length > 0)
+                    )
+                );
+                
+                if (!hasRealCustomizations) {
+                    // Check for predefined color variants OR no colors at all
+                    const colorCustomizations = item.customizations?.colors;
+                    console.log('🎨 Color selections (predefined variants):', JSON.stringify(colorCustomizations, null, 2));
                     
-                    if (generalFiles.length > 0) {
-                        availableFiles.push({
-                            ...item,
-                            files: generalFiles
-                        });
+                    if (!colorCustomizations || colorCustomizations.length === 0) {
+                        // No color selection - check for general files
+                        console.log('🔍 No color selections, checking general files');
+                        const generalFiles = await DesignFile.find({ 
+                            productId: item.productId, 
+                            isColorVariant: false, 
+                            isActive: true 
+                        }).lean();
+                        
+                        if (generalFiles.length > 0) {
+                            console.log('✅ Found general files for immediate delivery');
+                            availableFiles.push({
+                                ...item,
+                                files: generalFiles
+                            });
+                        } else {
+                            console.log('❌ No general files found, requires custom work');
+                            customWorkItems.push(item);
+                        }
                     } else {
-                        customWorkItems.push(item);
+                        // Has color selections - check if predefined color variant files exist
+                        console.log('🔍 Checking predefined color variant files');
+                        let hasAllColorFiles = true;
+                        const itemFiles = [];
+
+                        for (const color of colorCustomizations) {
+                            console.log('🔍 Checking predefined color variant files for:', color.name, color.hex);
+                            const colorFiles = await DesignFile.find({
+                                productId: item.productId,
+                                colorVariantHex: color.hex,
+                                isColorVariant: true,
+                                isActive: true
+                            }).lean();
+                            
+                            console.log(`📁 Found ${colorFiles.length} files for color ${color.name} (${color.hex})`);
+                            
+                            if (colorFiles.length === 0) {
+                                hasAllColorFiles = false;
+                                break;
+                            }
+                            itemFiles.push(...colorFiles);
+                        }
+
+                        if (hasAllColorFiles) {
+                            console.log('✅ All predefined color variant files available for immediate delivery');
+                            availableFiles.push({
+                                ...item,
+                                files: itemFiles
+                            });
+                        } else {
+                            console.log('❌ Some predefined color variant files missing, requires custom work');
+                            customWorkItems.push(item);
+                        }
                     }
                     continue;
                 }
 
-                // Check if item has color customizations
-                const colorCustomizations = item.customizations?.colors;
-                if (!colorCustomizations || colorCustomizations.length === 0) {
-                    // Has customizations but no colors - requires custom work
-                    customWorkItems.push(item);
-                    continue;
-                }
-
-                // Check if all requested colors have available files
-                let hasAllColorFiles = true;
-                const itemFiles = [];
-
-                for (const color of colorCustomizations) {
-                    const colorFiles = await DesignFile.find({
-                        productId: item.productId,
-                        colorVariantHex: color.hex,
-                        isColorVariant: true,
-                        isActive: true
-                    }).lean();
-                    
-                    if (colorFiles.length === 0) {
-                        hasAllColorFiles = false;
-                        break;
-                    }
-                    itemFiles.push(...colorFiles);
-                }
-
-                if (hasAllColorFiles) {
-                    availableFiles.push({
-                        ...item,
-                        files: itemFiles
-                    });
-                } else {
-                    customWorkItems.push(item);
-                }
+                // Item has REAL customizations (text, uploads, notes) - requires custom work
+                console.log('❌ Item has real customizations, requires custom work');
+                customWorkItems.push(item);
             }
 
             // Determine delivery type
+            console.log(`📊 Delivery analysis: ${availableFiles.length} auto-delivery items, ${customWorkItems.length} custom work items`);
+            
             if (availableFiles.length > 0 && customWorkItems.length === 0) {
+                console.log('🚀 Full auto-delivery');
                 return {
                     deliveryType: 'auto_delivery',
                     requiresCustomWork: false,
@@ -410,6 +461,7 @@ export class PayPalService {
                     customWorkItems
                 };
             } else if (availableFiles.length > 0 && customWorkItems.length > 0) {
+                console.log('🔄 Mixed delivery - some auto, some custom work');
                 return {
                     deliveryType: 'auto_delivery',
                     requiresCustomWork: true,
@@ -417,6 +469,7 @@ export class PayPalService {
                     customWorkItems
                 };
             } else {
+                console.log('🛠️ All items require custom work');
                 return {
                     deliveryType: 'custom_work',
                     requiresCustomWork: true,

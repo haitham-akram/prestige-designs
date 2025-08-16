@@ -114,9 +114,27 @@ export async function POST(request: NextRequest) {
 
         await connectDB();
 
-        // Generate order number
-        const orderCount = await Order.countDocuments();
-        const orderNumber = `PD-${new Date().getFullYear()}-${String(orderCount + 1).padStart(3, '0')}`;
+        // Generate order number - ensure uniqueness
+        let orderNumber;
+        let isUnique = false;
+        let attempts = 0;
+        
+        while (!isUnique && attempts < 5) {
+            const orderCount = await Order.countDocuments();
+            orderNumber = `PD-${new Date().getFullYear()}-${String(orderCount + 1 + attempts).padStart(3, '0')}`;
+            
+            // Check if this order number already exists
+            const existingOrder = await Order.findOne({ orderNumber });
+            if (!existingOrder) {
+                isUnique = true;
+            } else {
+                attempts++;
+            }
+        }
+        
+        if (!isUnique) {
+            throw new Error('Failed to generate unique order number');
+        }
 
         // Check if any items have customizations
         const hasCustomizableProducts = orderData.items.some(item => item.hasCustomizations);

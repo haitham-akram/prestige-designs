@@ -25,24 +25,38 @@ export async function GET(request: NextRequest) {
 
         await connectDB();
 
-        // Find test orders for this user
-        const testOrders = await Order.find({
-            customerId: session.user.id,
-            orderNumber: { $regex: /^TEST-/ }
-        }).sort({ createdAt: -1 }).lean();
+        // Find recent orders for debugging (remove auth check temporarily)
+        const recentOrders = await Order.find({})
+            .sort({ createdAt: -1 })
+            .limit(3)
+            .lean();
 
         return NextResponse.json({
             success: true,
-            orders: testOrders.map(order => ({
+            orders: recentOrders.map(order => ({
                 _id: order._id.toString(),
                 orderNumber: order.orderNumber,
                 customerName: order.customerName,
                 customerEmail: order.customerEmail,
                 totalPrice: order.totalPrice,
+                subtotal: order.subtotal,
+                totalPromoDiscount: order.totalPromoDiscount,
+                appliedPromoCodes: order.appliedPromoCodes,
                 hasCustomizableProducts: order.hasCustomizableProducts,
+                deliveryType: order.deliveryType,
+                requiresCustomWork: order.requiresCustomWork,
                 paymentStatus: order.paymentStatus,
                 orderStatus: order.orderStatus,
-                items: order.items
+                items: order.items.map(item => ({
+                    productName: item.productName,
+                    hasCustomizations: item.hasCustomizations,
+                    customizations: item.customizations,
+                    totalPrice: item.totalPrice,
+                    unitPrice: item.unitPrice,
+                    originalPrice: item.originalPrice,
+                    discountAmount: item.discountAmount
+                })),
+                createdAt: order.createdAt
             }))
         });
 

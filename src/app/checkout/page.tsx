@@ -429,11 +429,12 @@ export default function CheckoutPage() {
               totalPrice: item.price * item.quantity,
               hasCustomizations: !!(
                 item.customizations &&
-                (item.customizations.colors?.length ||
-                  item.customizations.textChanges?.length ||
+                (item.customizations.textChanges?.length ||
                   item.customizations.uploadedImages?.length ||
                   item.customizations.uploadedLogo ||
                   item.customizations.customizationNotes)
+                // NOTE: Predefined color selections are NOT customizations
+                // They are product variants that can be auto-delivered if files exist
               ),
               customizations: item.customizations,
             })),
