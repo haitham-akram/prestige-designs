@@ -11,6 +11,7 @@
     "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
     "db:seed": "node scripts/seed.js",
+    "admin:create": "node scripts/create-admin.js",
     "build:analyze": "cross-env ANALYZE=true next build",
     "build:production": "NODE_ENV=production next build",
     "deploy:vercel": "vercel --prod",

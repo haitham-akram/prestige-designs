@@ -231,8 +231,36 @@ CMD ["npm", "start"]
 - [ ] Monitor payment processing
 - [ ] Check email delivery
 - [ ] Monitor server resources
+- [ ] **Create admin user account**
 
-### 12. Post-Launch Monitoring 📈
+### 12. Admin User Setup 👤
+
+#### Option 1: Using API Endpoint (Recommended for Production)
+After deployment, create the admin user by calling:
+
+```bash
+# Set environment variable for security
+export ADMIN_SETUP_KEY="your-secure-key-here"
+
+# Call the API endpoint
+curl -X POST "https://yourdomain.com/api/admin/setup-user" \
+  -H "x-admin-setup-key: your-secure-key-here"
+```
+
+#### Option 2: Using Node.js Script (Local/Development)
+```bash
+# Run the admin creation script
+npm run admin:create
+```
+
+#### Admin Credentials
+- **Email:** `vip.nasser2021@gmail.com`
+- **Password:** `AdminPrestige2025!`
+- **Role:** `admin`
+
+⚠️ **IMPORTANT:** Change the password immediately after first login!
+
+### 13. Post-Launch Monitoring 📈
 
 #### Week 1-2
 - [ ] Daily error log review
