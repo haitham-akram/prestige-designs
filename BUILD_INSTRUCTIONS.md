@@ -3,22 +3,25 @@
 ## Quick Start
 
 1. **Set Environment Variables**
+
    ```bash
    cp .env.production .env.local
    # Edit .env.local with your production values
    ```
 
 2. **Build and Test Locally**
+
    ```bash
    npm run build
    npm start
    ```
 
 3. **Deploy to Vercel (Recommended)**
+
    ```bash
    # Install Vercel CLI
    npm i -g vercel
-   
+
    # Deploy
    vercel --prod
    ```
@@ -26,17 +29,20 @@
 ## Alternative Deployment Options
 
 ### Railway
+
 1. Connect GitHub repository
 2. Add environment variables
 3. Deploy automatically
 
 ### Render
-1. Connect GitHub repository  
+
+1. Connect GitHub repository
 2. Set build command: `npm run build`
 3. Set start command: `npm start`
 4. Add environment variables
 
 ### Docker
+
 ```bash
 # Build image
 docker build -t prestige-designs .

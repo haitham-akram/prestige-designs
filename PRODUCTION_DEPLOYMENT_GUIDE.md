@@ -5,6 +5,7 @@
 ### 1. Security Configuration ✅
 
 #### Environment Variables
+
 - [ ] Create production `.env.production` file with secure values
 - [ ] Generate strong `NEXTAUTH_SECRET` (use: `openssl rand -base64 32`)
 - [ ] Generate strong `JWT_SECRET` (use: `openssl rand -base64 32`)
@@ -14,11 +15,12 @@
 - [ ] Configure production PayPal Live credentials
 
 #### Security Headers & CSP
+
 ```javascript
 // next.config.ts
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ['mongoose']
+    serverComponentsExternalPackages: ['mongoose'],
   },
   images: {
     remotePatterns: [
@@ -29,8 +31,8 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'lh3.googleusercontent.com',
-      }
-    ]
+      },
+    ],
   },
   async headers() {
     return [
@@ -48,7 +50,7 @@ const nextConfig = {
           {
             key: 'Referrer-Policy',
             value: 'origin-when-cross-origin',
-          }
+          },
         ],
       },
     ]
@@ -59,6 +61,7 @@ const nextConfig = {
 ### 2. Database Configuration ✅
 
 #### MongoDB Production Setup
+
 - [ ] Create MongoDB Atlas production cluster
 - [ ] Configure IP whitelist for your server
 - [ ] Set up database user with minimal required permissions
@@ -66,6 +69,7 @@ const nextConfig = {
 - [ ] Configure backup strategy
 
 #### Database Indexes (Run in production)
+
 ```javascript
 // Connect to MongoDB and run these commands
 db.products.createIndex({ slug: 1 }, { unique: true })
@@ -81,6 +85,7 @@ db.users.createIndex({ email: 1 }, { unique: true })
 ### 3. Payment System Configuration ✅
 
 #### PayPal Live Environment
+
 - [ ] Create PayPal Business Account
 - [ ] Get Live API credentials from PayPal Developer Dashboard
 - [ ] Configure webhook endpoints for payment notifications
@@ -91,6 +96,7 @@ db.users.createIndex({ email: 1 }, { unique: true })
 ### 4. File Upload & Storage ✅
 
 #### Cloudinary Production
+
 - [ ] Create Cloudinary production account
 - [ ] Configure upload presets and transformations
 - [ ] Set up folder structure for organized uploads
@@ -99,6 +105,7 @@ db.users.createIndex({ email: 1 }, { unique: true })
 ### 5. Email Configuration ✅
 
 #### SMTP Setup
+
 - [ ] Configure production email service (Gmail, SendGrid, etc.)
 - [ ] Set up SPF, DKIM, and DMARC records
 - [ ] Test email delivery for order confirmations
@@ -107,6 +114,7 @@ db.users.createIndex({ email: 1 }, { unique: true })
 ### 6. Performance Optimization 🔧
 
 #### Next.js Production Build
+
 ```bash
 # Build and test production locally
 npm run build
@@ -114,11 +122,13 @@ npm start
 ```
 
 #### Image Optimization
+
 - [ ] Verify all images are properly optimized
 - [ ] Check Cloudinary transformations are working
 - [ ] Test image loading performance
 
 #### Caching Strategy
+
 ```javascript
 // Add to next.config.ts
 const nextConfig = {
@@ -144,11 +154,13 @@ const nextConfig = {
 ### 7. Monitoring & Analytics 📊
 
 #### Error Tracking
+
 - [ ] Set up Sentry for error monitoring
 - [ ] Configure logging for API endpoints
 - [ ] Set up uptime monitoring (UptimeRobot, Pingdom)
 
 #### Analytics
+
 - [ ] Configure Google Analytics
 - [ ] Set up conversion tracking for orders
 - [ ] Monitor payment success rates
@@ -156,6 +168,7 @@ const nextConfig = {
 ### 8. Deployment Options 🌐
 
 #### Option 1: Vercel (Recommended)
+
 ```bash
 # Install Vercel CLI
 npm i -g vercel
@@ -167,12 +180,14 @@ vercel --prod
 ```
 
 #### Option 2: Netlify
+
 - [ ] Connect GitHub repository
 - [ ] Configure build settings
 - [ ] Set environment variables
 - [ ] Deploy
 
 #### Option 3: Self-hosted (Docker)
+
 ```dockerfile
 # Dockerfile
 FROM node:18-alpine
@@ -189,6 +204,7 @@ CMD ["npm", "start"]
 ```
 
 #### Option 4: Railway/Render
+
 - [ ] Connect repository
 - [ ] Configure environment variables
 - [ ] Deploy with auto-scaling
@@ -196,6 +212,7 @@ CMD ["npm", "start"]
 ### 9. Domain & SSL 🔐
 
 #### Domain Configuration
+
 - [ ] Purchase production domain
 - [ ] Configure DNS settings
 - [ ] Set up SSL certificate (automatically handled by most platforms)
@@ -204,6 +221,7 @@ CMD ["npm", "start"]
 ### 10. Testing Checklist ✅
 
 #### Pre-Production Testing
+
 - [ ] Test user registration and login
 - [ ] Test product browsing and search
 - [ ] Test cart functionality
@@ -218,6 +236,7 @@ CMD ["npm", "start"]
 ### 11. Go-Live Preparation 📋
 
 #### Final Steps
+
 - [ ] Create admin user account
 - [ ] Upload initial products and categories
 - [ ] Configure site settings (logo, contact info, etc.)
@@ -226,6 +245,7 @@ CMD ["npm", "start"]
 - [ ] Prepare customer support documentation
 
 #### Launch Day
+
 - [ ] Monitor error logs closely
 - [ ] Test all critical user flows
 - [ ] Monitor payment processing
@@ -236,6 +256,7 @@ CMD ["npm", "start"]
 ### 12. Admin User Setup 👤
 
 #### Option 1: Using API Endpoint (Recommended for Production)
+
 After deployment, create the admin user by calling:
 
 ```bash
@@ -248,12 +269,14 @@ curl -X POST "https://yourdomain.com/api/admin/setup-user" \
 ```
 
 #### Option 2: Using Node.js Script (Local/Development)
+
 ```bash
 # Run the admin creation script
 npm run admin:create
 ```
 
 #### Admin Credentials
+
 - **Email:** `vip.nasser2021@gmail.com`
 - **Password:** `AdminPrestige2025!`
 - **Role:** `admin`
@@ -263,6 +286,7 @@ npm run admin:create
 ### 13. Post-Launch Monitoring 📈
 
 #### Week 1-2
+
 - [ ] Daily error log review
 - [ ] Payment success rate monitoring
 - [ ] User feedback collection
@@ -279,6 +303,7 @@ For your Next.js application, Vercel is the most straightforward option:
 4. **Deploy with one click**
 
 Vercel provides:
+
 - ✅ Automatic SSL
 - ✅ Global CDN
 - ✅ Serverless functions
