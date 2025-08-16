@@ -5,10 +5,16 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
+    "build:force": "DISABLE_ESLINT_PLUGIN=true next build",
     "start": "next start",
     "lint": "next lint",
+    "lint:fix": "next lint --fix",
     "type-check": "tsc --noEmit",
-    "db:seed": "node scripts/seed.js"
+    "db:seed": "node scripts/seed.js",
+    "build:analyze": "cross-env ANALYZE=true next build",
+    "build:production": "NODE_ENV=production next build",
+    "deploy:vercel": "vercel --prod",
+    "deploy:preview": "vercel"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",

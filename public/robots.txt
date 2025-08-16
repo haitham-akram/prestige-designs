@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+
+# Block admin pages from search engines
+Disallow: /admin/
+Disallow: /api/
+Disallow: /debug/
+Disallow: /test-*/
+
+# Block private areas
+Disallow: /customer/dashboard/
+Disallow: /checkout/
+
+# Sitemap
+Sitemap: https://yourdomain.com/sitemap.xml
