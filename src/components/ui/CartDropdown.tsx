@@ -6,7 +6,7 @@ import { useSession } from 'next-auth/react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart, faTimes, faTrash } from '@fortawesome/free-solid-svg-icons'
 import Image from 'next/image'
-import { translateColorNames } from '@/utils/colorTranslations'
+import { translateColorNames, getCustomLabel } from '@/utils/colorTranslations'
 import { useRouter } from 'next/navigation'
 import LoginAlert from './LoginAlert'
 import './CartDropdown.css'
@@ -96,7 +96,12 @@ export default function CartDropdown() {
                     <Image src={item.image} alt={item.name} width={40} height={40} className="preview-image" />
                   </div>
                   <div className="cart-preview-item-details">
-                    <p className="cart-preview-item-name">{item.name}</p>
+                    <p className="cart-preview-item-name">
+                      {item.name}
+                      {getCustomLabel(item.customizations) && (
+                        <span className="custom-label-small"> ({getCustomLabel(item.customizations)})</span>
+                      )}
+                    </p>
                     {item.customizations?.colors && item.customizations.colors.length > 0 && (
                       <p className="cart-preview-item-colors">
                         {translateColorNames(item.customizations.colors.map((c) => c.name)).join(', ')}
@@ -135,7 +140,12 @@ export default function CartDropdown() {
                 </div>
 
                 <div className="cart-item-details">
-                  <h4 className="cart-item-name">{item.name}</h4>
+                  <h4 className="cart-item-name">
+                    {item.name}
+                    {getCustomLabel(item.customizations) && (
+                      <span className="custom-label-small"> ({getCustomLabel(item.customizations)})</span>
+                    )}
+                  </h4>
                   {item.customizations?.colors && item.customizations.colors.length > 0 && (
                     <p className="cart-item-colors">
                       {translateColorNames(item.customizations.colors.map((c) => c.name)).join(', ')}

@@ -119,6 +119,16 @@
   text-overflow: ellipsis;
 }
 
+.custom-label {
+  font-size: 0.75rem;
+  color: var(--color-purple-primary);
+  font-weight: 500;
+  background: rgba(130, 97, 198, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
 .item-colors {
   color: var(--color-lime-accent);
   font-size: 0.8rem;
@@ -276,21 +286,21 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem;
-  background: rgba(3, 236, 253, 0.1);
-  border: 1px solid var(--color-lime-accent);
+  background: rgba(130, 97, 198, 0.15);
+  border: 1px solid var(--color-purple-primary);
   border-radius: 8px;
 }
 
 .promo-code-text {
-  color: var(--color-lime-accent);
+  color: var(--color-purple-primary);
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .remove-promo-btn {
   background: none;
-  border: 1px solid var(--color-lime-accent);
-  color: var(--color-lime-accent);
+  border: 1px solid var(--color-purple-primary);
+  color: var(--color-purple-primary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   cursor: pointer;
@@ -299,7 +309,7 @@
 }
 
 .remove-promo-btn:hover {
-  background: var(--color-lime-accent);
+  background: var(--color-purple-primary);
   color: var(--color-dark-primary);
 }
 
@@ -316,10 +326,10 @@
 .promo-success {
   margin-top: 0.75rem;
   padding: 0.75rem;
-  background: rgba(3, 236, 253, 0.1);
-  border: 1px solid var(--color-lime-accent);
+  background: rgba(130, 97, 198, 0.15);
+  border: 1px solid var(--color-purple-primary);
   border-radius: 6px;
-  color: var(--color-lime-accent);
+  color: var(--color-purple-primary);
   font-size: 0.9rem;
   font-weight: 600;
 }
@@ -820,12 +830,12 @@
 
 /* PayPal Dark Theme Fix - Force light background for PayPal iframe content */
 .paypal-container-wrapper {
-  background: #ffffff;
+  background: rgba(130, 97, 198, 0.08);
   padding: 1.5rem;
   border-radius: 12px;
   margin: 1rem 0;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 15px rgba(130, 97, 198, 0.15);
+  border: 1px solid rgba(130, 97, 198, 0.2);
 }
 
 #paypal-button-container {

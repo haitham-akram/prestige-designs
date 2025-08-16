@@ -183,6 +183,17 @@
   text-shadow: 0 0 6px rgba(130, 97, 198, 0.5);
 }
 
+.custom-label-small {
+  font-size: 0.65rem;
+  color: var(--color-purple-primary);
+  font-weight: 400;
+  background: rgba(130, 97, 198, 0.15);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin-left: 4px;
+  white-space: nowrap;
+}
+
 .cart-preview-item-colors {
   font-size: 0.75rem;
   color: var(--color-lime-accent);

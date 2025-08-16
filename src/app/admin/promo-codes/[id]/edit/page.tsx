@@ -13,14 +13,15 @@ import '../../new/new-promo-code.css'
 interface PromoCode {
   _id: string
   code: string
-  productId: string
-  product?: {
+  productIds: string[]
+  applyToAllProducts: boolean
+  products?: {
     _id: string
     name: string
     slug: string
     price: number
     images?: string[]
-  }
+  }[]
   discountType: 'percentage' | 'fixed_amount'
   discountValue: number
   maxDiscountAmount?: number

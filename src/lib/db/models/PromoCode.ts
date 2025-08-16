@@ -19,13 +19,14 @@
  * - Usage analytics and reporting
  */
 
-import mongoose, { Document, Schema, Model } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 // Interface for PromoCode document
 export interface IPromoCode extends Document {
     _id: string;
     code: string;                    // The promo code string (e.g., "SAVE20", "FLASH50")
-    productId: string;               // Reference to specific product
+    productIds: string[];            // Array of product IDs (empty array = all products)
+    applyToAllProducts: boolean;     // True for "all products" promo codes
 
     // Discount configuration
     discountType: 'percentage' | 'fixed_amount';  // Type of discount
@@ -51,6 +52,12 @@ export interface IPromoCode extends Document {
     // Timestamps
     createdAt: Date;
     updatedAt: Date;
+
+    // Methods
+    isCurrentlyValid(): boolean;
+    canUserUse(userUsageCount: number): boolean;
+    calculateDiscount(orderAmount: number): number;
+    incrementUsage(): Promise<IPromoCode>;
 }
 
 // PromoCode Schema definition
@@ -65,9 +72,15 @@ const PromoCodeSchema = new Schema<IPromoCode>({
         match: [/^[A-Z0-9]+$/, 'Promo code can only contain uppercase letters and numbers']
     },
 
-    productId: {
+    productIds: [{
         type: String,
-        required: [true, 'Product ID is required'],
+        required: false,
+        index: true
+    }],
+
+    applyToAllProducts: {
+        type: Boolean,
+        default: false,
         index: true
     },
 
@@ -173,15 +186,32 @@ const PromoCodeSchema = new Schema<IPromoCode>({
 
 // Indexes for better query performance
 // Note: code index is automatically created by unique: true in schema
-// Note: productId index is automatically created by index: true in schema
+// Note: productIds index is automatically created by index: true in schema
 PromoCodeSchema.index({ isActive: 1 });
 PromoCodeSchema.index({ startDate: 1 });
 PromoCodeSchema.index({ endDate: 1 });
+PromoCodeSchema.index({ applyToAllProducts: 1 });
 
 // Compound indexes
-PromoCodeSchema.index({ productId: 1, isActive: 1 });
+PromoCodeSchema.index({ productIds: 1, isActive: 1 });
+PromoCodeSchema.index({ applyToAllProducts: 1, isActive: 1 });
 PromoCodeSchema.index({ code: 1, isActive: 1 });
 PromoCodeSchema.index({ isActive: 1, startDate: 1, endDate: 1 });
+
+// Pre-save middleware to validate product selection
+PromoCodeSchema.pre('save', function (this: IPromoCode, next) {
+    // Either applyToAllProducts should be true OR productIds should have at least one product
+    if (!this.applyToAllProducts && (!this.productIds || this.productIds.length === 0)) {
+        return next(new Error('Either select specific products or apply to all products'));
+    }
+
+    // If applyToAllProducts is true, clear productIds array
+    if (this.applyToAllProducts) {
+        this.productIds = [];
+    }
+
+    next();
+});
 
 // Pre-save middleware to convert code to uppercase
 PromoCodeSchema.pre('save', function (this: IPromoCode, next) {
@@ -199,11 +229,10 @@ PromoCodeSchema.pre('save', function (this: IPromoCode, next) {
     next();
 });
 
-// Static method to find valid promo codes for a product
-PromoCodeSchema.statics.findValidForProduct = async function (productId: string, code?: string) {
+// Static method to find valid promo codes for products
+PromoCodeSchema.statics.findValidForProducts = async function (productIds: string[], code?: string) {
     const now = new Date();
     const query: Record<string, unknown> = {
-        productId,
         isActive: true,
         $and: [
             {
@@ -216,6 +245,47 @@ PromoCodeSchema.statics.findValidForProduct = async function (productId: string,
                 $or: [
                     { endDate: null },
                     { endDate: { $gte: now } }
+                ]
+            },
+            {
+                $or: [
+                    { applyToAllProducts: true },
+                    { productIds: { $in: productIds } }
+                ]
+            }
+        ]
+    };
+
+    if (code) {
+        query.code = code.toUpperCase();
+    }
+
+    return this.find(query).lean();
+};
+
+// Legacy method for backward compatibility  
+PromoCodeSchema.statics.findValidForProduct = async function (productId: string, code?: string) {
+    // Call findValidForProducts with single product in array
+    const now = new Date();
+    const query: Record<string, unknown> = {
+        isActive: true,
+        $and: [
+            {
+                $or: [
+                    { startDate: null },
+                    { startDate: { $lte: now } }
+                ]
+            },
+            {
+                $or: [
+                    { endDate: null },
+                    { endDate: { $gte: now } }
+                ]
+            },
+            {
+                $or: [
+                    { applyToAllProducts: true },
+                    { productIds: productId }
                 ]
             }
         ]
@@ -310,7 +380,7 @@ PromoCodeSchema.virtual('usagePercentage').get(function (this: IPromoCode) {
     return Math.round((this.usageCount / this.usageLimit) * 100);
 });
 
-// Prevent recompilation in development
-const PromoCode: Model<IPromoCode> = mongoose.models.PromoCode || mongoose.model<IPromoCode>('PromoCode', PromoCodeSchema);
+// Prevent recompilation in development  
+const PromoCode = mongoose.models.PromoCode || mongoose.model<IPromoCode>('PromoCode', PromoCodeSchema);
 
 export default PromoCode;

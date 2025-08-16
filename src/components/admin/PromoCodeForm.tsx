@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faSave, faTimes, faDice } from '@fortawesome/free-solid-svg-icons'
 import Image from 'next/image'
+import { IProductImage } from '@/lib/db/models/Product'
 import './PromoCodeForm.css'
 
 interface Product {
@@ -11,14 +12,15 @@ interface Product {
   name: string
   slug: string
   price: number
-  images?: string[]
+  images: IProductImage[]
 }
 
 interface PromoCode {
   _id: string
   code: string
-  productId: string
-  product?: Product
+  productIds: string[]
+  applyToAllProducts: boolean
+  products?: Product[]
   discountType: 'percentage' | 'fixed_amount'
   discountValue: number
   maxDiscountAmount?: number
@@ -41,7 +43,8 @@ interface PromoCodeFormProps {
 export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoCodeFormProps) {
   const [formData, setFormData] = useState({
     code: '',
-    productId: '',
+    productIds: [] as string[],
+    applyToAllProducts: false,
     discountType: 'percentage' as 'percentage' | 'fixed_amount',
     discountValue: 0,
     maxDiscountAmount: undefined as number | undefined,
@@ -57,14 +60,15 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
 
   useEffect(() => {
     fetchProducts()
     if (promoCode) {
       setFormData({
         code: promoCode.code,
-        productId: promoCode.productId,
+        productIds: promoCode.productIds || [],
+        applyToAllProducts: promoCode.applyToAllProducts || false,
         discountType: promoCode.discountType,
         discountValue: promoCode.discountValue,
         maxDiscountAmount: promoCode.maxDiscountAmount,
@@ -76,7 +80,7 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
         isActive: promoCode.isActive,
         description: promoCode.description || '',
       })
-      setSelectedProduct(promoCode.product || null)
+      setSelectedProducts(promoCode.products || [])
     }
   }, [promoCode])
 
@@ -112,8 +116,8 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
       newErrors.code = 'رمز الخصم يجب أن يحتوي على أحرف كبيرة وأرقام فقط'
     }
 
-    if (!formData.productId) {
-      newErrors.productId = 'المنتج مطلوب'
+    if (!formData.applyToAllProducts && formData.productIds.length === 0) {
+      newErrors.productIds = 'المنتج مطلوب أو تفعيل "تطبيق على جميع المنتجات"'
     }
 
     if (formData.discountValue <= 0) {
@@ -227,7 +231,7 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
     }
   }
 
-  const handleInputChange = (field: string, value: any) => {
+  const handleInputChange = (field: string, value: string | number | boolean | string[] | undefined) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
 
     // Clear field-specific error when user starts typing
@@ -236,10 +240,29 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
     }
   }
 
-  const handleProductChange = (productId: string) => {
-    handleInputChange('productId', productId)
-    const product = products.find((p) => p._id === productId)
-    setSelectedProduct(product || null)
+  const handleProductToggle = (productId: string) => {
+    const currentProductIds = [...formData.productIds]
+    const index = currentProductIds.indexOf(productId)
+
+    if (index > -1) {
+      currentProductIds.splice(index, 1)
+    } else {
+      currentProductIds.push(productId)
+    }
+
+    handleInputChange('productIds', currentProductIds)
+
+    // Update selected products for display
+    const newSelectedProducts = products.filter((p) => currentProductIds.includes(p._id))
+    setSelectedProducts(newSelectedProducts)
+  }
+
+  const handleApplyToAllChange = (applyToAll: boolean) => {
+    handleInputChange('applyToAllProducts', applyToAll)
+    if (applyToAll) {
+      handleInputChange('productIds', [])
+      setSelectedProducts([])
+    }
   }
 
   return (
@@ -298,59 +321,90 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
           </div>
 
           <div className="form-group">
-            <label htmlFor="productId" className="form-label">
-              المنتج *
-            </label>
-            <select
-              id="productId"
-              value={formData.productId}
-              onChange={(e) => handleProductChange(e.target.value)}
-              className={`form-select ${errors.productId ? 'error' : ''}`}
-            >
-              <option value="">اختر المنتج</option>
-              {products.map((product) => (
-                <option key={product._id} value={product._id}>
-                  {product.name} - ${product.price}
-                </option>
-              ))}
-            </select>
-            {errors.productId && <span className="error-message">{errors.productId}</span>}
+            <label className="form-label">المنتجات *</label>
 
-            {selectedProduct && (
-              <div className="selected-product">
-                <div className="product-preview">
-                  {selectedProduct.images &&
-                  selectedProduct.images[0] &&
-                  selectedProduct.images[0].url &&
-                  typeof selectedProduct.images[0].url === 'string' &&
-                  selectedProduct.images[0].url.trim() !== '' ? (
-                    <Image
-                      src={selectedProduct.images[0].url}
-                      alt={selectedProduct.name}
-                      width={60}
-                      height={60}
-                      className="product-image"
-                    />
-                  ) : (
-                    <div className="product-image-placeholder">
-                      <svg width="60" height="60" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path
-                          d="M19 3H5C3.9 3 3 3.9 3 5V19C3 20.1 3.9 21 5 21H19C20.1 21 21 20.1 21 19V5C21 3.9 20.1 3 19 3ZM19 19H5V5H19V19Z"
-                          fill="currentColor"
+            <div className="product-selection-options">
+              <div className="apply-all-option">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={formData.applyToAllProducts}
+                    onChange={(e) => handleApplyToAllChange(e.target.checked)}
+                  />
+                  تطبيق على جميع المنتجات
+                </label>
+              </div>
+
+              {!formData.applyToAllProducts && (
+                <div className="product-selection-grid">
+                  {products.map((product) => (
+                    <div key={product._id} className="product-option">
+                      <label className="product-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={formData.productIds.includes(product._id)}
+                          onChange={() => handleProductToggle(product._id)}
                         />
-                        <path
-                          d="M14 14C15.1 14 16 13.1 16 12C16 10.9 15.1 10 14 10C12.9 10 12 10.9 12 12C12 13.1 12.9 14 14 14Z"
-                          fill="currentColor"
-                        />
-                        <path d="M5 19L8 16L11 19L14 16L19 21H5V19Z" fill="currentColor" />
-                      </svg>
+                        <div className="product-info">
+                          {product.images && product.images[0] && (
+                            <Image
+                              src={product.images[0].url || ''}
+                              alt={product.images[0].alt || product.name}
+                              width={60}
+                              height={60}
+                              className="product-thumbnail"
+                            />
+                          )}
+                          <div>
+                            <span className="product-name">{product.name}</span>
+                            <span className="product-price">${product.price}</span>
+                          </div>
+                        </div>
+                      </label>
                     </div>
-                  )}
-                  <div className="product-details">
-                    <h4>{selectedProduct.name}</h4>
-                    <p className="product-price">${selectedProduct.price}</p>
-                  </div>
+                  ))}
                 </div>
+              )}
+            </div>
+            {errors.productIds && <span className="error-message">{errors.productIds}</span>}
+
+            {/* Selected Products Summary */}
+            {!formData.applyToAllProducts && formData.productIds.length > 0 && (
+              <div className="selected-products-summary">
+                <h4>المنتجات المحددة ({formData.productIds.length})</h4>
+                <div className="selected-products-list">
+                  {selectedProducts.map((product) => (
+                    <div key={product._id} className="selected-product-item">
+                      {product.images && product.images[0] && (
+                        <Image
+                          src={product.images[0].url || ''}
+                          alt={product.images[0].alt || product.name}
+                          width={50}
+                          height={50}
+                          className="selected-product-image"
+                        />
+                      )}
+                      <div className="selected-product-details">
+                        <h5>{product.name}</h5>
+                        <p className="product-price">${product.price}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleProductToggle(product._id)}
+                        className="remove-product-btn"
+                        title="إزالة المنتج"
+                      >
+                        <FontAwesomeIcon icon={faTimes} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {formData.applyToAllProducts && (
+              <div className="apply-all-notice">
+                <p>سيتم تطبيق هذا العرض الترويجي على جميع المنتجات النشطة</p>
               </div>
             )}
           </div>

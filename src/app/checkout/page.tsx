@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart, faUser, faEnvelope, faPhone, faTrash, faArrowRight } from '@fortawesome/free-solid-svg-icons'
 import { faPaypal as faPaypalBrand } from '@fortawesome/free-brands-svg-icons'
 import CustomerLayout from '@/app/customer-layout'
+import { getCustomLabel } from '@/utils/colorTranslations'
 import './checkout.css'
 
 interface CheckoutForm {
@@ -66,6 +67,7 @@ export default function CheckoutPage() {
       code: string
       discount: number
       type: 'percentage' | 'fixed'
+      discountAmount?: number
     } | null>(null)
     const [isValidatingPromo, setIsValidatingPromo] = useState(false)
 
@@ -211,6 +213,17 @@ export default function CheckoutPage() {
       setPromoCodeSuccess('')
 
       try {
+        console.log(
+          'Debug - Cart items being sent:',
+          state.items.map((item) => ({
+            productId: item.id, // Use item.id, not item.productId
+            _id: item.id, // Use item.id, not item._id
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price,
+          }))
+        )
+
         const response = await fetch('/api/admin/promo-codes/validate', {
           method: 'POST',
           headers: {
@@ -218,20 +231,36 @@ export default function CheckoutPage() {
           },
           body: JSON.stringify({
             code: promoCode.trim(),
-            totalAmount: state.totalPrice,
+            orderAmount: state.totalPrice,
+            cartItems: state.items.map((item) => ({
+              productId: item.id, // Use item.id, not item.productId
+              _id: item.id, // Use item.id, not item._id
+              name: item.name,
+              quantity: item.quantity,
+              price: item.price,
+            })),
           }),
         })
 
         const data = await response.json()
 
         if (response.ok) {
+          console.log('Promo code validation response:', data) // Debug log
           setAppliedPromoCode({
             code: data.code,
-            discount: data.discount,
+            discount: data.discount || 0, // Add fallback
             type: data.type,
+            discountAmount: data.discountAmount || 0, // Include the total discount amount
           })
+
+          // Create a more detailed success message
+          const itemText = data.totalQualifyingItems > 1 ? `${data.totalQualifyingItems} عناصر` : 'عنصر واحد'
+          const discountText = data.type === 'percentage' ? `${data.discount || 0}%` : `$${data.discount || 0} لكل عنصر`
+
           setPromoCodeSuccess(
-            `تم تطبيق كود الخصم! خصم ${data.type === 'percentage' ? data.discount + '%' : '$' + data.discount}`
+            `تم تطبيق كود الخصم على ${itemText}! خصم ${discountText} - إجمالي الخصم: $${(
+              data.discountAmount || 0
+            ).toFixed(2)}`
           )
           setPromoCode('')
         } else {
@@ -511,7 +540,12 @@ export default function CheckoutPage() {
                     <img src={item.image} alt={item.name} />
                   </div>
                   <div className="item-details">
-                    <h4>{item.name}</h4>
+                    <h4>
+                      {item.name}
+                      {getCustomLabel(item.customizations) && (
+                        <span className="custom-label"> ({getCustomLabel(item.customizations)})</span>
+                      )}
+                    </h4>
                     {item.customizations?.colors && item.customizations.colors.length > 0 && (
                       <p className="item-colors">الألوان: {item.customizations.colors.map((c) => c.name).join(', ')}</p>
                     )}
@@ -599,8 +633,8 @@ export default function CheckoutPage() {
                   <span>
                     -$
                     {appliedPromoCode.type === 'percentage'
-                      ? (((state.totalPrice || 0) * appliedPromoCode.discount) / 100).toFixed(2)
-                      : appliedPromoCode.discount.toFixed(2)}
+                      ? (((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100).toFixed(2)
+                      : (appliedPromoCode.discountAmount || appliedPromoCode.discount || 0).toFixed(2)}
                   </span>
                 </div>
               )}

@@ -20,7 +20,7 @@ export async function GET(
         await connectDB()
 
         const { id } = await params
-        const promoCode = await PromoCode.findById(id).lean()
+        const promoCode = await PromoCode.findById(id).lean() as Record<string, unknown>
 
         if (!promoCode) {
             return NextResponse.json(
@@ -30,24 +30,42 @@ export async function GET(
         }
 
         // Get product details
-        const product = await Product.findById(promoCode.productId)
-            .select('_id name slug price images description')
-            .lean()
+        let products: Record<string, unknown>[] = []
+
+        // Handle legacy single productId
+        if (promoCode.productId && !promoCode.productIds && !promoCode.applyToAllProducts) {
+            const product = await Product.findById(promoCode.productId)
+                .select('_id name slug price images description')
+                .lean()
+            products = product ? [product] : []
+        }
+        // Handle new productIds array
+        else if (promoCode.productIds && Array.isArray(promoCode.productIds) && promoCode.productIds.length > 0) {
+            products = await Product.find({ _id: { $in: promoCode.productIds } })
+                .select('_id name slug price images description')
+                .lean()
+        }
+        // Handle apply to all products
+        else if (promoCode.applyToAllProducts) {
+            products = await Product.find({ isActive: true })
+                .select('_id name slug price images description')
+                .lean()
+        }
 
         const now = new Date()
 
         const responseData = {
             ...promoCode,
-            product: product || null,
-            isExpired: promoCode.endDate ? promoCode.endDate < now : false,
-            isNotYetActive: promoCode.startDate ? promoCode.startDate > now : false,
+            products: products || [],
+            isExpired: promoCode.endDate ? new Date(promoCode.endDate as string) < now : false,
+            isNotYetActive: promoCode.startDate ? new Date(promoCode.startDate as string) > now : false,
             usagePercentage: promoCode.usageLimit
-                ? Math.round((promoCode.usageCount / promoCode.usageLimit) * 100)
+                ? Math.round((Number(promoCode.usageCount) / Number(promoCode.usageLimit)) * 100)
                 : 0,
             isCurrentlyValid: promoCode.isActive &&
-                (!promoCode.startDate || promoCode.startDate <= now) &&
-                (!promoCode.endDate || promoCode.endDate >= now) &&
-                (!promoCode.usageLimit || promoCode.usageCount < promoCode.usageLimit)
+                (!promoCode.startDate || new Date(promoCode.startDate as string) <= now) &&
+                (!promoCode.endDate || new Date(promoCode.endDate as string) >= now) &&
+                (!promoCode.usageLimit || Number(promoCode.usageCount) < Number(promoCode.usageLimit))
         }
 
         return NextResponse.json({
@@ -108,8 +126,27 @@ export async function PUT(
             }
         }
 
-        // Check if product exists if productId is being updated
-        if (body.productId && body.productId !== existingPromoCode.productId) {
+        // Check if products exist for multi-product support
+        if (body.productIds && Array.isArray(body.productIds)) {
+            const products = await Product.find({ _id: { $in: body.productIds } })
+            if (products.length !== body.productIds.length) {
+                return NextResponse.json(
+                    { error: 'One or more products not found' },
+                    { status: 404 }
+                )
+            }
+        }
+
+        // Validate applyToAllProducts logic
+        if (body.applyToAllProducts && body.productIds && body.productIds.length > 0) {
+            return NextResponse.json(
+                { error: 'Cannot specify specific products when applying to all products' },
+                { status: 400 }
+            )
+        }
+
+        // Legacy single product support
+        if (body.productId && !body.productIds && !body.applyToAllProducts) {
             const product = await Product.findById(body.productId)
             if (!product) {
                 return NextResponse.json(
@@ -117,13 +154,16 @@ export async function PUT(
                     { status: 404 }
                 )
             }
+            // Convert to new multi-product format
+            body.productIds = [body.productId]
+            delete body.productId
         }
 
         // Check for duplicate code if code is being updated
         if (body.code && body.code.toUpperCase() !== existingPromoCode.code) {
             const duplicateCode = await PromoCode.findOne({
                 code: body.code.toUpperCase(),
-                _id: { $ne: params.id }
+                _id: { $ne: id }
             })
 
             if (duplicateCode) {
@@ -157,27 +197,52 @@ export async function PUT(
             id,
             updateData,
             { new: true, runValidators: true }
-        ).lean()
+        ).lean() as Record<string, unknown>
+
+        if (!updatedPromoCode) {
+            return NextResponse.json(
+                { error: 'Failed to update promo code' },
+                { status: 500 }
+            )
+        }
 
         // Get product details for response
-        const product = await Product.findById(updatedPromoCode.productId)
-            .select('_id name slug price images')
-            .lean()
+        let products: Record<string, unknown>[] = []
+
+        // Handle legacy single productId
+        if (updatedPromoCode.productId && !updatedPromoCode.productIds && !updatedPromoCode.applyToAllProducts) {
+            const product = await Product.findById(updatedPromoCode.productId)
+                .select('_id name slug price images')
+                .lean()
+            products = product ? [product] : []
+        }
+        // Handle new productIds array
+        else if (updatedPromoCode.productIds && Array.isArray(updatedPromoCode.productIds) && updatedPromoCode.productIds.length > 0) {
+            products = await Product.find({ _id: { $in: updatedPromoCode.productIds } })
+                .select('_id name slug price images')
+                .lean()
+        }
+        // Handle apply to all products
+        else if (updatedPromoCode.applyToAllProducts) {
+            products = await Product.find({ isActive: true })
+                .select('_id name slug price images')
+                .lean()
+        }
 
         const now = new Date()
 
         const responseData = {
             ...updatedPromoCode,
-            product: product || null,
-            isExpired: updatedPromoCode.endDate ? updatedPromoCode.endDate < now : false,
-            isNotYetActive: updatedPromoCode.startDate ? updatedPromoCode.startDate > now : false,
+            products: products || [],
+            isExpired: updatedPromoCode.endDate ? new Date(updatedPromoCode.endDate as string) < now : false,
+            isNotYetActive: updatedPromoCode.startDate ? new Date(updatedPromoCode.startDate as string) > now : false,
             usagePercentage: updatedPromoCode.usageLimit
-                ? Math.round((updatedPromoCode.usageCount / updatedPromoCode.usageLimit) * 100)
+                ? Math.round((Number(updatedPromoCode.usageCount) / Number(updatedPromoCode.usageLimit)) * 100)
                 : 0,
             isCurrentlyValid: updatedPromoCode.isActive &&
-                (!updatedPromoCode.startDate || updatedPromoCode.startDate <= now) &&
-                (!updatedPromoCode.endDate || updatedPromoCode.endDate >= now) &&
-                (!updatedPromoCode.usageLimit || updatedPromoCode.usageCount < updatedPromoCode.usageLimit)
+                (!updatedPromoCode.startDate || new Date(updatedPromoCode.startDate as string) <= now) &&
+                (!updatedPromoCode.endDate || new Date(updatedPromoCode.endDate as string) >= now) &&
+                (!updatedPromoCode.usageLimit || Number(updatedPromoCode.usageCount) < Number(updatedPromoCode.usageLimit))
         }
 
         return NextResponse.json({
