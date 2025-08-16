@@ -332,7 +332,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
             </div>
 
             <div className="footer-bottom">
-              <p>&copy; 2024 Prestige Designs. جميع الحقوق محفوظة</p>
+              <p>&copy; {new Date().getFullYear()} Prestige Designs. جميع الحقوق محفوظة</p>
             </div>
           </div>
         </footer>

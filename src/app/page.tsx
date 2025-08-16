@@ -1,6 +1,6 @@
 'use client'
 
-// import { useSession } from 'next-auth/react'
+import { Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import CustomerLayout from './customer-layout'
 import AnimatedSection from '@/components/AnimatedSection'
@@ -18,13 +18,13 @@ import ReviewsSection from '@/components/customer/ReviewsSection'
 import FAQSection from '@/components/customer/FAQSection'
 import FeaturedClientsSection from '@/components/customer/FeaturedClientsSection'
 
-export default function HomePage() {
+function HomePageContent() {
   // const { data: session } = useSession()
   const searchParams = useSearchParams()
   const isDeactivated = searchParams.get('deactivated') === 'true'
 
   return (
-    <CustomerLayout>
+    <>
       {/* Deactivation Banner */}
       {isDeactivated && (
         <div className="deactivation-banner">
@@ -91,6 +91,16 @@ export default function HomePage() {
       <AnimatedSection animation="fade-up" delay={550}>
         <FAQSection />
       </AnimatedSection>
+    </>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <CustomerLayout>
+      <Suspense fallback={<div>Loading...</div>}>
+        <HomePageContent />
+      </Suspense>
     </CustomerLayout>
   )
 }

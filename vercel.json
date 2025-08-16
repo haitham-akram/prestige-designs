@@ -1,0 +1,19 @@
+{
+  "name": "prestige-designs-prod",
+  "version": "2",
+  "builds": [
+    {
+      "src": "package.json",
+      "use": "@vercel/next"
+    }
+  ],
+  "env": {
+    "MONGODB_URI": "@mongodb_uri_prod",
+    "NEXTAUTH_SECRET": "@nextauth_secret_prod",
+    "NEXTAUTH_URL": "@nextauth_url_prod",
+    "GOOGLE_CLIENT_ID": "@google_client_id_prod",
+    "GOOGLE_CLIENT_SECRET": "@google_client_secret_prod",
+    "PAYPAL_CLIENT_ID": "@paypal_client_id_prod",
+    "PAYPAL_CLIENT_SECRET": "@paypal_client_secret_prod"
+  }
+}
