@@ -499,6 +499,54 @@ export class EmailService {
     }
 
     /**
+     * Send custom message email
+     */
+    static async sendCustomMessage(
+        to: string,
+        messageData: {
+            orderNumber: string;
+            customerName: string;
+            subject: string;
+            message: string;
+        }
+    ) {
+        try {
+            const content = `
+                <div class="order-info">
+                    <div class="order-number">رقم الطلب: ${messageData.orderNumber}</div>
+                    <div class="customer-name">عزيزي ${messageData.customerName}</div>
+                </div>
+                
+                <div class="message">
+                    ${messageData.message}
+                </div>
+                
+                <div class="message">
+                    شكراً لثقتك في خدماتنا!
+                    <br><br>
+                    فريق Prestige Designs
+                </div>
+            `;
+
+            const html = createBaseTemplate(content, messageData.subject);
+
+            const mailOptions = {
+                from: `"${emailSender.name}" <${emailSender.from}>`,
+                to: to,
+                subject: messageData.subject,
+                html: html,
+            };
+
+            const result = await transporter.sendMail(mailOptions);
+            console.log('✅ Custom message email sent successfully:', result.messageId);
+            return { success: true, messageId: result.messageId };
+        } catch (error) {
+            console.error('❌ Error sending custom message email:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    /**
      * Test email configuration
      */
     static async testConnection() {

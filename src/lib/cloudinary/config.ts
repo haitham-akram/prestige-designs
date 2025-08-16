@@ -14,7 +14,7 @@ export interface CloudinaryUploadOptions {
     folder?: string;
     public_id?: string;
     transformation?: Record<string, unknown>;
-    resource_type?: 'image' | 'video' | 'raw';
+    resource_type?: 'image' | 'video' | 'raw' | 'auto';
     format?: string;
     quality?: number;
     width?: number;
@@ -26,16 +26,25 @@ export interface CloudinaryUploadOptions {
 export const categoryImageOptions: CloudinaryUploadOptions = {
     folder: 'prestige-designs/categories',
     transformation: {
-        quality: 'auto',
+        quality: 'auto:best',
         fetch_format: 'auto',
-        width: 800,
-        height: 600,
-        crop: 'fill',
+        crop: 'scale',
         gravity: 'auto'
     },
-    resource_type: 'image',
-    format: 'webp'
+    resource_type: 'image'
 };
+
+// // High-quality upload options for hero images
+// export const heroImageOptions: CloudinaryUploadOptions = {
+//     folder: 'prestige-designs/hero',
+//     transformation: {
+//         quality: 'auto:best',
+//         fetch_format: 'auto',
+//         crop: 'scale',
+//         gravity: 'auto'
+//     },
+//     resource_type: 'image'
+// };
 
 // Utility function to generate optimized image URLs
 export const getOptimizedImageUrl = (publicId: string, options: CloudinaryUploadOptions = {}) => {
@@ -64,7 +73,7 @@ export const uploadToCloudinary = async (file: Buffer | string, options: Cloudin
     try {
         const uploadOptions = {
             folder: 'prestige-designs',
-            resource_type: 'auto',
+            resource_type: 'auto' as const,
             ...options
         };
 

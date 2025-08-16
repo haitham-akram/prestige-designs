@@ -169,10 +169,12 @@
 .product-image {
   width: 50px;
   height: 50px;
-  border-radius: 8px;
+  border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--border-color);
   flex-shrink: 0;
+  position: relative;
+  background: var(--bg-secondary);
 }
 
 .product-image img {
@@ -235,8 +237,22 @@
 }
 
 .rating-stars {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.rating-stars .star {
+  font-size: 1rem;
+  opacity: 0.3;
+  transition: all 0.3s ease;
+  color: #666;
+}
+
+.rating-stars .star.filled {
+  opacity: 1;
   color: #fbbf24;
-  font-size: 1.2rem;
+  filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.5));
 }
 
 .rating-number {
@@ -760,4 +776,28 @@
 
 .reviews-table-container::-webkit-scrollbar-thumb:hover {
   background: var(--accent-color-dark);
+}
+
+/* Avatar Image Styles */
+.review-avatar-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.avatar-fallback {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+}
+
+.avatar-fallback.fallback-hidden {
+  display: none;
 } 

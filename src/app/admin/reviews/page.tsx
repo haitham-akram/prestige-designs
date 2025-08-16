@@ -3,24 +3,21 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faUser, faStar } from '@fortawesome/free-solid-svg-icons'
+import { faStar as faStarRegular } from '@fortawesome/free-regular-svg-icons'
 import './reviews.css'
 
 interface Review {
   _id: string
-  productId: string
-  customerId: string
-  customerName: string
-  customerEmail: string
+  name: string
   rating: number
-  title?: string
-  comment?: string
-  isApproved: boolean
+  text: string
+  avatar: string
+  isActive: boolean
+  order: number
   createdAt: string
-  product: {
-    name: string
-    slug: string
-    images: Array<{ url: string; alt: string }>
-  }
+  updatedAt: string
 }
 
 interface Pagination {
@@ -64,6 +61,7 @@ export default function AdminReviews() {
       try {
         setLoading(true)
         setError('')
+        console.log('Fetching reviews with params:', params)
 
         const searchParams = new URLSearchParams({
           page: params.page.toString(),
@@ -73,24 +71,29 @@ export default function AdminReviews() {
           rating: params.ratingFilter,
         })
 
-        const response = await fetch(`/api/admin/reviews?${searchParams}`)
+        const url = `/api/admin/reviews?${searchParams}`
+        console.log('Fetching from URL:', url)
+
+        const response = await fetch(url)
 
         if (!response.ok) {
           throw new Error('Failed to fetch reviews')
         }
 
         const result = await response.json()
+        console.log('Fetch result:', result)
 
         if (result.success) {
-          setReviews(result.data.reviews)
+          setReviews(result.data || [])
           setPagination({
-            page: result.data.page,
-            limit: result.data.limit,
-            total: result.data.total,
-            totalPages: result.data.totalPages,
+            page: 1,
+            limit: 10,
+            total: result.data?.length || 0,
+            totalPages: 1,
           })
+          console.log('Reviews updated:', result.data?.length || 0, 'reviews')
         } else {
-          setError(result.error || 'Failed to fetch reviews')
+          setError(result.message || 'Failed to fetch reviews')
         }
       } catch (err) {
         setError('Failed to fetch reviews')
@@ -158,23 +161,26 @@ export default function AdminReviews() {
 
     try {
       setDeletingReview(reviewId)
+      console.log('Deleting review:', reviewId)
 
       const response = await fetch(`/api/admin/reviews/${reviewId}`, {
         method: 'DELETE',
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to delete review')
-      }
-
       const result = await response.json()
+      console.log('Delete response:', result)
+
+      if (!response.ok) {
+        throw new Error(result.message || 'Failed to delete review')
+      }
 
       if (result.success) {
         // Remove the deleted review from state
         setReviews((prev) => prev.filter((review) => review._id !== reviewId))
         setPagination((prev) => ({ ...prev, total: prev.total - 1 }))
+        console.log('Review deleted successfully')
       } else {
-        alert(result.error || 'Failed to delete review')
+        alert(result.message || 'Failed to delete review')
       }
     } catch (err) {
       alert('Failed to delete review')
@@ -184,35 +190,36 @@ export default function AdminReviews() {
     }
   }
 
-  const handleUpdateReviewStatus = async (reviewId: string, isApproved: boolean) => {
+  const handleUpdateReviewStatus = async (reviewId: string, isActive: boolean) => {
     try {
       setUpdatingReview(reviewId)
-      console.log('Updating review:', reviewId, 'to approved:', isApproved)
+      console.log('Updating review:', reviewId, 'to isActive:', isActive)
 
       const response = await fetch(`/api/admin/reviews/${reviewId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ isApproved }),
+        body: JSON.stringify({ isActive }),
       })
 
       const result = await response.json()
-      console.log('API response:', result)
+      console.log('Update response:', result)
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to update review status')
+        throw new Error(result.message || 'Failed to update review status')
       }
 
       if (result.success) {
         // Update the review status in state
         setReviews((prev) => {
-          const updatedReviews = prev.map((review) => (review._id === reviewId ? { ...review, isApproved } : review))
+          const updatedReviews = prev.map((review) => (review._id === reviewId ? { ...review, isActive } : review))
           console.log('Updated reviews state:', updatedReviews)
           return updatedReviews
         })
+        console.log('Review status updated successfully')
       } else {
-        alert(result.error || 'Failed to update review status')
+        alert(result.message || 'Failed to update review status')
       }
     } catch (err) {
       alert('Failed to update review status')
@@ -233,14 +240,17 @@ export default function AdminReviews() {
   }
 
   const renderStars = (rating: number) => {
-    return '★'.repeat(rating) + '☆'.repeat(5 - rating)
-  }
-
-  const getProductImage = (product: Review['product']) => {
-    if (product.images && product.images.length > 0) {
-      return product.images[0].url
-    }
-    return '/placeholder-product.jpg'
+    return (
+      <div className="rating-stars">
+        {[...Array(5)].map((_, i) => (
+          <FontAwesomeIcon
+            key={i}
+            icon={i < rating ? faStar : faStarRegular}
+            className={i < rating ? 'star filled' : 'star'}
+          />
+        ))}
+      </div>
+    )
   }
 
   if (loading && reviews.length === 0) {
@@ -274,8 +284,8 @@ export default function AdminReviews() {
           <div className="filters-section">
             <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
               <option value="all">جميع الحالات</option>
-              <option value="accepted">معتمد</option>
-              <option value="rejected">مرفوض</option>
+              <option value="true">نشط</option>
+              <option value="false">غير نشط</option>
             </select>
 
             <select value={ratingFilter} onChange={(e) => setRatingFilter(e.target.value)} className="filter-select">
@@ -306,36 +316,37 @@ export default function AdminReviews() {
                   <div className="review-product-info">
                     <div className="product-image">
                       <Image
-                        src={getProductImage(review.product)}
-                        alt={review.product.name}
-                        width={50}
+                        src={review.avatar.trim()}
+                        alt={review.name}
                         height={50}
+                        width={50}
+                        className="review-avatar-img"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
-                          target.src = '/placeholder-product.jpg'
+                          target.style.display = 'none'
+                          target.nextElementSibling?.classList.remove('fallback-hidden')
                         }}
                       />
+                      <span className="avatar-fallback fallback-hidden">
+                        <FontAwesomeIcon icon={faUser} />
+                      </span>
                     </div>
                     <div className="product-details">
-                      <div className="product-name">{review.product.name}</div>
+                      <div className="product-name">{review.name}</div>
                       <div className="review-date">{formatDate(review.createdAt)}</div>
                     </div>
                   </div>
                   <div className="review-status">
-                    <span
-                      className={`status-badge ${
-                        review.isApproved === true ? 'approved' : review.isApproved === false ? 'rejected' : 'pending'
-                      }`}
-                    >
-                      {review.isApproved === true ? 'معتمد' : review.isApproved === false ? 'مرفوض' : 'في الانتظار'}
+                    <span className={`status-badge ${review.isActive ? 'approved' : 'rejected'}`}>
+                      {review.isActive ? 'نشط' : 'غير نشط'}
                     </span>
                   </div>
                 </div>
 
                 <div className="review-card-body">
                   <div className="review-customer-info">
-                    <div className="customer-name">{review.customerName}</div>
-                    <div className="customer-email">{review.customerEmail}</div>
+                    <div className="customer-name">{review.name}</div>
+                    <div className="customer-email">تقييم العميل</div>
                   </div>
 
                   <div className="review-rating">
@@ -344,67 +355,25 @@ export default function AdminReviews() {
                   </div>
 
                   <div className="review-content">
-                    {review.title && <div className="review-title">{review.title}</div>}
-                    {review.comment && <div className="review-comment">{review.comment}</div>}
+                    <div className="review-comment">{review.text}</div>
                   </div>
                 </div>
 
                 <div className="review-card-actions">
-                  {review.isApproved === true ? (
-                    // Accepted review - show Reject and Delete buttons
-                    <>
-                      <button
-                        onClick={() => handleUpdateReviewStatus(review._id, false)}
-                        disabled={updatingReview === review._id}
-                        className="action-btn disapprove-btn"
-                      >
-                        {updatingReview === review._id ? 'جاري...' : 'رفض'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReview(review._id)}
-                        disabled={deletingReview === review._id}
-                        className="action-btn delete-btn"
-                      >
-                        {deletingReview === review._id ? 'جاري الحذف...' : 'حذف'}
-                      </button>
-                    </>
-                  ) : review.isApproved === false ? (
-                    // Rejected review - show Accept and Delete buttons
-                    <>
-                      <button
-                        onClick={() => handleUpdateReviewStatus(review._id, true)}
-                        disabled={updatingReview === review._id}
-                        className="action-btn approve-btn"
-                      >
-                        {updatingReview === review._id ? 'جاري...' : 'قبول'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteReview(review._id)}
-                        disabled={deletingReview === review._id}
-                        className="action-btn delete-btn"
-                      >
-                        {deletingReview === review._id ? 'جاري الحذف...' : 'حذف'}
-                      </button>
-                    </>
-                  ) : (
-                    // Pending review - show Accept and Reject buttons
-                    <>
-                      <button
-                        onClick={() => handleUpdateReviewStatus(review._id, true)}
-                        disabled={updatingReview === review._id}
-                        className="action-btn approve-btn"
-                      >
-                        {updatingReview === review._id ? 'جاري...' : 'قبول'}
-                      </button>
-                      <button
-                        onClick={() => handleUpdateReviewStatus(review._id, false)}
-                        disabled={updatingReview === review._id}
-                        className="action-btn disapprove-btn"
-                      >
-                        {updatingReview === review._id ? 'جاري...' : 'رفض'}
-                      </button>
-                    </>
-                  )}
+                  <button
+                    onClick={() => handleUpdateReviewStatus(review._id, !review.isActive)}
+                    disabled={updatingReview === review._id}
+                    className={`action-btn ${review.isActive ? 'disapprove-btn' : 'approve-btn'}`}
+                  >
+                    {updatingReview === review._id ? 'جاري...' : review.isActive ? 'إلغاء التفعيل' : 'تفعيل'}
+                  </button>
+                  <button
+                    onClick={() => handleDeleteReview(review._id)}
+                    disabled={deletingReview === review._id}
+                    className="action-btn delete-btn"
+                  >
+                    {deletingReview === review._id ? 'جاري الحذف...' : 'حذف'}
+                  </button>
                 </div>
               </div>
             ))}

@@ -158,6 +158,53 @@ export async function DELETE(
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
+        // Check if order needs refund processing
+        let refundResult = null;
+        if (order.paymentStatus === 'paid' && order.paypalTransactionId) {
+            console.log('💳 Processing refund for paid order:', order.orderNumber);
+
+            try {
+                // Import PayPal service
+                const { PayPalService } = await import('@/lib/paypal/service');
+
+                // Process the refund
+                refundResult = await PayPalService.processRefund(
+                    order.paypalTransactionId,
+                    {
+                        currency_code: 'USD',
+                        value: order.totalPrice.toFixed(2)
+                    },
+                    `إلغاء الطلب رقم ${order.orderNumber} - Admin cancellation`
+                );
+
+                if (refundResult.success) {
+                    console.log('✅ Refund processed successfully:', refundResult.refundId);
+
+                    // Update order with refund information
+                    await Order.findByIdAndUpdate(
+                        orderId,
+                        {
+                            paymentStatus: 'refunded',
+                            $push: {
+                                orderHistory: {
+                                    status: 'refund_processed',
+                                    timestamp: new Date(),
+                                    note: `تمت معالجة استرداد المبلغ بنجاح - RefundID: ${refundResult.refundId}`,
+                                    changedBy: session.user.name || 'admin'
+                                }
+                            }
+                        }
+                    );
+                } else {
+                    console.error('❌ Refund failed:', refundResult.error);
+                    // Continue with cancellation even if refund fails, but log the error
+                }
+            } catch (refundError) {
+                console.error('❌ Error processing refund:', refundError);
+                // Continue with cancellation even if refund fails
+            }
+        }
+
         // Soft delete - mark as cancelled instead of actually deleting
         const updatedOrder = await Order.findByIdAndUpdate(
             orderId,
@@ -167,7 +214,11 @@ export async function DELETE(
                     orderHistory: {
                         status: 'cancelled',
                         timestamp: new Date(),
-                        note: 'تم إلغاء الطلب من قبل المدير',
+                        note: refundResult?.success
+                            ? `تم إلغاء الطلب من قبل المدير واسترداد المبلغ بنجاح`
+                            : order.paymentStatus === 'paid'
+                                ? `تم إلغاء الطلب من قبل المدير - فشل في معالجة الاسترداد: ${refundResult?.error || 'خطأ غير محدد'}`
+                                : 'تم إلغاء الطلب من قبل المدير',
                         changedBy: session.user.name || 'admin'
                     }
                 }
@@ -179,12 +230,18 @@ export async function DELETE(
         try {
             const { EmailService } = await import('@/lib/services/emailService');
 
+            const emailMessage = refundResult?.success
+                ? `تم إلغاء طلبك وسيتم استرداد المبلغ ${order.totalPrice.toFixed(2)} دولار إلى حسابك خلال 3-5 أيام عمل.`
+                : order.paymentStatus === 'paid'
+                    ? `تم إلغاء طلبك. يرجى التواصل معنا بخصوص استرداد المبلغ.`
+                    : 'تم إلغاء طلبك من قبل المدير';
+
             const emailResult = await EmailService.sendOrderCancelledEmail(
                 order.customerEmail,
                 {
                     orderNumber: order.orderNumber,
                     customerName: order.customerName,
-                    reason: 'تم إلغاء الطلب من قبل المدير'
+                    reason: emailMessage
                 }
             );
 
@@ -212,9 +269,18 @@ export async function DELETE(
             console.error('❌ Error sending cancellation email:', emailError);
         }
 
+        // Prepare response message
+        let responseMessage = 'Order cancelled successfully';
+        if (refundResult?.success) {
+            responseMessage += ` and refund of $${order.totalPrice.toFixed(2)} processed`;
+        } else if (order.paymentStatus === 'paid') {
+            responseMessage += ` (refund processing failed - please handle manually)`;
+        }
+
         return NextResponse.json({
-            message: 'Order cancelled successfully',
-            order: updatedOrder
+            message: responseMessage,
+            order: updatedOrder,
+            refundResult: refundResult
         });
 
     } catch (error) {

@@ -47,8 +47,8 @@ async function uploadImages(req: NextRequest) {
                 throw new Error(`Invalid file type: ${file.type}`);
             }
 
-            // Validate file size (max 10MB)
-            if (file.size > 10 * 1024 * 1024) {
+            // Validate file size (max 20MB for high quality)
+            if (file.size > 20 * 1024 * 1024) {
                 throw new Error(`File too large: ${file.name}`);
             }
 

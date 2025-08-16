@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import '../../../styles/auth.css'
+import '../../../styles/sign.css'
 
 interface FormData {
   email: string
@@ -81,25 +81,25 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1 className="auth-title">مرحباً بعودتك</h1>
-          <p className="auth-subtitle">سجل دخولك إلى حساب بريستيج ديزاين</p>
+    <div className="sign-container">
+      <div className="sign-card">
+        <div className="sign-header">
+          <h1 className="sign-title">مرحباً بعودتك</h1>
+          <p className="sign-subtitle">سجل دخولك إلى حساب بريستيج ديزاين</p>
         </div>
 
-        {error && <div className="error-message">{error}</div>}
+        {error && <div className="sign-error-message">{error}</div>}
 
         {/* Social Login Section */}
-        <div className="social-section">
+        <div className="sign-social-section">
           <button
             type="button"
             onClick={() => handleSocialLogin('google')}
             disabled={loading}
-            className="btn btn-google"
+            className="sign-btn sign-btn-google"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24">
@@ -129,10 +129,10 @@ export default function SignInPage() {
             type="button"
             onClick={() => handleSocialLogin('twitter')}
             disabled={loading}
-            className="btn btn-twitter"
+            className="sign-btn sign-btn-twitter"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -147,10 +147,10 @@ export default function SignInPage() {
             type="button"
             onClick={() => handleSocialLogin('discord')}
             disabled={loading}
-            className="btn btn-discord"
+            className="sign-btn sign-btn-discord"
           >
             {loading ? (
-              <div className="spinner" />
+              <div className="sign-spinner" />
             ) : (
               <>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
@@ -162,14 +162,14 @@ export default function SignInPage() {
           </button>
         </div>
 
-        <div className="divider">
+        <div className="sign-divider">
           <span>أو المتابعة مع البريد الإلكتروني</span>
         </div>
 
         {/* Email/Password Form */}
-        <form onSubmit={handleCredentialsLogin} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email" className="form-label">
+        <form onSubmit={handleCredentialsLogin} className="sign-form">
+          <div className="sign-form-group">
+            <label htmlFor="email" className="sign-form-label">
               البريد الإلكتروني
             </label>
             <input
@@ -179,14 +179,14 @@ export default function SignInPage() {
               value={formData.email}
               onChange={handleInputChange}
               placeholder="أدخل بريدك الإلكتروني"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="password" className="form-label">
+          <div className="sign-form-group">
+            <label htmlFor="password" className="sign-form-label">
               كلمة المرور
             </label>
             <input
@@ -196,16 +196,16 @@ export default function SignInPage() {
               value={formData.password}
               onChange={handleInputChange}
               placeholder="أدخل كلمة المرور"
-              className="form-input"
+              className="sign-form-input"
               required
               disabled={loading}
             />
           </div>
 
-          <button type="submit" disabled={loading} className="btn btn-primary">
+          <button type="submit" disabled={loading} className="sign-btn sign-btn-primary">
             {loading ? (
               <>
-                <div className="spinner" />
+                <div className="sign-spinner" />
                 جاري تسجيل الدخول...
               </>
             ) : (
@@ -214,10 +214,10 @@ export default function SignInPage() {
           </button>
         </form>
 
-        <div className="auth-footer">
+        <div className="sign-footer">
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
             ليس لديك حساب؟{' '}
-            <Link href="/auth/signup" className="auth-link">
+            <Link href="/auth/signup" className="sign-link">
               سجل هنا
             </Link>
           </p>

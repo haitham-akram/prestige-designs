@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
         const sortOrder = searchParams.get('sortOrder') || 'desc'
 
         // Build query
-        const query: any = {}
+        const query: Record<string, unknown> = {}
 
         if (search) {
             query.$or = [
@@ -48,14 +48,17 @@ export async function GET(request: NextRequest) {
         }
 
         if (productId) {
-            query.productId = productId
+            query.$or = [
+                { applyToAllProducts: true },
+                { productIds: productId }
+            ]
         }
 
         // Calculate skip value for pagination
         const skip = (page - 1) * limit
 
         // Build sort object
-        const sort: any = {}
+        const sort: Record<string, 1 | -1> = {}
         sort[sortBy] = sortOrder === 'desc' ? -1 : 1
 
         // Execute query with pagination
@@ -69,8 +72,14 @@ export async function GET(request: NextRequest) {
         ])
 
         // Get product details for each promo code
-        const productIds = [...new Set(promoCodes.map(pc => pc.productId))]
-        const products = await Product.find({ _id: { $in: productIds } })
+        const allProductIds = new Set<string>()
+        promoCodes.forEach((pc: Record<string, unknown>) => {
+            if (pc.productIds && Array.isArray(pc.productIds)) {
+                pc.productIds.forEach((id: string) => allProductIds.add(id))
+            }
+        })
+
+        const products = await Product.find({ _id: { $in: Array.from(allProductIds) } })
             .select('_id name slug price images')
             .lean()
 
@@ -137,7 +146,7 @@ export async function POST(request: NextRequest) {
         const body = await request.json()
 
         // Validate required fields
-        const requiredFields = ['code', 'productId', 'discountType', 'discountValue']
+        const requiredFields = ['code', 'discountType', 'discountValue']
         for (const field of requiredFields) {
             if (!body[field]) {
                 return NextResponse.json(
@@ -145,6 +154,22 @@ export async function POST(request: NextRequest) {
                     { status: 400 }
                 )
             }
+        }
+
+        // Validate product selection - either productIds array or applyToAllProducts must be true
+        if (!body.applyToAllProducts && (!body.productIds || body.productIds.length === 0)) {
+            return NextResponse.json(
+                { error: 'اختر منتج رجاءا' },
+                { status: 400 }
+            )
+        }
+
+        // Validate that we don't have both specific products and apply to all
+        if (body.applyToAllProducts && body.productIds && body.productIds.length > 0) {
+            return NextResponse.json(
+                { error: 'Cannot specify specific products when applying to all products' },
+                { status: 400 }
+            )
         }
 
         // Validate discount value based on type
@@ -162,13 +187,15 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Check if product exists
-        const product = await Product.findById(body.productId)
-        if (!product) {
-            return NextResponse.json(
-                { error: 'Product not found' },
-                { status: 404 }
-            )
+        // If specific products are selected, validate they exist
+        if (!body.applyToAllProducts && body.productIds && body.productIds.length > 0) {
+            const products = await Product.find({ _id: { $in: body.productIds } })
+            if (products.length !== body.productIds.length) {
+                return NextResponse.json(
+                    { error: 'One or more products not found' },
+                    { status: 404 }
+                )
+            }
         }
 
         // Check if promo code already exists
@@ -206,13 +233,16 @@ export async function POST(request: NextRequest) {
         await promoCode.save()
 
         // Get product details for response
-        const productDetails = await Product.findById(promoCode.productId)
-            .select('_id name slug price images')
-            .lean()
+        let productDetails = null
+        if (!promoCode.applyToAllProducts && promoCode.productIds && promoCode.productIds.length > 0) {
+            productDetails = await Product.find({ _id: { $in: promoCode.productIds } })
+                .select('_id name slug price images')
+                .lean()
+        }
 
         const responseData = {
             ...promoCode.toObject(),
-            product: productDetails
+            products: productDetails
         }
 
         return NextResponse.json({

@@ -1,0 +1,235 @@
+/* Add to Cart Button */
+.add-to-cart-btn {
+  position: relative;
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(130, 97, 198, 0.3);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  font-size: 0.9rem;
+}
+
+.add-to-cart-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(130, 97, 198, 0.4);
+  background: linear-gradient(135deg, var(--color-pink-accent), var(--color-purple-primary));
+}
+
+.add-to-cart-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(130, 97, 198, 0.3);
+}
+
+.add-to-cart-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Button Content */
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  position: relative;
+  z-index: 2;
+}
+
+.btn-icon {
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.success-icon {
+  color: #10b981;
+  animation: successPulse 0.6s ease;
+}
+
+@keyframes successPulse {
+  0% {
+    transform: scale(0.8);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.btn-text {
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+/* Loading State */
+.add-to-cart-btn.adding {
+  background: linear-gradient(135deg, #6b7280, #4b5563);
+  cursor: not-allowed;
+}
+
+.loading-dots {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  gap: 0.2rem;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.loading-dot {
+  width: 4px;
+  height: 4px;
+  background-color: white;
+  border-radius: 50%;
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes dotPulse {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+.add-to-cart-btn.adding .btn-content {
+  opacity: 0;
+}
+
+/* Success State */
+.add-to-cart-btn.success {
+  background: linear-gradient(135deg, #10b981, #059669);
+  animation: successBounce 0.6s ease;
+}
+
+@keyframes successBounce {
+  0%, 20%, 60%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-8px);
+  }
+  80% {
+    transform: translateY(-4px);
+  }
+}
+
+/* In Cart State */
+.add-to-cart-btn.in-cart {
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  position: relative;
+}
+
+.add-to-cart-btn.in-cart:hover {
+  background: linear-gradient(135deg, var(--color-pink-accent), var(--color-purple-primary));
+}
+
+/* Quantity Badge */
+.quantity-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #ef4444;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  border: 2px solid var(--bg-primary);
+  animation: badgePop 0.3s ease;
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Ripple Effect */
+.add-to-cart-btn::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.6s, height 0.6s;
+  z-index: 1;
+}
+
+.add-to-cart-btn:active::before {
+  width: 300px;
+  height: 300px;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .add-to-cart-btn {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.85rem;
+    min-width: 120px;
+  }
+  
+  .btn-icon {
+    font-size: 0.9rem;
+  }
+  
+  .quantity-badge {
+    width: 20px;
+    height: 20px;
+    font-size: 0.7rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .add-to-cart-btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.8rem;
+    min-width: 100px;
+  }
+  
+  .btn-content {
+    gap: 0.3rem;
+  }
+  
+  .btn-icon {
+    font-size: 0.8rem;
+  }
+}

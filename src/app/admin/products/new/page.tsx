@@ -79,7 +79,7 @@ export default function AddProduct() {
   const [slugChangeTimeout, setSlugChangeTimeout] = useState<NodeJS.Timeout | null>(null) // Debounce timeout
   const [originalColorNames, setOriginalColorNames] = useState<{ [key: number]: string }>({}) // Track original color names when files were uploaded
   const [colorNameChangeTimeouts, setColorNameChangeTimeouts] = useState<{ [key: number]: NodeJS.Timeout | null }>({}) // Debounce timeouts for color names
-  
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     slug: '',
@@ -926,6 +926,25 @@ export default function AddProduct() {
       return
     }
 
+    // Validate color variant files - each color must have at least one file
+    if (formData.colors && formData.colors.length > 0) {
+      const colorsWithoutFiles = []
+
+      for (const color of formData.colors) {
+        if (!color.uploadedFiles || color.uploadedFiles.length === 0) {
+          colorsWithoutFiles.push(color.name)
+        }
+      }
+
+      if (colorsWithoutFiles.length > 0) {
+        showWarning(
+          'ملفات الألوان مطلوبة',
+          `يجب رفع ملف واحد على الأقل لكل لون. الألوان التالية تحتاج ملفات: ${colorsWithoutFiles.join('، ')}`
+        )
+        return
+      }
+    }
+
     setSaving(true)
     try {
       // Create the product first
@@ -1074,6 +1093,10 @@ export default function AddProduct() {
                   description: `ملف ${color.name}`,
                   isActive: true,
                   isPublic: false,
+                  // Color variant fields
+                  colorVariantName: color.name,
+                  colorVariantHex: color.hex,
+                  isColorVariant: true,
                 }
                 console.log('Saving color file with productId:', productId)
                 console.log('Color file data:', designFileData)
@@ -1728,67 +1751,69 @@ export default function AddProduct() {
                       السماح برفع الشعار
                     </label>
                   </div>
-
-                  {/* Color Themes */}
-                  {formData.allowColorChanges && (
-                    <div className="color-themes-section">
-                      <h3>ألوان التصميم</h3>
-                      <p className="section-description">أضف الألوان التي يمكن للعملاء الاختيار منها</p>
-
-                      {formData.colors.map((color, index) => (
-                        <div key={index} className="color-theme-item">
-                          <div className="form-row">
-                            <div className="form-group">
-                              <label>اسم اللون</label>
-                              <input
-                                type="text"
-                                value={color.name}
-                                onChange={(e) => handleColorThemeChange(index, 'name', e.target.value)}
-                                placeholder="مثال: اللون الأساسي"
-                              />
-                            </div>
-                            <div className="form-group">
-                              <label>كود اللون</label>
-                              <div className="color-input-wrapper">
-                                <input
-                                  type="color"
-                                  value={color.hex}
-                                  onChange={(e) => handleColorThemeChange(index, 'hex', e.target.value)}
-                                  className="color-picker"
-                                />
-                                <input
-                                  type="text"
-                                  value={color.hex}
-                                  onChange={(e) => handleColorThemeChange(index, 'hex', e.target.value)}
-                                  placeholder="#000000"
-                                  className="color-hex-input"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                          <div className="form-group">
-                            <label>وصف اللون</label>
-                            <input
-                              type="text"
-                              value={color.description || ''}
-                              onChange={(e) => handleColorThemeChange(index, 'description', e.target.value)}
-                              placeholder="وصف مختصر للون"
-                            />
-                          </div>
-                          <button type="button" onClick={() => removeColorTheme(index)} className="remove-color-btn">
-                            <FontAwesomeIcon icon={faTrash} />
-                          </button>
-                        </div>
-                      ))}
-
-                      <button type="button" onClick={addColorTheme} className="add-color-btn">
-                        <FontAwesomeIcon icon={faPlus} />
-                        إضافة لون جديد
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
+            </div>
+
+            {/* Color Variants Section - Standalone */}
+            <div className="form-section">
+              <h2>متغيرات الألوان</h2>
+              <p className="section-description">
+                أضف متغيرات الألوان المختلفة لهذا المنتج مع الملفات المقترنة بكل لون
+              </p>
+
+              <div className="color-themes-section">
+                {formData.colors.map((color, index) => (
+                  <div key={index} className="color-theme-item">
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>اسم اللون</label>
+                        <input
+                          type="text"
+                          value={color.name}
+                          onChange={(e) => handleColorThemeChange(index, 'name', e.target.value)}
+                          placeholder="مثال: اللون الأحمر"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>كود اللون</label>
+                        <div className="color-input-wrapper">
+                          <input
+                            type="color"
+                            value={color.hex}
+                            onChange={(e) => handleColorThemeChange(index, 'hex', e.target.value)}
+                            className="color-picker"
+                          />
+                          <input
+                            type="text"
+                            value={color.hex}
+                            onChange={(e) => handleColorThemeChange(index, 'hex', e.target.value)}
+                            placeholder="#000000"
+                            className="color-hex-input"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="form-group">
+                      <label>وصف اللون</label>
+                      <input
+                        type="text"
+                        value={color.description || ''}
+                        onChange={(e) => handleColorThemeChange(index, 'description', e.target.value)}
+                        placeholder="وصف مختصر للون"
+                      />
+                    </div>
+                    <button type="button" onClick={() => removeColorTheme(index)} className="remove-color-btn">
+                      <FontAwesomeIcon icon={faTrash} />
+                    </button>
+                  </div>
+                ))}
+
+                <button type="button" onClick={addColorTheme} className="add-color-btn">
+                  <FontAwesomeIcon icon={faPlus} />
+                  إضافة لون جديد
+                </button>
+              </div>
             </div>
 
             {/* Design Files */}
@@ -1803,10 +1828,10 @@ export default function AddProduct() {
               )}
 
               {/* Color-based file uploads */}
-              {formData.allowColorChanges && formData.colors.length > 0 && (
+              {formData.colors.length > 0 && (
                 <div className="color-files-section">
-                  <h3>ملفات لكل لون</h3>
-                  <p className="section-description">رفع ملفات منفصلة لكل لون من ألوان التصميم</p>
+                  <h3>ملفات كل متغير لون</h3>
+                  <p className="section-description">رفع ملفات منفصلة لكل متغير لون تم تعريفه</p>
 
                   {formData.colors.map((color, colorIndex) => {
                     const sanitizedColorName = color.name.toLowerCase().replace(/[^a-z0-9]/g, '')

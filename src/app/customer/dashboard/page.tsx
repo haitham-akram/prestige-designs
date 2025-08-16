@@ -184,7 +184,9 @@ export default function CustomerDashboard() {
               padding: '1.5rem',
               border: '1px solid var(--border-color)',
               textAlign: 'center',
+              cursor: 'pointer',
             }}
+            onClick={() => router.push('/')}
           >
             <h3
               style={{
@@ -211,7 +213,9 @@ export default function CustomerDashboard() {
               padding: '1.5rem',
               border: '1px solid var(--border-color)',
               textAlign: 'center',
+              cursor: 'pointer',
             }}
+            onClick={() => router.push('/customer/orders')}
           >
             <h3
               style={{
@@ -238,7 +242,9 @@ export default function CustomerDashboard() {
               padding: '1.5rem',
               border: '1px solid var(--border-color)',
               textAlign: 'center',
+              cursor: 'pointer',
             }}
+            onClick={() => router.push('/customer/orders')}
           >
             <h3
               style={{

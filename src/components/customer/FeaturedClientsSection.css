@@ -1,0 +1,354 @@
+.featured-clients-section .client-image-wrapper {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.35);
+}
+
+.featured-clients-section .client-name-overlay {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-start: 8px;
+  /* background: rgba(0,0,0,0.6); */
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+/* Customer Carousel Specific Styles */
+.customer-carousel {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+.customer-carousel .carousel-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  padding: 3rem;
+}
+
+.customer-carousel .carousel-item {
+  display: flex;
+  justify-content: center;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  transform: scale(1);
+}
+
+.customer-carousel .carousel-item.animating {
+  animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.customer-carousel .carousel-item.animating.reverse {
+  animation: slideInReverse 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.customer-carousel .client-card {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  text-decoration: none;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateY(0);
+}
+
+.customer-carousel .client-card:hover {
+  transform: translateY(-12px) scale(1.03);
+}
+
+.customer-carousel .client-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 260px;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(130, 97, 198, 0.2);
+}
+
+.customer-carousel .client-image-wrapper::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(130, 97, 198, 0.1) 0%, 
+    transparent 50%, 
+    rgba(255, 255, 255, 0.05) 100%);
+  opacity: 0;
+  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: none;
+  z-index: 1;
+  border-radius: 14px;
+}
+
+.customer-carousel .client-image-wrapper::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 255, 255, 0.2), 
+    transparent);
+  transition: left 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 14px;
+}
+
+.customer-carousel .client-image-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.customer-carousel .client-card:hover .client-image-wrapper {
+  box-shadow: 
+    0 25px 50px rgba(130, 97, 198, 0.3),
+    0 0 30px rgba(130, 97, 198, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  border-color: rgba(130, 97, 198, 0.4);
+}
+
+.customer-carousel .client-card:hover .client-image-wrapper::before {
+  opacity: 1;
+}
+
+.customer-carousel .client-card:hover .client-image-wrapper::after {
+  left: 100%;
+}
+
+.customer-carousel .client-card:hover .client-image-wrapper img {
+  transform: scale(1.05);
+}
+
+.customer-carousel .client-name-overlay {
+  position: absolute;
+  bottom: 8px;
+  inset-inline-start: 8px;
+  background: linear-gradient(135deg, 
+    rgba(130, 97, 198, 0.8) 0%, 
+    rgba(255, 255, 255, 0.1) 50%, 
+    rgba(130, 97, 198, 0.8) 100%);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  font-size: 16px !important;
+  box-shadow: 
+    0 4px 15px rgba(130, 97, 198, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.customer-carousel .client-card:hover .client-name-overlay {
+  transform: scale(1.05);
+  box-shadow: 
+    0 8px 25px rgba(130, 97, 198, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+  text-shadow: 0 3px 6px rgba(0, 0, 0, 0.4);
+}
+
+.customer-carousel .carousel-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 118px;
+  margin-top: 30px;
+  margin-bottom: 1rem;
+}
+
+.customer-carousel .carousel-nav {
+  background: transparent !important;
+  border: 2px solid var(--color-purple-primary) !important;
+  color: var(--color-light-primary) !important;
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  font-size: 1.4rem !important;
+  position: relative !important;
+  transform: none !important;
+  left: auto !important;
+  right: auto !important;
+  top: auto !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.customer-carousel .carousel-nav:hover:not(:disabled) {
+  background: var(--color-purple-primary) !important;
+  color: var(--color-dark-primary) !important;
+  transform: scale(1.1) !important;
+  box-shadow: 0 0 20px rgba(130, 97, 198, 0.6) !important;
+}
+
+.customer-carousel .carousel-nav:active:not(:disabled) {
+  transform: scale(0.95) !important;
+}
+
+.customer-carousel .carousel-nav:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.customer-carousel .carousel-nav svg {
+  font-size: 1.4rem !important;
+}
+
+.customer-carousel .carousel-dots {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+  flex: 1;
+  max-width: 120px;
+  top: 400px;
+}
+
+.customer-carousel .carousel-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--color-purple-primary);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.customer-carousel .carousel-dot:hover {
+  background: var(--color-purple-primary);
+  transform: scale(1.2);
+}
+
+.customer-carousel .carousel-dot.active {
+  background: var(--color-purple-primary);
+  transform: scale(1.1);
+  box-shadow: 0 0 8px rgba(130, 97, 198, 0.8);
+}
+
+/* Smooth Animation Keyframes */
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes slideInReverse {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+
+
+
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+  .customer-carousel .carousel-track {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  
+  .customer-carousel .client-image-wrapper {
+    height: 220px;
+  }
+  
+  .customer-carousel .carousel-dots {
+    top: 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .customer-carousel .carousel-track {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+  
+  .customer-carousel .client-image-wrapper {
+    height: 200px;
+  }
+  
+  .customer-carousel .carousel-controls {
+    gap: 120px;
+  }
+  
+  .customer-carousel .carousel-dots {
+    top: 340px;
+  }
+}
+
+@media (max-width: 480px) {
+  .customer-carousel .carousel-track {
+    grid-template-columns: repeat(1, 1fr);
+    gap: 10px;
+  }
+  
+  .customer-carousel .client-image-wrapper {
+    height: 180px;
+  }
+  
+  .customer-carousel .carousel-controls {
+    gap: 60px;
+  }
+  
+  .customer-carousel .carousel-dots {
+    top: 225px;
+  }
+}
+
+@media (max-width: 375px) {
+  .customer-carousel .carousel-controls {
+    gap: 120px;
+  }
+  
+  .customer-carousel .carousel-dots {
+    top: 225px;
+  }
+}
+

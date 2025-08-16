@@ -7,7 +7,7 @@
   --color-dark-secondary: #252530;  /* Secondary dark (cards, inputs) */
   --color-purple-primary: #8261c6;  /* Purple primary (buttons, links) */
   --color-pink-accent: #e260ef;     /* Pink accent (highlights, hover) */
-  --color-lime-accent: #d8e864;     /* Lime green (success, special) */
+  --color-lime-accent: #03ecfd;     /* Cyan blue (success, special) */
   --color-light-primary: #fcebff;   /* Very light pink (text, backgrounds) */
   
   /* Semantic Colors */
@@ -1015,3 +1015,25 @@
     padding: 1rem;
   }
 } 
+
+/* Promo Code Styles */
+.summary-row.promo-discount {
+  color: var(--accent-success);
+}
+
+.summary-row.promo-codes .promo-codes-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.promo-code-badge {
+  background: linear-gradient(135deg, var(--color-purple-primary), var(--color-pink-accent));
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  box-shadow: 0 2px 4px rgba(130, 97, 198, 0.3);
+}

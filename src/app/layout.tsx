@@ -1,4 +1,6 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
+import { use } from 'react'
 import { Geist, Geist_Mono } from 'next/font/google'
 import SessionProvider from '@/components/providers/SessionProvider'
 import './globals.css'
@@ -15,9 +17,24 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-export const metadata: Metadata = {
-  title: 'Prestige Designs - Digital Design Store',
-  description: 'Premium digital designs for your creative projects',
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/settings`, { cache: 'no-store' })
+    const json = await res.json()
+    const branding = json?.data?.branding || {}
+    return {
+      title: 'Prestige Designs - Digital Design Store',
+      description: 'Premium digital designs for your creative projects',
+      icons: {
+        icon: branding.faviconUrl ? [{ url: branding.faviconUrl }] : undefined,
+      },
+    }
+  } catch {
+    return {
+      title: 'Prestige Designs - Digital Design Store',
+      description: 'Premium digital designs for your creative projects',
+    }
+  }
 }
 
 // Wrapper component to suppress hydration warnings from browser extensions

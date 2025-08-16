@@ -20,8 +20,7 @@ interface Category {
   order: number
   isActive: boolean
   isFeatured: boolean
-  designCount?: number
-  viewCount?: number
+  productsCount?: number
 }
 
 export default function AdminCategoriesPage() {
@@ -246,12 +245,8 @@ export default function AdminCategoriesPage() {
 
                     <div className="category-stats">
                       <div className="stat">
-                        <span className="stat-value">{category.designCount}</span>
-                        <span className="stat-name">التصاميم</span>
-                      </div>
-                      <div className="stat">
-                        <span className="stat-value">{category.viewCount}</span>
-                        <span className="stat-name">المشاهدات</span>
+                        <span className="stat-value">{category.productsCount || 0}</span>
+                        <span className="stat-name">المنتجات</span>
                       </div>
                       <div className="stat">
                         <span className="stat-value">{category.order}</span>

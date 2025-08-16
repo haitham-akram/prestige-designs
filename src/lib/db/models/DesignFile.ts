@@ -40,6 +40,12 @@ export interface IDesignFile extends Document {
     downloadUrlExpiresAt?: Date; // When download URL expires
     createdBy: string;           // Admin who uploaded the file
     updatedBy?: string;          // Admin who last updated the file
+
+    // Color variant support
+    colorVariantName?: string;   // Arabic color name: "أحمر", "أزرق", null for general files
+    colorVariantHex?: string;    // Hex color code: "#FF0000", "#0000FF", null for general files
+    isColorVariant: boolean;     // true if file is for specific color variant
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -142,6 +148,32 @@ const DesignFileSchema = new Schema<IDesignFile>({
         type: String,
         ref: 'User',
         default: null
+    },
+
+    // Color variant fields
+    colorVariantName: {
+        type: String,
+        trim: true,
+        maxlength: [50, 'Color variant name cannot exceed 50 characters'],
+        default: null
+    },
+
+    colorVariantHex: {
+        type: String,
+        trim: true,
+        validate: {
+            validator: function (v: string) {
+                if (!v) return true; // Allow null/empty
+                return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(v);
+            },
+            message: 'Please provide a valid hex color code'
+        },
+        default: null
+    },
+
+    isColorVariant: {
+        type: Boolean,
+        default: false
     }
 
 }, {
@@ -166,6 +198,9 @@ DesignFileSchema.index({ expiresAt: 1 });
 // Compound indexes
 DesignFileSchema.index({ productId: 1, isActive: 1 });
 DesignFileSchema.index({ productId: 1, fileType: 1 });
+DesignFileSchema.index({ productId: 1, isColorVariant: 1 });
+DesignFileSchema.index({ productId: 1, colorVariantHex: 1 });
+DesignFileSchema.index({ productId: 1, isColorVariant: 1, isActive: 1 });
 
 // Pre-save middleware to validate file size
 DesignFileSchema.pre('save', function (this: IDesignFile, next) {
@@ -218,6 +253,48 @@ DesignFileSchema.statics.getByProduct = async function (productId: string, isAct
 // Static method to get public files by product
 DesignFileSchema.statics.getPublicByProduct = async function (productId: string) {
     return this.find({ productId, isActive: true, isPublic: true }).sort({ createdAt: -1 }).lean();
+};
+
+// Static method to get files by color variant
+DesignFileSchema.statics.getByColorVariant = async function (productId: string, colorHex: string, isActive: boolean = true) {
+    return this.find({
+        productId,
+        colorVariantHex: colorHex,
+        isColorVariant: true,
+        isActive
+    }).sort({ createdAt: -1 }).lean();
+};
+
+// Static method to get general (non-color-variant) files by product
+DesignFileSchema.statics.getGeneralByProduct = async function (productId: string, isActive: boolean = true) {
+    return this.find({
+        productId,
+        isColorVariant: false,
+        isActive
+    }).sort({ createdAt: -1 }).lean();
+};
+
+// Static method to validate color variant files for a product
+DesignFileSchema.statics.validateColorVariantFiles = async function (productId: string, requiredColors: { name: string; hex: string }[]) {
+    const missingColors = [];
+
+    for (const color of requiredColors) {
+        const files = await this.find({
+            productId,
+            colorVariantHex: color.hex,
+            isColorVariant: true,
+            isActive: true
+        });
+
+        if (files.length === 0) {
+            missingColors.push(color);
+        }
+    }
+
+    return {
+        isValid: missingColors.length === 0,
+        missingColors
+    };
 };
 
 // Instance method to increment download count

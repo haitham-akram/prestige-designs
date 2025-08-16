@@ -136,7 +136,7 @@ async function getCategories(req: NextRequest) {
                     $lookup: {
                         from: 'products',
                         localField: '_id',
-                        foreignField: 'category',
+                        foreignField: 'categoryId',
                         as: 'products'
                     }
                 },

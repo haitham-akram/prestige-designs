@@ -1,94 +1,83 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth/config'
+import dbConnect from '@/lib/db/connection'
 import Review from '@/lib/db/models/Review'
-import Product from '@/lib/db/models/Product'
-import connectDB from '@/lib/db/connection'
 
+// GET - Fetch all reviews (admin)
 export async function GET(request: NextRequest) {
     try {
         const session = await getServerSession(authOptions)
         if (!session?.user || session.user.role !== 'admin') {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
         }
 
-        await connectDB()
+        await dbConnect()
 
         const { searchParams } = new URL(request.url)
-        const page = parseInt(searchParams.get('page') || '1')
-        const limit = parseInt(searchParams.get('limit') || '10')
-        const searchTerm = searchParams.get('search') || ''
-        const statusFilter = searchParams.get('status') || 'all'
-        const ratingFilter = searchParams.get('rating') || 'all'
+        const search = searchParams.get('search') || ''
+        const status = searchParams.get('status') || 'all'
+        const rating = searchParams.get('rating') || 'all'
 
         // Build query
         const query: any = {}
 
         // Search functionality
-        if (searchTerm) {
+        if (search) {
             query.$or = [
-                { customerName: { $regex: searchTerm, $options: 'i' } },
-                { customerEmail: { $regex: searchTerm, $options: 'i' } },
-                { title: { $regex: searchTerm, $options: 'i' } },
-                { comment: { $regex: searchTerm, $options: 'i' } }
+                { name: { $regex: search, $options: 'i' } },
+                { text: { $regex: search, $options: 'i' } },
             ]
         }
 
         // Status filter
-        if (statusFilter !== 'all') {
-            if (statusFilter === 'accepted') {
-                query.isApproved = true
-            } else if (statusFilter === 'rejected') {
-                query.isApproved = false
-            }
+        if (status !== 'all') {
+            query.isActive = status === 'true'
         }
 
         // Rating filter
-        if (ratingFilter !== 'all') {
-            query.rating = parseInt(ratingFilter)
+        if (rating !== 'all') {
+            query.rating = parseInt(rating)
         }
 
-        // Calculate skip value for pagination
-        const skip = (page - 1) * limit
-
-        // Get reviews with product details
-        const reviews = await Review.find(query)
-            .sort({ createdAt: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean()
-
-        // Get product details for each review
-        const reviewsWithProducts = await Promise.all(
-            reviews.map(async (review) => {
-                const product = await Product.findById(review.productId)
-                    .select('name slug images')
-                    .lean()
-
-                return {
-                    ...review,
-                    product: product || { name: 'Product Not Found', slug: '', images: [] }
-                }
-            })
-        )
-
-        // Get total count for pagination
-        const total = await Review.countDocuments(query)
-        const totalPages = Math.ceil(total / limit)
+        const reviews = await Review.find(query).sort({ order: 1, createdAt: -1 }).lean()
 
         return NextResponse.json({
             success: true,
-            data: {
-                reviews: reviewsWithProducts,
-                total,
-                page,
-                limit,
-                totalPages
-            }
+            data: reviews,
         })
-
     } catch (error) {
         console.error('Error fetching reviews:', error)
-        return NextResponse.json({ error: 'Failed to fetch reviews' }, { status: 500 })
+        return NextResponse.json(
+            { success: false, message: 'Failed to fetch reviews' },
+            { status: 500 }
+        )
+    }
+}
+
+// POST - Create new review (admin)
+export async function POST(request: NextRequest) {
+    try {
+        const session = await getServerSession(authOptions)
+        if (!session?.user || session.user.role !== 'admin') {
+            return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 })
+        }
+
+        await dbConnect()
+        const body = await request.json()
+
+        const review = new Review(body)
+        await review.save()
+
+        return NextResponse.json({
+            success: true,
+            data: review,
+        })
+    } catch (error) {
+        console.error('Error creating review:', error)
+        return NextResponse.json(
+            { success: false, message: 'Failed to create review' },
+            { status: 500 }
+        )
     }
 } 

@@ -50,6 +50,17 @@ const createDesignFileSchema = z.object({
         .max(500, 'Description cannot exceed 500 characters')
         .trim()
         .optional(),
+
+    // Color variant fields (optional)
+    colorVariantName: z.string()
+        .max(50, 'Color variant name cannot exceed 50 characters')
+        .trim()
+        .optional(),
+    colorVariantHex: z.string()
+        .regex(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/, 'Please provide a valid hex color code')
+        .optional(),
+    isColorVariant: z.boolean()
+        .default(false),
     isPublic: z.boolean()
         .optional()
         .default(false),
