@@ -106,8 +106,8 @@ export default function SignUpPage() {
         return
       }
 
-      // Redirect to dashboard
-      router.push('/dashboard')
+      // Redirect to homepage for new customers
+      router.push('/')
     } catch (error) {
       console.error('Registration error:', error)
       setError('حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.')
@@ -121,7 +121,7 @@ export default function SignUpPage() {
 
     try {
       await signIn(provider, {
-        callbackUrl: '/dashboard',
+        callbackUrl: '/', // Redirect to homepage after social login
       })
     } catch (error) {
       console.error(`${provider} login error:`, error)

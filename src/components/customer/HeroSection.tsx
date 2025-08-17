@@ -10,6 +10,7 @@ type Slide = { _id?: string; imageUrl: string; title?: string; subtitle?: string
 export default function HeroSection() {
   const [currentSlide, setCurrentSlide] = useState(0)
   const [slides, setSlides] = useState<Slide[]>([])
+  const [isTransitioning, setIsTransitioning] = useState(false)
 
   useEffect(() => {
     fetch('/api/hero')
@@ -18,25 +19,34 @@ export default function HeroSection() {
       .catch(() => setSlides([]))
   }, [])
 
-  // Auto-play functionality
+  // Auto-play functionality - Faster timing for better performance
   useEffect(() => {
     if (slides.length === 0) return
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 8000)
+    }, 5000) // Reduced from 8000ms to 5000ms for faster auto-play
     return () => clearInterval(interval)
   }, [slides.length])
 
   const nextSlide = () => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
     setCurrentSlide((prev) => (prev + 1) % slides.length)
+    setTimeout(() => setIsTransitioning(false), 500) // Match CSS transition duration
   }
 
   const prevSlide = () => {
+    if (isTransitioning) return
+    setIsTransitioning(true)
     setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length)
+    setTimeout(() => setIsTransitioning(false), 500) // Match CSS transition duration
   }
 
   const goToSlide = (index: number) => {
+    if (isTransitioning || index === currentSlide) return
+    setIsTransitioning(true)
     setCurrentSlide(index)
+    setTimeout(() => setIsTransitioning(false), 500) // Match CSS transition duration
   }
 
   return (
@@ -53,8 +63,9 @@ export default function HeroSection() {
                 className="carousel-image"
                 priority={index === 0}
                 loading={index === 0 ? 'eager' : 'lazy'}
-                quality={100}
-                unoptimized={true}
+                quality={85} // Reduced from 100 to 85 for better performance
+                placeholder="blur"
+                blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyugDYfvE2AU=" // Low quality placeholder
               />
               {slide.title || slide.subtitle ? (
                 <div className="slide-overlay">

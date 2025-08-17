@@ -31,8 +31,53 @@ const colors = {
     border: '#3f3f46',       // Border color
 };
 
+// Helper function to get branding settings
+const getBrandingSettings = async () => {
+    try {
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+
+        // Try to fetch from API
+        const response = await fetch(`${baseUrl}/api/settings/branding`, {
+            cache: 'no-store',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            // Ensure we have a valid branding response with logo
+            if (data && (data.siteName || data.logoUrl)) {
+                return {
+                    siteName: data.siteName || 'Prestige Designs',
+                    logoUrl: data.logoUrl || `${baseUrl}/site/logo.png`,
+                    faviconUrl: data.faviconUrl
+                };
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching branding settings:', error);
+    }
+
+    // Return default branding with logo if fetch fails
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    return {
+        siteName: 'Prestige Designs',
+        logoUrl: `${baseUrl}/site/logo.png`, // Always include our logo
+        faviconUrl: null
+    };
+};
+
 // Base email template with our branding
-const createBaseTemplate = (content: string, title: string) => `
+const createBaseTemplate = async (content: string, title: string) => {
+    const branding = await getBrandingSettings();
+
+    // Always include logo - either from branding settings or default
+    const logoUrl = branding.logoUrl || `${process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/site/logo.png`;
+    const logoHtml = `<img src="${logoUrl}" alt="${branding.siteName || 'Prestige Designs'}" class="logo" onerror="this.style.display='none'" />`;
+
+    return `
 <!DOCTYPE html>
 <html dir="rtl" lang="ar">
 <head>
@@ -304,8 +349,8 @@ const createBaseTemplate = (content: string, title: string) => `
 <body>
     <div class="email-container">
         <div class="header">
-            <img src="https://i.imgur.com/NXnnRt0.png" alt="Prestige Designs" class="logo">
-            <div class="company-name">Prestige Designs</div>
+            ${logoHtml}
+            <div class="company-name">${branding.siteName || 'Prestige Designs'}</div>
             <div class="tagline">تصاميم فاخرة ومميزة</div>
         </div>
         
@@ -336,9 +381,70 @@ const createBaseTemplate = (content: string, title: string) => `
 </body>
 </html>
 `;
+};
+
+// Free order completion email template
+const createFreeOrderCompletedTemplate = async (orderData: {
+    orderNumber: string;
+    customerName: string;
+    downloadLinks?: Array<{
+        fileName: string;
+        fileUrl: string;
+        fileSize: number;
+        fileType: string;
+    }>;
+}) => {
+    const hasFiles = orderData.downloadLinks && orderData.downloadLinks.length > 0;
+
+    const fileList = hasFiles ? orderData.downloadLinks!.map(file => `
+    <div class="file-info">
+      <div class="file-name">${file.fileName}</div>
+      <div class="file-size">${(file.fileSize / 1024 / 1024).toFixed(2)} MB</div>
+      <a href="${file.fileUrl}" class="download-link">تحميل الملف</a>
+    </div>
+  `).join('') : '';
+
+    const content = `
+    <div class="title">تم قبول طلبك المجاني بنجاح! 🎉</div>
+    
+    <div class="message">
+      مرحباً ${orderData.customerName}،
+      <br><br>
+      يسعدنا إعلامك بأن طلبك المجاني قد تم قبوله بنجاح. ${hasFiles ? 'يمكنك الآن تحميل ملفات التصميم الخاصة بك.' : 'سيتم إضافة ملفات التصميم قريباً وإرسال إشعار لك.'}
+    </div>
+    
+    <div class="order-info">
+      <div class="order-number">رقم الطلب: ${orderData.orderNumber}</div>
+      <div style="margin-top: 10px; color: #22c55e; font-weight: bold; font-size: 16px;">
+        💚 طلب مجاني - $0.00
+      </div>
+    </div>
+    
+    ${hasFiles ? `
+    <div class="download-section">
+      <div class="download-title">📁 ملفات التصميم الجاهزة للتحميل</div>
+      ${fileList}
+    </div>
+    ` : `
+    <div class="order-info">
+      <div style="color: ${colors.success}; font-size: 16px; margin-top: 15px; padding: 15px; background: rgba(216, 232, 100, 0.1); border-radius: 8px; border: 1px solid rgba(216, 232, 100, 0.3);">
+        🕒 ملفات التصميم ستكون جاهزة قريباً وسيتم إرسال رابط التحميل لك على هذا البريد الإلكتروني.
+      </div>
+    </div>
+    `}
+    
+    <div class="message">
+      شكراً لثقتكم في خدماتنا المجانية! إذا كان لديك أي استفسار، لا تتردد في التواصل معنا.
+      <br><br>
+      فريق Prestige Designs ❤️
+    </div>
+  `;
+
+    return await createBaseTemplate(content, `تم قبول الطلب المجاني - ${orderData.orderNumber}`);
+};
 
 // Order completed email template
-const createOrderCompletedTemplate = (orderData: {
+const createOrderCompletedTemplate = async (orderData: {
     orderNumber: string;
     customerName: string;
     downloadLinks: Array<{
@@ -390,11 +496,11 @@ const createOrderCompletedTemplate = (orderData: {
     </div>
   `;
 
-    return createBaseTemplate(content, `تم إكمال الطلب - ${orderData.orderNumber}`);
+    return await createBaseTemplate(content, `تم إكمال الطلب - ${orderData.orderNumber}`);
 };
 
 // Order cancelled email template
-const createOrderCancelledTemplate = (orderData: {
+const createOrderCancelledTemplate = async (orderData: {
     orderNumber: string;
     customerName: string;
     reason?: string;
@@ -427,11 +533,46 @@ const createOrderCancelledTemplate = (orderData: {
         </div>
     `;
 
-    return createBaseTemplate(content, `تم إلغاء الطلب - ${orderData.orderNumber}`);
+    return await createBaseTemplate(content, `تم إلغاء الطلب - ${orderData.orderNumber}`);
 };
 
 // Email service class
 export class EmailService {
+    /**
+     * Send free order completed email
+     */
+    static async sendFreeOrderCompletedEmail(
+        to: string,
+        orderData: {
+            orderNumber: string;
+            customerName: string;
+            downloadLinks?: Array<{
+                fileName: string;
+                fileUrl: string;
+                fileSize: number;
+                fileType: string;
+            }>;
+        }
+    ) {
+        try {
+            const html = await createFreeOrderCompletedTemplate(orderData);
+
+            const mailOptions = {
+                from: `"${emailSender.name}" <${emailSender.from}>`,
+                to: to,
+                subject: `تم قبول الطلب المجاني - ${orderData.orderNumber}`,
+                html: html,
+            };
+
+            const result = await transporter.sendMail(mailOptions) as { messageId: string };
+            console.log('✅ Free order completed email sent successfully:', result.messageId);
+            return { success: true, messageId: result.messageId };
+        } catch (error) {
+            console.error('❌ Error sending free order completed email:', error);
+            return { success: false, error: (error as Error).message };
+        }
+    }
+
     /**
      * Send order completed email
      */
@@ -450,7 +591,7 @@ export class EmailService {
         }
     ) {
         try {
-            const html = createOrderCompletedTemplate(orderData);
+            const html = await createOrderCompletedTemplate(orderData);
 
             const mailOptions = {
                 from: `"${emailSender.name}" <${emailSender.from}>`,
@@ -459,12 +600,12 @@ export class EmailService {
                 html: html,
             };
 
-            const result = await transporter.sendMail(mailOptions);
+            const result = await transporter.sendMail(mailOptions) as { messageId: string };
             console.log('✅ Order completed email sent successfully:', result.messageId);
             return { success: true, messageId: result.messageId };
         } catch (error) {
             console.error('❌ Error sending order completed email:', error);
-            return { success: false, error: error.message };
+            return { success: false, error: (error as Error).message };
         }
     }
 
@@ -480,7 +621,7 @@ export class EmailService {
         }
     ) {
         try {
-            const html = createOrderCancelledTemplate(orderData);
+            const html = await createOrderCancelledTemplate(orderData);
 
             const mailOptions = {
                 from: `"${emailSender.name}" <${emailSender.from}>`,
@@ -489,12 +630,12 @@ export class EmailService {
                 html: html,
             };
 
-            const result = await transporter.sendMail(mailOptions);
+            const result = await transporter.sendMail(mailOptions) as { messageId: string };
             console.log('✅ Order cancelled email sent successfully:', result.messageId);
             return { success: true, messageId: result.messageId };
         } catch (error) {
             console.error('❌ Error sending order cancelled email:', error);
-            return { success: false, error: error.message };
+            return { success: false, error: (error as Error).message };
         }
     }
 
@@ -528,7 +669,7 @@ export class EmailService {
                 </div>
             `;
 
-            const html = createBaseTemplate(content, messageData.subject);
+            const html = await createBaseTemplate(content, messageData.subject);
 
             const mailOptions = {
                 from: `"${emailSender.name}" <${emailSender.from}>`,
@@ -537,12 +678,12 @@ export class EmailService {
                 html: html,
             };
 
-            const result = await transporter.sendMail(mailOptions);
+            const result = await transporter.sendMail(mailOptions) as { messageId: string };
             console.log('✅ Custom message email sent successfully:', result.messageId);
             return { success: true, messageId: result.messageId };
         } catch (error) {
             console.error('❌ Error sending custom message email:', error);
-            return { success: false, error: error.message };
+            return { success: false, error: (error as Error).message };
         }
     }
 
@@ -556,7 +697,7 @@ export class EmailService {
             return { success: true };
         } catch (error) {
             console.error('❌ Email service connection failed:', error);
-            return { success: false, error: error.message };
+            return { success: false, error: (error as Error).message };
         }
     }
 } 

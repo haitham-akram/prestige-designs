@@ -110,7 +110,9 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
             productSlug,
             colorName,
             fileSize: file?.size,
-            hasFile: !!file
+            hasFile: !!file,
+            actualFileName: file?.name,
+            actualType: file?.type
         });
 
         // Validate input data
@@ -138,6 +140,7 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
         // Validate file type
         const fileExtension = file.name.split('.').pop()?.toLowerCase();
         if (!fileExtension || !ALLOWED_FILE_TYPES[fileExtension as keyof typeof ALLOWED_FILE_TYPES]) {
+            console.log(`Invalid file type: ${fileExtension}, allowed: ${Object.keys(ALLOWED_FILE_TYPES).join(', ')}`);
             return NextResponse.json(
                 {
                     success: false,
@@ -145,6 +148,25 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
                 },
                 { status: 400 }
             );
+        }
+
+        // Check if it's a video file and add specific handling
+        const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
+        const isVideoFile = videoTypes.includes(fileExtension);
+
+        if (isVideoFile) {
+            console.log(`Uploading video file: ${file.name} (${file.size} bytes)`);
+
+            // Check for reasonable video file size (500MB max)
+            if (file.size > 500 * 1024 * 1024) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'Video file too large. Maximum size is 500MB.'
+                    },
+                    { status: 400 }
+                );
+            }
         }
 
         // Ensure file type matches expected type
@@ -185,11 +207,15 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
         }
 
         // Convert file to buffer and save
+        console.log('Converting file to buffer...');
         const bytes = await file.arrayBuffer();
         const buffer = Buffer.from(bytes);
+        console.log(`Buffer created: ${buffer.length} bytes`);
 
         // Write file to disk
+        console.log(`Saving file to: ${filePath}`);
         await writeFile(filePath, buffer);
+        console.log('File saved successfully');
 
         // Return success response
         return NextResponse.json({
@@ -235,4 +261,8 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
 }
 
 // Apply middleware and export handlers
-export const POST = withAdmin(uploadOrderFile); 
+export const POST = withAdmin(uploadOrderFile);
+
+// Configure route segment to handle large files (videos can be large)
+export const runtime = 'nodejs'
+export const maxDuration = 30 // 30 seconds timeout for uploads 

@@ -1,5 +1,19 @@
 /**
- * Design File Download API Routes
+ * Design File Downloexport async function GET(
+    request: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        // Check authentication
+        const session = await getServerSession(authOptions);
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+
+        // Await params for Next.js 15 compatibility
+        const { id: designFileId } = await params;
  * 
  * This file handles design file downloads for customers.
  * 
@@ -26,7 +40,7 @@ import Order from '@/lib/db/models/Order';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         // Check authentication
@@ -37,7 +51,7 @@ export async function GET(
 
         await connectDB();
 
-        const designFileId = params.id;
+        const { id: designFileId } = await params;
 
         // Find the design file
         const designFile = await DesignFile.findById(designFileId);
@@ -101,7 +115,15 @@ export async function GET(
     }
 }
 
-async function serveFile(designFile: any) {
+interface DesignFile {
+    _id: string;
+    fileName: string;
+    fileUrl: string;
+    mimeType: string;
+    fileSize: number;
+}
+
+async function serveFile(designFile: DesignFile) {
     try {
         // Convert URL to file path
         const filePath = path.join(process.cwd(), 'public', designFile.fileUrl.substring(1));
@@ -109,20 +131,34 @@ async function serveFile(designFile: any) {
         // Check if file exists
         try {
             await stat(filePath);
-        } catch (error) {
+        } catch (fileError) {
+            console.error('File not found:', filePath, fileError);
             return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
         }
 
         // Read file
         const fileBuffer = await readFile(filePath);
 
+        // Handle Arabic and special characters in filename
+        // Use RFC 6266 encoding for non-ASCII filenames
+        const sanitizedFileName = designFile.fileName.replace(/[^\w\s\-_.]/g, '');
+        const encodedFileName = encodeURIComponent(designFile.fileName);
+
         // Set appropriate headers
         const headers = new Headers();
         headers.set('Content-Type', designFile.mimeType || 'application/octet-stream');
-        headers.set('Content-Disposition', `attachment; filename="${designFile.fileName}"`);
-        headers.set('Content-Length', fileBuffer.length.toString());
 
-        return new NextResponse(fileBuffer, {
+        // Use RFC 6266 standard for Unicode filenames
+        headers.set('Content-Disposition',
+            `attachment; filename="${sanitizedFileName}"; filename*=UTF-8''${encodedFileName}`
+        );
+
+        headers.set('Content-Length', fileBuffer.length.toString());
+        headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+        headers.set('Pragma', 'no-cache');
+        headers.set('Expires', '0');
+
+        return new Response(new Uint8Array(fileBuffer), {
             status: 200,
             headers
         });

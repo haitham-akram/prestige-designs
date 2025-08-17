@@ -34,6 +34,8 @@ function CheckoutSuccessContent() {
   const paypalOrderId = searchParams.get('paypalOrderId')
   const payerID = searchParams.get('payerID')
   const orderId = searchParams.get('orderId') // Our internal order ID (MongoDB _id)
+  const orderNumber = searchParams.get('order') // Order number for free orders
+  const isFreeOrder = searchParams.get('free') === 'true' // Check if this is a free order
 
   // Fetch order details when we have an orderId
   useEffect(() => {
@@ -71,9 +73,21 @@ function CheckoutSuccessContent() {
 
     console.log('Session found:', session.user.email)
 
-    // Check if we have either PayPal parameters or our internal order ID
-    if (!paypalOrderId && !orderId) {
+    // Check if we have either PayPal parameters, our internal order ID, or free order info
+    if (!paypalOrderId && !orderId && !orderNumber) {
       setError('معلومات الدفع مفقودة')
+      setProcessing(false)
+      return
+    }
+
+    // Handle free orders
+    if (isFreeOrder && orderNumber) {
+      setResult({
+        message: 'تم إتمام الطلب بنجاح!',
+        orderNumber: orderNumber,
+        note: 'طلبك مجاني وتم قبوله بنجاح. سوف تتلقى رسالة تأكيد على البريد الإلكتروني قريباً.',
+        isFree: true,
+      })
       setProcessing(false)
       return
     }
@@ -99,25 +113,25 @@ function CheckoutSuccessContent() {
       })
       setProcessing(false)
     }, 2000)
-  }, [session, paypalOrderId, payerID, orderId, router])
+  }, [session, paypalOrderId, payerID, orderId, orderNumber, isFreeOrder, router])
 
   if (processing) {
     return (
-      <div className="pal-loading-container">
-        <div className="pal-loading-spinner"></div>
-        <p className="pal-loading-text">جاري معالجة عملية الدفع...</p>
+      <div className="osu-loading-container">
+        <div className="osu-loading-spinner"></div>
+        <p className="osu-loading-text">جاري معالجة عملية الدفع...</p>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="pal-success-page">
-        <div className="pal-error-container">
-          <FontAwesomeIcon icon={faExclamationTriangle} className="pal-error-icon" />
-          <h1 className="pal-error-title">خطأ في عملية الدفع</h1>
-          <p className="pal-error-message">{error}</p>
-          <button onClick={() => router.push('/checkout')} className="pal-btn-error">
+      <div className="osu-success-page">
+        <div className="osu-error-container">
+          <FontAwesomeIcon icon={faExclamationTriangle} className="osu-error-icon" />
+          <h1 className="osu-error-title">خطأ في عملية الدفع</h1>
+          <p className="osu-error-message">{error}</p>
+          <button onClick={() => router.push('/checkout')} className="osu-btn-error">
             <FontAwesomeIcon icon={faCreditCard} />
             المحاولة مرة أخرى
           </button>
@@ -127,61 +141,74 @@ function CheckoutSuccessContent() {
   }
 
   return (
-    <div className="pal-success-page">
-      <div className="pal-success-container">
-        <div className="pal-success-icon-container">
-          <div className="pal-success-icon-bg">
-            <FontAwesomeIcon icon={faCheckCircle} className="pal-success-icon" />
+    <div className="osu-success-page">
+      <div className="osu-success-container">
+        <div className="osu-success-icon-container">
+          <div className="osu-success-icon-bg">
+            <FontAwesomeIcon icon={faCheckCircle} className="osu-success-icon" />
           </div>
         </div>
 
-        <h1 className="pal-success-title">تم الدفع بنجاح!</h1>
-        <p className="pal-success-subtitle">شكراً لك على الشراء. تمت معالجة عملية الدفع بنجاح.</p>
+        <h1 className="osu-success-title">{result.isFree ? 'تم قبول الطلب بنجاح!' : 'تم الدفع بنجاح!'}</h1>
+        <p className="osu-success-subtitle">
+          {result.isFree
+            ? 'شكراً لك! تم قبول طلبك المجاني بنجاح.'
+            : 'شكراً لك على الشراء. تمت معالجة عملية الدفع بنجاح.'}
+        </p>
 
-        <div className="pal-payment-details">
+        <div className="osu-payment-details">
           <h3>
             <FontAwesomeIcon icon={faClipboard} />
-            تفاصيل عملية الدفع
+            {result.isFree ? 'تفاصيل الطلب' : 'تفاصيل عملية الدفع'}
           </h3>
-          {orderDetails?.orderNumber && (
-            <div className="pal-payment-detail-item">
-              <span className="pal-detail-label">رقم الطلب:</span>
-              <span className="pal-detail-value">{orderDetails.orderNumber}</span>
+          {(orderDetails?.orderNumber || result.orderNumber) && (
+            <div className="osu-payment-detail-item">
+              <span className="osu-detail-label">رقم الطلب:</span>
+              <span className="osu-detail-value">{orderDetails?.orderNumber || result.orderNumber}</span>
             </div>
           )}
           {result.paypalOrderId && (
-            <div className="pal-payment-detail-item">
-              <span className="pal-detail-label">رقم معاملة PayPal:</span>
-              <span className="pal-detail-value">{result.paypalOrderId}</span>
+            <div className="osu-payment-detail-item">
+              <span className="osu-detail-label">رقم معاملة PayPal:</span>
+              <span className="osu-detail-value">{result.paypalOrderId}</span>
             </div>
           )}
           {result.payerID && (
-            <div className="pal-payment-detail-item">
-              <span className="pal-detail-label">معرف الدافع:</span>
-              <span className="pal-detail-value">{result.payerID}</span>
+            <div className="osu-payment-detail-item">
+              <span className="osu-detail-label">معرف الدافع:</span>
+              <span className="osu-detail-value">{result.payerID}</span>
             </div>
           )}
-          {orderDetails?.totalPrice && (
-            <div className="pal-payment-detail-item">
-              <span className="pal-detail-label">المبلغ المدفوع:</span>
-              <span className="pal-detail-value">${orderDetails.totalPrice}</span>
+          {result.isFree ? (
+            <div className="osu-payment-detail-item">
+              <span className="osu-detail-label">المبلغ:</span>
+              <span className="osu-detail-value" style={{ color: '#28a745', fontWeight: 'bold' }}>
+                مجاني - $0.00
+              </span>
             </div>
+          ) : (
+            orderDetails?.totalPrice && (
+              <div className="osu-payment-detail-item">
+                <span className="osu-detail-label">المبلغ المدفوع:</span>
+                <span className="osu-detail-value">${orderDetails.totalPrice}</span>
+              </div>
+            )
           )}
         </div>
 
         {result.note && (
-          <div className="pal-success-note">
+          <div className="osu-success-note">
             <FontAwesomeIcon icon={faEnvelope} style={{ marginLeft: '8px' }} />
             {result.note}
           </div>
         )}
 
-        <div className="pal-action-buttons">
-          <button onClick={() => router.push('/customer/orders')} className="pal-btn-primary">
+        <div className="osu-action-buttons">
+          <button onClick={() => router.push('/customer/orders')} className="osu-btn-primary">
             <FontAwesomeIcon icon={faEye} />
             عرض طلباتي
           </button>
-          <button onClick={() => router.push('/')} className="pal-btn-secondary">
+          <button onClick={() => router.push('/')} className="osu-btn-secondary">
             <FontAwesomeIcon icon={faShoppingCart} />
             متابعة التسوق
           </button>
@@ -195,9 +222,9 @@ export default function CheckoutSuccessPage() {
   return (
     <Suspense
       fallback={
-        <div className="pal-loading-container">
-          <div className="pal-loading-spinner"></div>
-          <p className="pal-loading-text">جاري التحميل...</p>
+        <div className="osu-loading-container">
+          <div className="osu-loading-spinner"></div>
+          <p className="osu-loading-text">جاري التحميل...</p>
         </div>
       }
     >

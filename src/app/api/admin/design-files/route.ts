@@ -39,10 +39,10 @@ const createDesignFileSchema = z.object({
             // Accept both URLs and local file paths
             return val.startsWith('http') || val.startsWith('/uploads/');
         }, 'Please provide a valid file URL or local path'),
-    fileType: z.enum(['psd', 'ai', 'eps', 'pdf', 'svg', 'zip', 'rar', 'png', 'jpg', 'jpeg', 'gif', 'webp']),
+    fileType: z.enum(['psd', 'ai', 'eps', 'pdf', 'svg', 'zip', 'rar', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']),
     fileSize: z.number()
         .min(1, 'File size must be greater than 0')
-        .max(100 * 1024 * 1024, 'File size cannot exceed 100MB'), // 100MB limit
+        .max(500 * 1024 * 1024, 'File size cannot exceed 500MB'), // 500MB limit for video files
     mimeType: z.string()
         .min(1, 'MIME type is required')
         .trim(),

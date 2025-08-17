@@ -9,6 +9,7 @@ import { faShoppingCart, faUser, faEnvelope, faPhone, faTrash, faArrowRight } fr
 import { faPaypal as faPaypalBrand } from '@fortawesome/free-brands-svg-icons'
 import CustomerLayout from '@/app/customer-layout'
 import { getCustomLabel } from '@/utils/colorTranslations'
+import Alert, { useAlerts } from '@/components/ui/Alert'
 import './checkout.css'
 
 interface CheckoutForm {
@@ -33,6 +34,7 @@ export default function CheckoutPage() {
     const { state, removeItem, updateQuantity, clearCart } = useCart()
     const { data: session, status } = useSession()
     const router = useRouter()
+    const { alerts, showSuccess, showError, showWarning, showInfo } = useAlerts()
     console.log('CheckoutPage: Cart state loaded', state)
     console.log('CheckoutPage: Cart state properties:', {
       totalItems: state.totalItems,
@@ -378,7 +380,7 @@ export default function CheckoutPage() {
                 return data.paypalOrderId
               } catch (error) {
                 console.error('Error creating PayPal order:', error)
-                alert('فشل في إنشاء طلب الدفع')
+                showError('خطأ في الدفع', 'فشل في إنشاء طلب الدفع')
                 throw error
               }
             },
@@ -410,19 +412,19 @@ export default function CheckoutPage() {
                 router.push(`/checkout/success?orderId=${currentOrderId}`)
               } catch (error) {
                 console.error('Error capturing payment:', error)
-                alert('حدث خطأ أثناء معالجة الدفع')
+                showError('خطأ في المعاملة', 'حدث خطأ أثناء معالجة الدفع')
               } finally {
                 setIsProcessingOrder(false)
               }
             },
             onError: (err: unknown) => {
               console.error('PayPal payment error:', err)
-              alert('حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
+              showError('خطأ في الدفع', 'حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
               setIsProcessingOrder(false)
             },
             onCancel: (data: { orderID: string }) => {
               console.log('Payment cancelled by user:', data)
-              alert('تم إلغاء عملية الدفع')
+              showInfo('تم الإلغاء', 'تم إلغاء عملية الدفع')
               setIsProcessingOrder(false)
             },
             style: {
@@ -461,12 +463,12 @@ export default function CheckoutPage() {
 
       // Validate form
       if (!formData.firstName || !formData.lastName || !formData.email) {
-        alert('يرجى ملء جميع الحقول المطلوبة')
+        showError('بيانات مطلوبة', 'يرجى ملء جميع الحقول المطلوبة')
         return
       }
 
       if (selectedPaymentMethod !== 'paypal') {
-        alert('حالياً، دفع PayPal هو الطريقة الوحيدة المتاحة')
+        showWarning('طريقة دفع غير متاحة', 'حالياً، دفع PayPal هو الطريقة الوحيدة المتاحة')
         return
       }
 
@@ -493,6 +495,7 @@ export default function CheckoutPage() {
           promoCode: appliedPromoCode,
           promoDiscountAmount: promoDiscountAmount,
           finalTotal,
+          isFreeOrder: finalTotal === 0,
           itemBreakdown: state.items.map((item) => {
             const itemSubtotal = (item.originalPrice || item.price) * item.quantity
             const itemPromoDiscount =
@@ -562,6 +565,45 @@ export default function CheckoutPage() {
         const orderData = await orderResponse.json()
         console.log('Order created successfully:', orderData)
 
+        // Handle free orders (total = 0) - bypass PayPal and complete immediately
+        if (finalTotal === 0) {
+          console.log('🎉 Processing free order - bypassing PayPal')
+
+          try {
+            // Mark the order as completed
+            const completeResponse = await fetch(`/api/admin/orders/${orderData.orderId}/complete`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                paymentId: 'FREE-ORDER-' + Date.now(),
+                payerId: 'FREE-CUSTOMER',
+                paymentStatus: 'free',
+                amount: '0.00',
+                currency: 'USD',
+                isFreeOrder: true,
+              }),
+            })
+
+            if (!completeResponse.ok) {
+              throw new Error('Failed to complete free order')
+            }
+
+            console.log('✅ Free order completed successfully')
+
+            // Clear cart and redirect to success page
+            clearCart()
+            router.push(`/checkout/success?order=${orderData.orderNumber}&free=true`)
+            return
+          } catch (error) {
+            console.error('Error completing free order:', error)
+            showError('خطأ في الطلب المجاني', 'حدث خطأ في معالجة الطلب المجاني. يرجى المحاولة مرة أخرى.')
+            return
+          }
+        }
+
+        // For paid orders, continue with PayPal flow
         // Reset PayPal button state and set new order ID
         setPaypalButtonsRendered(false)
         setCurrentOrderId(orderData.orderId)
@@ -571,7 +613,7 @@ export default function CheckoutPage() {
       } catch (error) {
         console.error('Error creating order:', error)
         const errorMessage = error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى'
-        alert(`حدث خطأ في إنشاء الطلب: ${errorMessage}`)
+        showError('خطأ في إنشاء الطلب', `حدث خطأ في إنشاء الطلب: ${errorMessage}`)
       } finally {
         setIsProcessingOrder(false)
       }
@@ -625,6 +667,20 @@ export default function CheckoutPage() {
 
     return (
       <div className="container">
+        {/* Alerts Container */}
+        <div className="alerts-container">
+          {alerts.map((alert, index) => (
+            <Alert
+              key={index}
+              type={alert.type}
+              title={alert.title}
+              message={alert.message}
+              duration={alert.duration}
+              onClose={alert.onClose}
+            />
+          ))}
+        </div>
+
         <div className="checkout-header">
           <h1>اتمام الطلب</h1>
           <p>أكمل معلوماتك لإتمام عملية الشراء</p>
@@ -901,24 +957,43 @@ export default function CheckoutPage() {
               </div>
 
               {/* Show submit button only if no order is created yet */}
-              {!currentOrderId && (
-                <button
-                  type="submit"
-                  className="submit-order-btn"
-                  disabled={isProcessingOrder || !paypalLoaded || paypalSdkError}
-                >
-                  <span>
-                    {isProcessingOrder
-                      ? 'جاري إنشاء الطلب...'
-                      : paypalSdkError
-                      ? 'فشل في تحميل PayPal - يرجى إعادة تحميل الصفحة'
-                      : !paypalLoaded
-                      ? 'جاري تحميل PayPal...'
-                      : 'إنشاء الطلب والمتابعة للدفع'}
-                  </span>
-                  <FontAwesomeIcon icon={faArrowRight} />
-                </button>
-              )}
+              {!currentOrderId &&
+                (() => {
+                  // Calculate final total for button display
+                  const currentTotal = state.totalPrice || 0
+                  const promoDiscountAmount = appliedPromoCode
+                    ? appliedPromoCode.type === 'percentage'
+                      ? (currentTotal * appliedPromoCode.discount) / 100
+                      : Math.min(appliedPromoCode.discount, currentTotal)
+                    : 0
+                  const finalTotal = Math.max(0, currentTotal - promoDiscountAmount)
+                  const isFreeOrder = finalTotal === 0
+
+                  return (
+                    <button
+                      type="submit"
+                      className="submit-order-btn"
+                      disabled={
+                        isProcessingOrder || (!paypalLoaded && !isFreeOrder) || (paypalSdkError && !isFreeOrder)
+                      }
+                    >
+                      <span>
+                        {isProcessingOrder
+                          ? isFreeOrder
+                            ? 'جاري إنشاء الطلب المجاني...'
+                            : 'جاري إنشاء الطلب...'
+                          : isFreeOrder
+                          ? 'إنشاء الطلب المجاني'
+                          : paypalSdkError
+                          ? 'فشل في تحميل PayPal - يرجى إعادة تحميل الصفحة'
+                          : !paypalLoaded
+                          ? 'جاري تحميل PayPal...'
+                          : 'إنشاء الطلب والمتابعة للدفع'}
+                      </span>
+                      <FontAwesomeIcon icon={faArrowRight} />
+                    </button>
+                  )
+                })()}
             </form>
           </div>
         </div>

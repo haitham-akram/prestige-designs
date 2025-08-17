@@ -95,7 +95,7 @@ export interface IOrder extends Document {
 
     // Payment information
     paymentMethod: 'paypal';         // For now, only PayPal
-    paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded';
+    paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded' | 'free';
     paypalTransactionId?: string;    // PayPal payment reference
     paypalOrderId?: string;          // PayPal order reference
     paidAt?: Date;                   // When payment was completed
@@ -337,7 +337,7 @@ const OrderSchema = new Schema<IOrder>({
     paymentStatus: {
         type: String,
         enum: {
-            values: ['pending', 'paid', 'failed', 'refunded'],
+            values: ['pending', 'paid', 'failed', 'refunded', 'free'],
             message: 'Invalid payment status'
         },
         default: 'pending'

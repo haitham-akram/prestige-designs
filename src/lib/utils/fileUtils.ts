@@ -11,7 +11,8 @@
  * - File organization
  */
 
-import { writeFile, mkdir, unlink, stat } from 'fs/promises';
+import { writeFile, mkdir, unlink, stat, access } from 'fs/promises';
+import { existsSync } from 'fs';
 import path from 'path';
 
 export interface FileUploadResult {
@@ -284,4 +285,21 @@ export class FileUtils {
         console.log('Cleanup function not implemented');
         return 0;
     }
+}
+
+// Utility functions for video streaming and file operations
+export function isVideoFile(fileName: string): boolean {
+    const videoExtensions = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'];
+    const extension = path.extname(fileName).toLowerCase().substring(1);
+    return videoExtensions.includes(extension);
+}
+
+export function getDesignFilePath(fileUrl: string): string {
+    // Remove leading slash if present and construct full path
+    const relativePath = fileUrl.startsWith('/') ? fileUrl.substring(1) : fileUrl;
+    return path.join(process.cwd(), 'public', relativePath);
+}
+
+export function fileExists(filePath: string): boolean {
+    return existsSync(filePath);
 } 

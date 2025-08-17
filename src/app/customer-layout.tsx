@@ -6,7 +6,15 @@ import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faUser, faSearch, faBars, faSignInAlt, faSignOutAlt, faBox } from '@fortawesome/free-solid-svg-icons'
+import {
+  faUser,
+  faBars,
+  faBox,
+  faSignOutAlt,
+  faSignInAlt,
+  faSearch,
+  faChevronDown,
+} from '@fortawesome/free-solid-svg-icons'
 import { faDiscord, faWhatsapp, faTelegram, faYoutube, faTiktok } from '@fortawesome/free-brands-svg-icons'
 import { CartProvider } from '@/contexts/CartContext'
 import CartDropdown from '@/components/ui/CartDropdown'
@@ -39,6 +47,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false)
+  const [isMoreDropdownOpen, setIsMoreDropdownOpen] = useState(false)
   const [branding, setBranding] = useState<{ logoUrl?: string } | null>(null)
   const [social, setSocial] = useState<{
     telegram?: string
@@ -92,6 +101,27 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
   const closeUserDropdown = () => {
     setIsUserDropdownOpen(false)
   }
+
+  const toggleMoreDropdown = () => {
+    setIsMoreDropdownOpen(!isMoreDropdownOpen)
+  }
+
+  const closeMoreDropdown = () => {
+    setIsMoreDropdownOpen(false)
+  }
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (isMoreDropdownOpen && !target.closest('.more-dropdown-container')) {
+        closeMoreDropdown()
+      }
+    }
+
+    document.addEventListener('click', handleClickOutside)
+    return () => document.removeEventListener('click', handleClickOutside)
+  }, [isMoreDropdownOpen])
 
   const handleLogout = () => {
     signOut({ callbackUrl: '/' })
@@ -156,13 +186,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                             <span className="user-email">{session.user.email}</span>
                           </div>
                           <div className="dropdown-divider"></div>
-                          {session?.user.role === 'admin' ? (
+                          {session?.user.role === 'admin' && (
                             <Link href="/admin/dashboard" className="dropdown-item" onClick={closeUserDropdown}>
-                              <FontAwesomeIcon icon={faUser} />
-                              لوحة التحكم
-                            </Link>
-                          ) : (
-                            <Link href="/customer/dashboard" className="dropdown-item" onClick={closeUserDropdown}>
                               <FontAwesomeIcon icon={faUser} />
                               لوحة التحكم
                             </Link>
@@ -191,18 +216,63 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               {/* Center - Navigation Links */}
               <nav className="nav-center">
                 <ul className="nav-menu">
-                  {!isLoading &&
-                    categories.map((category) => (
-                      <li key={category._id}>
-                        <Link
-                          href={`/categories/${category.slug}`}
-                          className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
-                          onClick={closeMenu}
-                        >
-                          {category.name}
-                        </Link>
-                      </li>
-                    ))}
+                  {!isLoading && categories.length > 0 && (
+                    <>
+                      {/* Desktop: Show first 5 categories */}
+                      <div className="desktop-nav">
+                        {categories.slice(0, 5).map((category) => (
+                          <li key={category._id}>
+                            <Link
+                              href={`/categories/${category.slug}`}
+                              className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
+                              onClick={closeMenu}
+                            >
+                              {category.name}
+                            </Link>
+                          </li>
+                        ))}
+
+                        {/* Show "More" dropdown if more than 5 categories - Desktop Only */}
+                        {categories.length > 5 && (
+                          <li className="more-dropdown-container">
+                            <button
+                              className="nav-link more-button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                toggleMoreDropdown()
+                              }}
+                            >
+                              المزيد
+                              <FontAwesomeIcon
+                                icon={faChevronDown}
+                                className={`more-icon ${isMoreDropdownOpen ? 'open' : ''}`}
+                              />
+                            </button>
+
+                            {/* More Dropdown Menu */}
+                            <div className={`more-dropdown ${isMoreDropdownOpen ? 'open' : ''}`}>
+                              {categories.slice(5).map((category) => (
+                                <Link
+                                  key={category._id}
+                                  href={`/categories/${category.slug}`}
+                                  className={`more-dropdown-item ${
+                                    pathname === `/category/${category.slug}` ? 'active' : ''
+                                  }`}
+                                  onClick={() => {
+                                    closeMoreDropdown()
+                                    closeMenu()
+                                  }}
+                                >
+                                  {category.name}
+                                </Link>
+                              ))}
+                            </div>
+                          </li>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </ul>
               </nav>
 
