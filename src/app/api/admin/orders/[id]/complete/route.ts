@@ -25,14 +25,12 @@ export async function POST(
     try {
         console.log('🚀 Starting order completion process...');
 
-        // Check admin authentication
+        // Check authentication - allow admin OR customer completing their own free order
         const session = await getServerSession(authOptions);
-        if (!session?.user?.role || session.user.role !== 'admin') {
-            console.log('❌ Unauthorized access attempt');
+        if (!session?.user) {
+            console.log('❌ No authentication found');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
-
-        console.log('✅ Admin authenticated:', session.user.email);
 
         await connectDB();
         console.log('✅ Database connected');
@@ -47,6 +45,25 @@ export async function POST(
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
+        // Parse request body for free order handling
+        const body = await request.json();
+        const { isFreeOrder, paymentId, payerId, paymentStatus } = body;
+
+        // Authorization check: Admin can complete any order, customers can only complete their own free orders
+        const isAdmin = session.user.role === 'admin';
+        const isCustomerOwnOrder = session.user.id === order.customerId;
+        const isCustomerFreeOrder = isFreeOrder && order.totalPrice === 0;
+
+        if (!isAdmin && !(isCustomerOwnOrder && isCustomerFreeOrder)) {
+            console.log('❌ Unauthorized access attempt');
+            console.log('Is Admin:', isAdmin);
+            console.log('Is Customer Own Order:', isCustomerOwnOrder);
+            console.log('Is Free Order:', isCustomerFreeOrder);
+            console.log('Order Total:', order.totalPrice);
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        console.log('✅ User authenticated:', session.user.email);
         console.log('✅ Order found:', order.orderNumber);
         console.log('📋 Current status:', order.orderStatus);
 
@@ -66,10 +83,6 @@ export async function POST(
                 { status: 400 }
             );
         }
-
-        // Parse request body for free order handling
-        const body = await request.json();
-        const { isFreeOrder, paymentId, payerId, paymentStatus } = body;
 
         console.log('💰 Payment info:', { isFreeOrder, paymentId, payerId, paymentStatus });
 
@@ -176,15 +189,18 @@ export async function POST(
         order.downloadExpiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
         // Add to order history
-        const historyNote = isFreeOrder
-            ? `تم قبول الطلب المجاني ${order.orderNumber} بنجاح`
-            : `تم تحديد الطلب ${order.orderNumber} كمكتمل من قبل المدير`;
+        const isCustomerAction = !isAdmin && isCustomerOwnOrder && isCustomerFreeOrder;
+        const historyNote = isCustomerAction
+            ? `تم إكمال الطلب المجاني ${order.orderNumber} بواسطة العميل`
+            : isFreeOrder
+                ? `تم قبول الطلب المجاني ${order.orderNumber} بنجاح من قبل المدير`
+                : `تم تحديد الطلب ${order.orderNumber} كمكتمل من قبل المدير`;
 
         order.orderHistory.push({
             status: 'completed',
             timestamp: new Date(),
             note: historyNote,
-            changedBy: session.user.name || 'admin'
+            changedBy: session.user.name || (isCustomerAction ? 'customer' : 'admin')
         });
 
         await order.save();

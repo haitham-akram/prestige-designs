@@ -6,6 +6,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth/config';
 import connectDB from '@/lib/db/connection';
 import Order from '@/lib/db/models/Order';
 import OrderDesignFile from '@/lib/db/models/OrderDesignFile';
@@ -14,6 +16,15 @@ import DesignFile from '@/lib/db/models/DesignFile';
 
 export async function GET(request: NextRequest) {
     try {
+        // Check authentication
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json(
+                { error: 'Authentication required' },
+                { status: 401 }
+            );
+        }
+
         const { searchParams } = new URL(request.url);
         const orderId = searchParams.get('orderId');
 
@@ -34,6 +45,14 @@ export async function GET(request: NextRequest) {
             return NextResponse.json(
                 { error: 'Order not found' },
                 { status: 404 }
+            );
+        }
+
+        // Authorization: customers can only access their own orders, admins can access any
+        if (session.user.role !== 'admin' && order.customerId !== session.user.id) {
+            return NextResponse.json(
+                { error: 'Unauthorized access to order' },
+                { status: 403 }
             );
         }
 
