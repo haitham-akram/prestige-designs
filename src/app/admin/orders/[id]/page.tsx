@@ -246,8 +246,7 @@ export default function OrderDetailPage() {
         throw new Error(errorData.error || 'Failed to mark order as complete')
       }
 
-      const result = await response.json()
-      console.log('Complete result:', result)
+     await response.json()
 
       setSuccess('تم تحديد الطلب كمكتمل بنجاح')
       fetchOrder() // Refresh order data
@@ -286,8 +285,6 @@ export default function OrderDetailPage() {
       }
 
       const result = await response.json()
-      console.log('Cancel result:', result)
-
       // Show success message with refund information
       if (result.refundResult?.success) {
         setSuccess(`تم إلغاء الطلب بنجاح واسترداد المبلغ ${order?.totalPrice?.toFixed(2)} دولار`)

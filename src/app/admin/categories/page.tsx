@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -32,6 +32,7 @@ export default function AdminCategoriesPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const dataLoadedRef = useRef(false) // Track if data has been loaded
 
   // Redirect if not admin
   useEffect(() => {
@@ -40,8 +41,16 @@ export default function AdminCategoriesPage() {
       router.push('/auth/signin')
       return
     }
-    fetchCategories()
   }, [session, status, router])
+
+  // Fetch categories when component mounts and user is authenticated
+  useEffect(() => {
+    if (status === 'loading') return
+    if (session?.user && session.user.role === 'admin' && !dataLoadedRef.current) {
+      dataLoadedRef.current = true
+      fetchCategories()
+    }
+  }, [session, status]) // Removed router from dependencies
 
   const fetchCategories = async () => {
     try {

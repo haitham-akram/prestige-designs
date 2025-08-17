@@ -21,7 +21,8 @@ export default function DashboardRouter() {
       if (session.user.role === 'admin') {
         router.push('/admin/dashboard')
       } else {
-        router.push('/customer/dashboard')
+        // Redirect regular customers to homepage
+        router.push('/')
       }
     }
   }, [session, status, router])

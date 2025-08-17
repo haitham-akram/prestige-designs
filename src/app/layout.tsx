@@ -26,13 +26,20 @@ export async function generateMetadata(): Promise<Metadata> {
       title: 'Prestige Designs - Digital Design Store',
       description: 'Premium digital designs for your creative projects',
       icons: {
-        icon: branding.faviconUrl ? [{ url: branding.faviconUrl }] : undefined,
+        icon: branding.faviconUrl || '/favicon.ico',
+        shortcut: branding.faviconUrl || '/favicon.ico',
+        apple: branding.faviconUrl || '/favicon.ico',
       },
     }
   } catch {
     return {
       title: 'Prestige Designs - Digital Design Store',
       description: 'Premium digital designs for your creative projects',
+      icons: {
+        icon: '/favicon.ico',
+        shortcut: '/favicon.ico',
+        apple: '/favicon.ico',
+      },
     }
   }
 }

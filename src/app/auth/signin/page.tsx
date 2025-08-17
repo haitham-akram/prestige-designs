@@ -55,7 +55,7 @@ export default function SignInPage() {
         if (session.user.role === 'admin') {
           router.push('/admin/dashboard')
         } else {
-          router.push('/customer/dashboard')
+          router.push('/') // Redirect customers to homepage
         }
       }
     } catch (error) {

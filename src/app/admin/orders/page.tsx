@@ -101,6 +101,7 @@ const paymentStatusColors = {
   paid: '#10b981',
   failed: '#ef4444',
   refunded: '#6b7280',
+  free: '#22c55e',
 }
 
 const customizationStatusColors = {
@@ -540,6 +541,8 @@ export default function OrdersPage() {
                             ? 'فشل'
                             : order.paymentStatus === 'refunded'
                             ? 'مسترد'
+                            : order.paymentStatus === 'free'
+                            ? 'مجاني'
                             : order.paymentStatus}
                         </span>
                       </td>

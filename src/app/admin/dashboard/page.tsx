@@ -128,10 +128,8 @@ export default function AdminDashboard() {
 
       // Fetch promo code stats
       const promoResponse = await fetch('/api/admin/promo-codes/stats')
-      console.log('Promo stats response:', promoResponse.status)
       if (promoResponse.ok) {
         const promoData = await promoResponse.json()
-        console.log('Promo stats data:', promoData)
         setPromoStats(promoData.data)
       } else {
         console.error('Failed to fetch promo stats:', promoResponse.status)
