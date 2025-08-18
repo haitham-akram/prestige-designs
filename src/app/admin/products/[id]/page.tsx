@@ -1514,8 +1514,8 @@ export default function EditProduct() {
   if (loading || productLoading) {
     return (
       <div className="products-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
+        <div className="admin-loading-spinner">
+          <div className="admin-spinner"></div>
           <p>جاري تحميل المنتج...</p>
         </div>
       </div>

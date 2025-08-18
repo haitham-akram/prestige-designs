@@ -431,34 +431,40 @@ export default function AddProduct() {
   } | null>(null)
 
   const { uploadFile: uploadDesignFile } = useFileUpload({
-    onSuccess: async (result, fileInfo?: { fileName: string; designFileIndex: number }) => {
+    timeout: 600000, // 10 minutes for large files
+    maxRetries: 3, // Retry up to 3 times
+    onSuccess: async (result, fileInfo) => {
       // Add a small delay to ensure file is properly written to disk
       await new Promise((resolve) => setTimeout(resolve, 500))
+
+      // Type guard for the result
+      const data = result.data as any
+      const typedFileInfo = fileInfo as { fileName: string; designFileIndex: number } | undefined
 
       // Add the uploaded file to the form data
       setFormData((prev) => {
         // Check if this is a color file upload
-        const isColorFile = prev.colors.some((color, index) =>
-          color.uploadedFiles?.some((file) => file.isTemp && file.fileName === fileInfo?.fileName)
+        const isColorFile = prev.colors.some((color) =>
+          color.uploadedFiles?.some((file) => file.isTemp && file.fileName === typedFileInfo?.fileName)
         )
 
-        if (isColorFile && fileInfo) {
+        if (isColorFile && typedFileInfo) {
           // Handle color file upload
           const updatedColors = [...prev.colors]
           const colorIndex = updatedColors.findIndex((color) =>
-            color.uploadedFiles?.some((file) => file.isTemp && file.fileName === fileInfo.fileName)
+            color.uploadedFiles?.some((file) => file.isTemp && file.fileName === typedFileInfo.fileName)
           )
 
           if (colorIndex !== -1) {
             const currentColor = updatedColors[colorIndex]
             const updatedUploadedFiles =
               currentColor.uploadedFiles?.map((uploadedFile) => {
-                if (uploadedFile.isTemp && uploadedFile.fileName === fileInfo.fileName) {
+                if (uploadedFile.isTemp && uploadedFile.fileName === typedFileInfo.fileName) {
                   return {
-                    fileName: result.data.fileName,
-                    fileType: result.data.fileType,
-                    fileUrl: result.data.fileUrl,
-                    fileSize: result.data.fileSize,
+                    fileName: data.fileName,
+                    fileType: data.fileType,
+                    fileUrl: data.fileUrl,
+                    fileSize: data.fileSize,
                     isTemp: false,
                   }
                 }
@@ -479,18 +485,18 @@ export default function AddProduct() {
           // Handle regular design file upload
           const updatedDesignFiles = [...prev.designFiles]
 
-          if (fileInfo) {
-            const { designFileIndex } = fileInfo
+          if (typedFileInfo) {
+            const { designFileIndex } = typedFileInfo
             const currentFile = updatedDesignFiles[designFileIndex]
 
             if (currentFile) {
               const updatedUploadedFiles = currentFile.uploadedFiles.map((uploadedFile) => {
-                if (uploadedFile.isTemp && uploadedFile.fileName === fileInfo.fileName) {
+                if (uploadedFile.isTemp && uploadedFile.fileName === typedFileInfo.fileName) {
                   return {
-                    fileName: result.data.fileName,
-                    fileType: result.data.fileType,
-                    fileUrl: result.data.fileUrl,
-                    fileSize: result.data.fileSize,
+                    fileName: data.fileName,
+                    fileType: data.fileType,
+                    fileUrl: data.fileUrl,
+                    fileSize: data.fileSize,
                     isTemp: false,
                   }
                 }
@@ -830,13 +836,16 @@ export default function AddProduct() {
     uploadProgress: imageProgress,
     resetUpload: resetImageUpload,
   } = useFileUpload({
+    timeout: 300000, // 5 minutes for image uploads
+    maxRetries: 2, // Fewer retries for images
     onSuccess: (result) => {
-      if (result.success && result.urls) {
+      const data = result as any
+      if (data.success && data.urls) {
         setFormData((prev) => ({
           ...prev,
-          images: [...prev.images, ...result.urls],
+          images: [...prev.images, ...data.urls],
         }))
-        showSuccess('تم رفع الصور', `تم رفع ${result.urls.length} صورة بنجاح!`)
+        showSuccess('تم رفع الصور', `تم رفع ${data.urls.length} صورة بنجاح!`)
       }
     },
     onError: (error) => {

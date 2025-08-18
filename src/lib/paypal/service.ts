@@ -342,6 +342,64 @@ export class PayPalService {
                 console.log('📧 Customization email sent for all items');
             }
 
+            // Send customer notification email after payment
+            try {
+                console.log('📧 Sending customer notification email...');
+                const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+
+                const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer system-internal-call'
+                    },
+                    body: JSON.stringify({
+                        orderId: order._id.toString(),
+                        orderNumber: order.orderNumber,
+                        isFreeOrder: false
+                    }),
+                });
+
+                if (response.ok) {
+                    console.log('✅ Customer notification email sent successfully');
+                } else {
+                    console.log('⚠️ Failed to send customer notification email:', await response.text());
+                }
+            } catch (emailError) {
+                console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
+            }
+
+            // Send admin notification about new paid order
+            try {
+                console.log('🔔 Sending admin notification about new paid order...');
+                const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+
+                const response = await fetch(`${baseUrl}/api/admin/notify-new-order`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Use a system token or admin session for internal API calls
+                        'Authorization': 'Bearer system-internal-call'
+                    },
+                    body: JSON.stringify({
+                        orderId: order._id.toString(),
+                        orderNumber: order.orderNumber,
+                        isFreeOrder: false,
+                        hasCustomizations: deliveryResult.requiresCustomWork,
+                        autoCompleted: deliveryResult.deliveryType === 'auto_delivery' && !deliveryResult.requiresCustomWork,
+                    }),
+                });
+
+                if (response.ok) {
+                    console.log('✅ Admin notification sent successfully for paid order');
+                } else {
+                    console.log('⚠️ Failed to send admin notification:', await response.text());
+                }
+            } catch (notificationError) {
+                console.error('⚠️ Error sending admin notification (non-critical):', notificationError);
+                // Don't throw error here - notification failure shouldn't break order completion
+            }
+
             console.log('✅ Order completion process finished');
             return order;
         } catch (error) {

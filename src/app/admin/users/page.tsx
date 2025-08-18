@@ -360,9 +360,9 @@ export default function AdminUsers() {
         )}
 
         {/* Filters and Search */}
-        <div className="users-filters">
-          <form onSubmit={handleSearch} className="search-form">
-            <div className="search-input-group">
+        <div className="admin-users-filters">
+          <form onSubmit={handleSearch} className="admin-search-form">
+            <div className="admin-search-input-group">
               <FontAwesomeIcon icon={faSearch} className="search-icon" />
               <input
                 type="text"
@@ -377,14 +377,18 @@ export default function AdminUsers() {
             </button>
           </form>
 
-          <div className="filter-group">
-            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="filter-select">
+          <div className="admin-filter-group">
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="admin-filter-select">
               <option value="all">جميع الأدوار</option>
               <option value="admin">مدير</option>
               <option value="customer">عميل</option>
             </select>
 
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="admin-filter-select"
+            >
               <option value="all">جميع الحالات</option>
               <option value="active">نشط</option>
               <option value="inactive">غير نشط</option>
@@ -412,7 +416,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => handleBulkAction('activate')}
                   disabled={bulkActionLoading}
-                  className="btn btn-sm btn-success"
+                  className="admin-btn admin-btn-sm admin-btn-success"
                 >
                   {bulkActionLoading ? 'جاري التفعيل...' : 'تفعيل المحدد'}
                 </button>
@@ -421,7 +425,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => handleBulkAction('deactivate')}
                   disabled={bulkActionLoading || selectedUsers.includes(session?.user?.id || '')}
-                  className="btn btn-sm btn-warning"
+                  className="admin-btn admin-btn-sm admin-btn-warning"
                   title={selectedUsers.includes(session?.user?.id || '') ? 'لا يمكنك إلغاء تفعيل حسابك الخاص' : ''}
                 >
                   {bulkActionLoading ? 'جاري الإلغاء...' : 'إلغاء تفعيل المحدد'}
@@ -431,7 +435,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => handleBulkAction('makeAdmin')}
                   disabled={bulkActionLoading}
-                  className="btn btn-sm btn-info"
+                  className="admin-btn admin-btn-sm admin-btn-info"
                 >
                   {bulkActionLoading ? 'جاري التحديث...' : 'تعيين كمدير'}
                 </button>
@@ -440,7 +444,7 @@ export default function AdminUsers() {
                 <button
                   onClick={() => handleBulkAction('makeCustomer')}
                   disabled={bulkActionLoading}
-                  className="btn btn-sm btn-secondary"
+                  className="admin-btn admin-btn-sm admin-btn-secondary"
                 >
                   {bulkActionLoading ? 'جاري التحديث...' : 'تعيين كعميل'}
                 </button>
@@ -448,7 +452,7 @@ export default function AdminUsers() {
               <button
                 onClick={() => handleBulkAction('delete')}
                 disabled={bulkActionLoading || selectedUsers.includes(session?.user?.id || '')}
-                className="btn btn-sm btn-danger"
+                className="admin-btn admin-btn-sm admin-btn-danger"
                 title={selectedUsers.includes(session?.user?.id || '') ? 'لا يمكنك حذف حسابك الخاص' : ''}
               >
                 {bulkActionLoading ? 'جاري الحذف...' : 'حذف المحدد'}
@@ -584,7 +588,7 @@ export default function AdminUsers() {
                     <td>
                       <div className="action-buttons">
                         <button
-                          className="btn btn-sm btn-danger"
+                          className="admin-btn admin-btn-sm admin-btn-danger"
                           title={user._id === session?.user?.id ? 'لا يمكنك حذف حسابك الخاص' : 'حذف'}
                           disabled={user._id === session?.user?.id}
                           onClick={() => {

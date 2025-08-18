@@ -53,8 +53,11 @@ export default function CategoriesSection() {
     return null
   }
 
-  // Take first 6 categories for the grid layout
-  const displayCategories = categories.slice(0, 6)
+  // Filter out categories without images, then take first 6 categories for the grid layout
+  const categoriesWithImages = categories.filter(
+    (category) => category.image && category.image !== '/placeholder-product.jpg' && category.image.trim() !== ''
+  )
+  const displayCategories = categoriesWithImages.slice(0, 6)
   const categoryCount = displayCategories.length
 
   // Determine grid class based on number of categories

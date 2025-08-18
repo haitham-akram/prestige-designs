@@ -286,8 +286,8 @@ export default function AdminPromoCodesPage() {
   if (status === 'loading' || loading) {
     return (
       <div className="admin-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
+        <div className="admin-loading-spinner">
+          <div className="admin-spinner"></div>
           <p>جاري التحميل...</p>
         </div>
       </div>

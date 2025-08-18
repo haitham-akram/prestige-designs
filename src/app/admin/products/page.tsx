@@ -178,8 +178,8 @@ export default function AdminProducts() {
   if (loading && products.length === 0) {
     return (
       <div className="products-container">
-        <div className="loading-spinner">
-          <div className="spinner"></div>
+        <div className="admin-loading-spinner">
+          <div className="admin-spinner"></div>
           <p>جاري تحميل المنتجات...</p>
         </div>
       </div>

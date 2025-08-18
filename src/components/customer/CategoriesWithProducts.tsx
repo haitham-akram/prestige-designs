@@ -105,8 +105,6 @@ export default function CategoriesWithProducts() {
     try {
       setLoading(true)
       const startTime = Date.now()
-      console.log('🚀 Starting full page data fetch...')
-
       // Fetch categories
       const categoriesResponse = await fetch('/api/categories')
       const categoriesData = await categoriesResponse.json()
@@ -213,7 +211,7 @@ export default function CategoriesWithProducts() {
           />
           <div className="category-footer">
             <Link href={`/categories/${category.slug}`} className="btn btn-secondary">
-              عرض جميع المنتجات ({category.designCount || 0})
+              عرض جميع المنتجات
             </Link>
           </div>
         </AnimatedElement>

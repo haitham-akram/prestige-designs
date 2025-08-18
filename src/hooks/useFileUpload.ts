@@ -11,6 +11,8 @@ export interface UseFileUploadOptions {
     onSuccess?: (result: Record<string, unknown>, fileInfo?: Record<string, unknown>) => void
     onError?: (error: string) => void
     onProgress?: (progress: number) => void
+    timeout?: number // Timeout in milliseconds
+    maxRetries?: number // Maximum number of retry attempts
 }
 
 export function useFileUpload(options: UseFileUploadOptions = {}) {
@@ -19,106 +21,147 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
         status: 'idle'
     })
 
+    const [retryCount, setRetryCount] = useState(0)
+    const maxRetries = options.maxRetries || 3
+    const timeout = options.timeout || 300000 // 5 minutes default timeout
+
     const uploadFile = async (
         file: File,
         uploadUrl: string,
         additionalData?: Record<string, unknown>,
         fileInfo?: Record<string, unknown>
     ) => {
-        try {
-            setUploadProgress({
-                progress: 0,
-                status: 'uploading',
-                message: 'جاري رفع الملف...'
-            })
+        const attemptUpload = async (attempt: number): Promise<void> => {
+            return new Promise((resolve, reject) => {
+                try {
+                    setUploadProgress({
+                        progress: 0,
+                        status: 'uploading',
+                        message: attempt > 1 ? `محاولة رفع ${attempt}/${maxRetries}...` : 'جاري رفع الملف...'
+                    })
 
-            const formData = new FormData()
-            formData.append('file', file)
+                    const formData = new FormData()
+                    formData.append('file', file)
 
-            // Add additional data
-            if (additionalData) {
-                Object.entries(additionalData).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        formData.append(key, value.toString())
+                    // Add additional data
+                    if (additionalData) {
+                        Object.entries(additionalData).forEach(([key, value]) => {
+                            if (value !== null && value !== undefined) {
+                                formData.append(key, value.toString())
+                            }
+                        })
                     }
-                })
-            }
 
-            const xhr = new XMLHttpRequest()
+                    const xhr = new XMLHttpRequest()
+                    let timeoutId: NodeJS.Timeout
 
-            // Progress tracking
-            xhr.upload.addEventListener('progress', (event) => {
-                if (event.lengthComputable) {
-                    const progress = (event.loaded / event.total) * 100
-                    setUploadProgress(prev => ({
-                        ...prev,
-                        progress
-                    }))
-                    options.onProgress?.(progress)
+                    // Set timeout for large files
+                    if (timeout > 0) {
+                        timeoutId = setTimeout(() => {
+                            xhr.abort()
+                            reject(new Error('انتهت مهلة رفع الملف'))
+                        }, timeout)
+                    }
+
+                    // Progress tracking with more frequent updates for large files
+                    xhr.upload.addEventListener('progress', (event) => {
+                        if (timeoutId) clearTimeout(timeoutId)
+
+                        if (event.lengthComputable) {
+                            const progress = (event.loaded / event.total) * 100
+                            setUploadProgress(prev => ({
+                                ...prev,
+                                progress,
+                                message: `جاري رفع الملف... ${Math.round(progress)}%`
+                            }))
+                            options.onProgress?.(progress)
+                        }
+                    })
+
+                    // Response handling
+                    xhr.addEventListener('load', () => {
+                        if (timeoutId) clearTimeout(timeoutId)
+
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            try {
+                                const result = JSON.parse(xhr.responseText)
+                                setUploadProgress({
+                                    progress: 100,
+                                    status: 'success',
+                                    message: 'تم رفع الملف بنجاح',
+                                    result
+                                })
+                                setRetryCount(0)
+                                options.onSuccess?.(result, fileInfo)
+                                resolve()
+                            } catch {
+                                reject(new Error('خطأ في تحليل الاستجابة'))
+                            }
+                        } else {
+                            reject(new Error(`خطأ في الرفع: ${xhr.status} ${xhr.statusText}`))
+                        }
+                    })
+
+                    // Error handling
+                    xhr.addEventListener('error', () => {
+                        if (timeoutId) clearTimeout(timeoutId)
+                        reject(new Error('خطأ في الاتصال بالخادم'))
+                    })
+
+                    // Network error handling
+                    xhr.addEventListener('abort', () => {
+                        if (timeoutId) clearTimeout(timeoutId)
+                        reject(new Error('تم إلغاء الرفع'))
+                    })
+
+                    // Start upload
+                    xhr.open('POST', uploadUrl)
+                    xhr.send(formData)
+
+                } catch (error) {
+                    reject(error instanceof Error ? error : new Error('خطأ غير معروف'))
                 }
             })
+        }
 
-            // Response handling
-            xhr.addEventListener('load', () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                    try {
-                        const result = JSON.parse(xhr.responseText)
-                        setUploadProgress({
-                            progress: 100,
-                            status: 'success',
-                            message: 'تم رفع الملف بنجاح',
-                            result
-                        })
-                        options.onSuccess?.(result, fileInfo)
-                    } catch {
-                        setUploadProgress({
-                            progress: 0,
-                            status: 'error',
-                            message: 'خطأ في تحليل الاستجابة'
-                        })
-                        options.onError?.('خطأ في تحليل الاستجابة')
-                    }
-                } else {
+        // Main upload function with retry logic
+        try {
+            setRetryCount(0)
+            await attemptUpload(1)
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'خطأ غير معروف'
+
+            // Check if we should retry
+            if (retryCount < maxRetries && (
+                errorMessage.includes('انتهت مهلة') ||
+                errorMessage.includes('خطأ في الاتصال') ||
+                errorMessage.includes('تم إلغاء')
+            )) {
+                setRetryCount(prev => prev + 1)
+
+                // Wait before retry (exponential backoff)
+                const waitTime = Math.min(1000 * Math.pow(2, retryCount), 10000)
+                await new Promise(resolve => setTimeout(resolve, waitTime))
+
+                try {
+                    await attemptUpload(retryCount + 1)
+                } catch (retryError) {
+                    const retryErrorMessage = retryError instanceof Error ? retryError.message : 'خطأ غير معروف'
                     setUploadProgress({
                         progress: 0,
                         status: 'error',
-                        message: `خطأ في الرفع: ${xhr.status} ${xhr.statusText}`
+                        message: `فشل رفع الملف بعد ${maxRetries} محاولات: ${retryErrorMessage}`
                     })
-                    options.onError?.(`خطأ في الرفع: ${xhr.status} ${xhr.statusText}`)
+                    options.onError?.(retryErrorMessage)
                 }
-            })
-
-            // Error handling
-            xhr.addEventListener('error', () => {
+            } else {
                 setUploadProgress({
                     progress: 0,
                     status: 'error',
-                    message: 'خطأ في الاتصال بالخادم'
+                    message: errorMessage
                 })
-                options.onError?.('خطأ في الاتصال بالخادم')
-            })
-
-            // Network error handling
-            xhr.addEventListener('abort', () => {
-                setUploadProgress({
-                    progress: 0,
-                    status: 'error',
-                    message: 'تم إلغاء الرفع'
-                })
-                options.onError?.('تم إلغاء الرفع')
-            })
-
-            // Start upload
-            xhr.open('POST', uploadUrl)
-            xhr.send(formData)
-
-        } catch (error) {
-            setUploadProgress({
-                progress: 0,
-                status: 'error',
-                message: error instanceof Error ? error.message : 'خطأ غير معروف'
-            })
-            options.onError?.(error instanceof Error ? error.message : 'خطأ غير معروف')
+                options.onError?.(errorMessage)
+            }
         }
     }
 
@@ -127,11 +170,13 @@ export function useFileUpload(options: UseFileUploadOptions = {}) {
             progress: 0,
             status: 'idle'
         })
+        setRetryCount(0)
     }
 
     return {
         uploadProgress,
         uploadFile,
-        resetUpload
+        resetUpload,
+        retryCount
     }
 } 

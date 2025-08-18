@@ -1,7 +1,7 @@
 /* Customer Orders Page - OC Prefix */
 .oc-page {
   min-height: calc(100vh - 80px);
-  background: var(--bg-primary);
+  /* background: var(--bg-primary); */
   color: var(--text-primary);
   padding: 2rem 1rem;
 }

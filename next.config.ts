@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['mongoose'],
+  // Configure server actions for large file uploads
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '500mb', // Allow up to 500MB for server actions
+    },
+  },
   eslint: {
     // Allow production builds to complete even if your project has ESLint errors.
     ignoreDuringBuilds: true,

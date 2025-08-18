@@ -5,7 +5,7 @@
   padding: 10px;
   text-align: right;
   min-height: 100vh;
-  background: var(--bg-primary);
+  background: var(--admin-bg-primary);
   background-image: 
     radial-gradient(circle at 20% 20%, rgba(130, 97, 198, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(226, 96, 239, 0.1) 0%, transparent 50%);
@@ -13,11 +13,11 @@
 
 .page-header {
   margin-bottom: 2rem;
-  background: var(--gradient-card);
+  background: var(--admin-gradient-card);
   padding: 1.5rem 2rem;
   border-radius: 15px;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--admin-shadow-lg);
+  border: 1px solid var(--admin-border-color);
 }
 
 .header-content {
@@ -35,9 +35,9 @@
 .header-text h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   margin: 0 0 0.5rem 0;
-  background: var(--gradient-primary);
+  background: var(--admin-gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -45,7 +45,7 @@
 
 .header-text p {
   font-size: 1.1rem;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   margin: 0;
 }
 
@@ -74,11 +74,11 @@
 }
 
 .form-container {
-  background: var(--gradient-card);
+  background: var(--admin-gradient-card);
   border-radius: 15px;
   padding: 2rem;
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-color);
+  box-shadow: var(--admin-shadow-lg);
+  border: 1px solid var(--admin-border-color);
   width: 100%;
   max-width: 100%;
 }
@@ -89,14 +89,14 @@
   align-items: center;
   justify-content: center;
   min-height: 50vh;
-  background: var(--bg-primary);
-  color: var(--text-primary);
+  background: var(--admin-bg-primary);
+  color: var(--admin-text-primary);
 }
 
 .loading-container p {
   margin-top: 1rem;
   font-size: 1.1rem;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
 }
 
 /* Laptop/Desktop Optimization */

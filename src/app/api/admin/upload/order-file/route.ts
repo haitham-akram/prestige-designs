@@ -265,4 +265,4 @@ export const POST = withAdmin(uploadOrderFile);
 
 // Configure route segment to handle large files (videos can be large)
 export const runtime = 'nodejs'
-export const maxDuration = 30 // 30 seconds timeout for uploads 
+export const maxDuration = 300 // 5 minutes timeout for large file uploads 

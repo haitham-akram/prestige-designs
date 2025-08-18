@@ -15,6 +15,7 @@ import {
   faClock,
   faExclamationCircle,
   faFileDownload,
+  faGift,
 } from '@fortawesome/free-solid-svg-icons'
 import CustomerLayout from '@/app/customer-layout'
 import './customer-orders.css'
@@ -263,54 +264,80 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Order Details Section */}
-                  <div className="oc-order-details">
-                    <div className="oc-payment-info">
-                      <h4>معلومات الدفع</h4>
-                      <div className="oc-payment-grid">
-                        <div className="oc-payment-item">
-                          <span className="oc-label">طريقة الدفع:</span>
-                          <span className="oc-value">
-                            {order.paymentMethod === 'paypal' ? 'باي بال' : order.paymentMethod || 'مجاني'}
-                          </span>
+                  {/* Order Details Section - Hide payment info for free orders */}
+                  {order.totalPrice > 0 && order.paymentStatus !== 'free' && (
+                    <div className="oc-order-details">
+                      <div className="oc-payment-info">
+                        <h4>معلومات الدفع</h4>
+                        <div className="oc-payment-grid">
+                          <div className="oc-payment-item">
+                            <span className="oc-label">طريقة الدفع:</span>
+                            <span className="oc-value">
+                              {order.paymentMethod === 'paypal' ? 'باي بال' : order.paymentMethod || 'مجاني'}
+                            </span>
+                          </div>
+                          <div className="oc-payment-item">
+                            <span className="oc-label">حالة الدفع:</span>
+                            <span className={`oc-value oc-payment-${order.paymentStatus}`}>
+                              {order.paymentStatus === 'paid'
+                                ? 'مدفوع'
+                                : order.paymentStatus === 'pending'
+                                ? 'في الانتظار'
+                                : order.paymentStatus === 'failed'
+                                ? 'فشل'
+                                : order.paymentStatus === 'refunded'
+                                ? 'مسترد'
+                                : order.paymentStatus === 'free'
+                                ? 'مجاني'
+                                : order.paymentStatus || 'مجاني'}
+                            </span>
+                          </div>
+                          {order.subtotal && (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">المجموع الفرعي:</span>
+                              <span className="oc-value">${order.subtotal}</span>
+                            </div>
+                          )}
+                          {order.totalPromoDiscount && order.totalPromoDiscount > 0 && (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">الخصم:</span>
+                              <span className="oc-value oc-discount">-${order.totalPromoDiscount}</span>
+                            </div>
+                          )}
+                          {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 && (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">كوبونات الخصم:</span>
+                              <span className="oc-value oc-promo-codes">{order.appliedPromoCodes.join(', ')}</span>
+                            </div>
+                          )}
                         </div>
-                        <div className="oc-payment-item">
-                          <span className="oc-label">حالة الدفع:</span>
-                          <span className={`oc-value oc-payment-${order.paymentStatus}`}>
-                            {order.paymentStatus === 'paid'
-                              ? 'مدفوع'
-                              : order.paymentStatus === 'pending'
-                              ? 'في الانتظار'
-                              : order.paymentStatus === 'failed'
-                              ? 'فشل'
-                              : order.paymentStatus === 'refunded'
-                              ? 'مسترد'
-                              : order.paymentStatus === 'free'
-                              ? 'مجاني'
-                              : order.paymentStatus || 'مجاني'}
-                          </span>
-                        </div>
-                        {order.subtotal && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">المجموع الفرعي:</span>
-                            <span className="oc-value">${order.subtotal}</span>
-                          </div>
-                        )}
-                        {order.totalPromoDiscount && order.totalPromoDiscount > 0 && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">الخصم:</span>
-                            <span className="oc-value oc-discount">-${order.totalPromoDiscount}</span>
-                          </div>
-                        )}
-                        {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">كوبونات الخصم:</span>
-                            <span className="oc-value oc-promo-codes">{order.appliedPromoCodes.join(', ')}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Free Order Notice */}
+                  {(order.totalPrice === 0 || order.paymentStatus === 'free') && (
+                    <div className="oc-order-details">
+                      <div
+                        className="oc-payment-info"
+                        style={{
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                        }}
+                      >
+                        <h4 style={{ color: '#22c55e' }}>
+                          <FontAwesomeIcon icon={faGift} style={{ marginLeft: '0.5rem' }} />
+                          طلب مجاني
+                        </h4>
+                        <div className="oc-payment-item" style={{ background: 'transparent', border: 'none' }}>
+                          <span className="oc-label">نوع الطلب:</span>
+                          <span className="oc-value" style={{ color: '#22c55e', fontWeight: 'bold' }}>
+                            💚 مجاني - $0.00
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="oc-items">
                     <h4>المنتجات المطلوبة</h4>
