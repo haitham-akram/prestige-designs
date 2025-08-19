@@ -13,22 +13,23 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/auth/middleware';
-import { SessionUser, ApiRouteContext } from '@/lib/auth/types';
 import { FileUtils } from '@/lib/utils/fileUtils';
+import { DesignFile } from '@/lib/db/models';
 import { z } from 'zod';
 
 // Validation schema
 const deleteFileSchema = z.object({
     fileUrl: z.string()
         .min(1, 'File URL is required')
-        .startsWith('/uploads/', 'File URL must be a valid upload path')
+        .startsWith('/uploads/', 'File URL must be a valid upload path'),
+    deleteFromDatabase: z.boolean().optional().default(true)
 });
 
 /**
  * DELETE /api/admin/upload/delete-file
  * Delete an uploaded file by its URL
  */
-async function deleteUploadedFile(req: NextRequest, context: ApiRouteContext, user: SessionUser) {
+async function deleteUploadedFile(req: NextRequest) {
     try {
         const body = await req.json();
 
@@ -45,21 +46,43 @@ async function deleteUploadedFile(req: NextRequest, context: ApiRouteContext, us
             );
         }
 
-        const { fileUrl } = validationResult.data;
+        const { fileUrl, deleteFromDatabase } = validationResult.data;
+
+        let databaseDeleted = true;
+
+        // Delete from database if requested and file exists in database
+        if (deleteFromDatabase) {
+            try {
+                const deletedFile = await DesignFile.findOneAndDelete({ fileUrl });
+                if (deletedFile) {
+                    console.log(`Deleted file from database: ${fileUrl}`);
+                } else {
+                    console.log(`File not found in database (may be temporary): ${fileUrl}`);
+                }
+            } catch (dbError) {
+                console.error('Error deleting file from database:', dbError);
+                databaseDeleted = false;
+            }
+        }
 
         // Delete the file from storage
         const deleteSuccess = await FileUtils.deleteFile(fileUrl);
 
-        if (deleteSuccess) {
+        if (deleteSuccess && databaseDeleted) {
             return NextResponse.json({
                 success: true,
-                message: 'File deleted successfully'
+                message: 'File deleted successfully from storage and database'
+            });
+        } else if (deleteSuccess && !databaseDeleted) {
+            return NextResponse.json({
+                success: true,
+                message: 'File deleted from storage, but failed to delete from database'
             });
         } else {
             return NextResponse.json(
                 {
                     success: false,
-                    message: 'Failed to delete file'
+                    message: 'Failed to delete file from storage'
                 },
                 { status: 500 }
             );

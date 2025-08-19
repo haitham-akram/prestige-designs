@@ -1,0 +1,113 @@
+/* Rich Text Editor Styles */
+.rich-text-editor {
+  direction: rtl;
+  text-align: right;
+}
+
+.rich-text-editor .ql-container {
+  direction: rtl;
+  text-align: right;
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 150px;
+}
+
+.rich-text-editor .ql-editor {
+  direction: rtl;
+  text-align: right;
+  padding: 15px;
+  min-height: 150px;
+}
+
+.rich-text-editor .ql-toolbar {
+  border-bottom: 1px solid #e0e7ff;
+  background: #f8fafc;
+  border-radius: 8px 8px 0 0;
+}
+
+.rich-text-editor .ql-container {
+  border-radius: 0 0 8px 8px;
+  border: 1px solid #e0e7ff;
+  border-top: none;
+}
+
+.rich-text-editor .ql-editor.ql-blank::before {
+  left: auto;
+  right: 15px;
+  direction: rtl;
+  text-align: right;
+  font-style: normal;
+  color: #94a3b8;
+}
+
+/* Dark theme support for admin */
+.dark .rich-text-editor .ql-toolbar {
+  background: var(--admin-bg-secondary);
+  border-color: var(--admin-border-color);
+}
+
+.dark .rich-text-editor .ql-container {
+  border-color: var(--admin-border-color);
+  background: var(--admin-bg-primary);
+}
+
+.dark .rich-text-editor .ql-editor {
+  color: var(--admin-text-primary);
+}
+
+.dark .rich-text-editor .ql-editor.ql-blank::before {
+  color: var(--admin-text-secondary);
+}
+
+/* Toolbar button styling */
+.rich-text-editor .ql-toolbar .ql-formats {
+  margin-right: 15px;
+  margin-left: 0;
+}
+
+.rich-text-editor .ql-toolbar button {
+  border-radius: 4px;
+  margin: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.rich-text-editor .ql-toolbar button:hover {
+  background-color: rgba(130, 97, 198, 0.1);
+}
+
+.rich-text-editor .ql-toolbar button.ql-active {
+  background-color: rgba(130, 97, 198, 0.2);
+  color: var(--admin-accent-primary, #8261c6);
+}
+
+/* Loading state */
+.quill-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  background: #f8fafc;
+  border: 1px solid #e0e7ff;
+  border-radius: 8px;
+  color: #64748b;
+  font-family: 'Cairo', sans-serif;
+  direction: rtl;
+  text-align: center;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .rich-text-editor .ql-toolbar .ql-formats {
+    margin-right: 8px;
+  }
+  
+  .rich-text-editor .ql-editor {
+    padding: 10px;
+    min-height: 120px;
+  }
+  
+  .rich-text-editor .ql-toolbar {
+    padding: 8px;
+  }
+}

@@ -4,7 +4,16 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faSearch, faEdit, faTrash, faEye, faSortUp, faSortDown } from '@fortawesome/free-solid-svg-icons'
+import {
+  faPlus,
+  faSearch,
+  faEdit,
+  faTrash,
+  faEye,
+  faSortUp,
+  faSortDown,
+  faCopy,
+} from '@fortawesome/free-solid-svg-icons'
 import './products.css'
 
 interface Product {
@@ -127,6 +136,34 @@ export default function AdminProducts() {
       } catch (error) {
         console.error('خطأ في حذف المنتج:', error)
         alert('حدث خطأ أثناء حذف المنتج')
+      }
+    }
+  }
+
+  const handleDuplicate = async (productId: string) => {
+    if (window.confirm('هل تريد تكرار هذا المنتج؟ سيتم إنشاء نسخة جديدة مع إضافة "Copy" للاسم.')) {
+      try {
+        const response = await fetch('/api/admin/products/duplicate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ productId }),
+        })
+
+        const data = await response.json()
+
+        if (response.ok && data.success) {
+          // Refresh the products list to show the new duplicate
+          fetchProducts()
+          alert(`تم تكرار المنتج بنجاح! المنتج الجديد: ${data.data.name}`)
+        } else {
+          console.error('خطأ في تكرار المنتج:', data.message)
+          alert(`خطأ في تكرار المنتج: ${data.message || 'حدث خطأ غير متوقع'}`)
+        }
+      } catch (error) {
+        console.error('خطأ في تكرار المنتج:', error)
+        alert('حدث خطأ أثناء تكرار المنتج')
       }
     }
   }
@@ -334,6 +371,13 @@ export default function AdminProducts() {
                     <Link href={`/admin/products/${product._id}`} className="action-btn edit-btn" title="تعديل المنتج">
                       <FontAwesomeIcon icon={faEdit} />
                     </Link>
+                    <button
+                      onClick={() => handleDuplicate(product._id)}
+                      className="action-btn duplicate-btn"
+                      title="تكرار المنتج"
+                    >
+                      <FontAwesomeIcon icon={faCopy} />
+                    </button>
                     <button
                       onClick={() => handleDelete(product._id)}
                       className="action-btn delete-btn"

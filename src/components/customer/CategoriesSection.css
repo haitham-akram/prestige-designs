@@ -1,7 +1,7 @@
 /* Categories Section CSS - CSN Prefix */
 
 .csn-categories-section {
-  padding: 4rem 0;
+  padding: 4rem 2rem; /* Add horizontal padding for better desktop spacing */
   position: relative;
   overflow: hidden;
 }
@@ -278,118 +278,377 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
+  .csn-categories-section {
+    padding: 3rem 1rem; /* Add horizontal padding to fix right spacing */
+  }
+
+  .csn-categories-title {
+    font-size: 2.2rem;
+  }
+
   .csn-categories-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 1rem;
+    gap: 1.2rem; /* Reduced gap for better spacing */
+    max-width: 800px;
+    padding: 0 1rem;
   }
-  
+ 
+  .csn-category-card {
+    height: 180px; /* Square-like dimensions */
+    aspect-ratio: 1; /* Perfect square for small images */
+    border-radius: 12px;
+  }
+
+  /* Ensure small images in 2-image rows are perfect squares */
+  .csn-category-card:not([class*="span"]) {
+    aspect-ratio: 1;
+    height: 180px;
+  }
+
+  /* Smart alternating pattern for tablet */
   .csn-categories-grid.csn-grid-5 {
     grid-template-columns: 1fr 1fr;
     grid-template-areas: 
-      "item1 item2"
-      "item3 item2"
-      "item4 item5";
+      "item1 item2"   /* Row 1: 2 images */
+      "item3 item3"   /* Row 2: 1 big image */
+      "item4 item5";  /* Row 3: 2 images */
   }
-  
-  .csn-categories-grid.csn-grid-7 {
-    grid-template-columns: 1fr 1fr;
-    grid-template-areas: 
-      "item1 item2"
-      "item3 item4"
-      "item5 item6"
-      "item7 .";
+
+  .csn-categories-grid.csn-grid-5 .csn-category-item-3 {
+    grid-column: span 2;
+    height: auto;
+    min-height: 180px; /* Taller minimum for tablet */
+    aspect-ratio: 2.5/1; /* Slightly wider ratio for tablet */
   }
-  
+
+  /* EVEN Categories (6 items): 2-2-2 pattern */
   .csn-categories-grid.csn-grid-6 {
     grid-template-areas: 
       "item1 item2"
       "item3 item4"
       "item5 item6";
   }
-  
+
+  /* No special styling for even grid - all same height */
+  .csn-categories-grid.csn-grid-6 .csn-category-item-3 {
+    grid-column: auto;
+    height: 200px;
+  }
+
+  /* ODD Categories (7 items): 2-1-2-1-1 pattern */
+  .csn-categories-grid.csn-grid-7 {
+    grid-template-areas: 
+      "item1 item2"   /* Row 1: 2 images */
+      "item3 item3"   /* Row 2: 1 big image */
+      "item4 item5"   /* Row 3: 2 images */
+      "item6 item6"   /* Row 4: 1 big image */
+      "item7 item7";  /* Row 5: 1 big image */
+  }
+
+  .csn-categories-grid.csn-grid-7 .csn-category-item-3,
+  .csn-categories-grid.csn-grid-7 .csn-category-item-6,
+  .csn-categories-grid.csn-grid-7 .csn-category-item-7 {
+    grid-column: span 2;
+    height: auto;
+    min-height: 180px;
+    aspect-ratio: 2.5/1;
+  }
+ 
+  .csn-categories-grid.csn-grid-4 {
+    grid-template-areas: 
+      "item1 item2"   /* Row 1: 2 images */
+      "item3 item4";  /* Row 2: 2 images */
+  }
+ 
+  .csn-categories-grid.csn-grid-3 {
+    grid-template-areas: 
+      "item1 item2"   /* Row 1: 2 images */
+      "item3 item3";  /* Row 2: 1 big image */
+  }
+
+  .csn-categories-grid.csn-grid-3 .csn-category-item-3 {
+    grid-column: span 2;
+    height: auto;
+    min-height: 180px;
+    aspect-ratio: 2.5/1;
+  }
+ 
+  .csn-categories-grid.csn-grid-2 {
+    grid-template-areas: 
+      "item1 item2";  /* Single row: 2 images */
+  }
+ 
+  .csn-categories-grid.csn-grid-1 {
+    grid-template-areas: 
+      "item1 item1";  /* Single big image */
+    grid-template-columns: 1fr;
+  }
+
+  .csn-categories-grid.csn-grid-1 .csn-category-item-1 {
+    height: auto;
+    min-height: 240px; /* Taller for single featured item */
+  }
+
+  /* Support for larger grids on tablet */
+  .csn-categories-grid.csn-grid-8 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item4"
+      "item5 item6"
+      "item7 item8";
+  }
+
+  .csn-categories-grid.csn-grid-9 {
+    grid-template-areas: 
+      "item1 item2"   /* Row 1: 2 images */
+      "item3 item3"   /* Row 2: 1 big image */
+      "item4 item5"   /* Row 3: 2 images */
+      "item6 item6"   /* Row 4: 1 big image */
+      "item7 item8"   /* Row 5: 2 images */
+      "item9 item9";  /* Row 6: 1 big image */
+  }
+
+  .csn-categories-grid.csn-grid-9 .csn-category-item-3,
+  .csn-categories-grid.csn-grid-9 .csn-category-item-6,
+  .csn-categories-grid.csn-grid-9 .csn-category-item-9 {
+    grid-column: span 2;
+    height: auto;
+    min-height: 180px;
+    aspect-ratio: 2.5/1;
+  }
+
+  .csn-categories-grid.csn-grid-10 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item4"
+      "item5 item6"
+      "item7 item8"
+      "item9 item10";
+  }
+
+  /* Remove large category constraints on tablet */
+  .csn-category-large {
+    width: auto;
+    height: auto;
+    grid-row: auto;
+  }
+}
+
+/* Professional Mobile Responsive Design -- ✅ UPDATED SECTION */
+@media (max-width: 768px) {
+  .csn-categories-section {
+    padding: 2.5rem 1rem;
+    margin: 0;
+  }
+
+  .csn-categories-container {
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .csn-categories-title {
+    font-size: 1.8rem;
+    margin-bottom: 2rem;
+    text-align: center;
+  }
+
+  .csn-categories-grid {
+    grid-template-columns: 1fr 1fr;
+    align-content: start;
+    gap: 0.8rem;
+    max-width: 100%;
+    padding: 0;
+  }
+
+  .csn-category-card {
+    height: auto; 
+    border-radius: 12px;
+    aspect-ratio: 1; 
+    width: 100%; 
+  }
+
+  .csn-category-card .csn-image-overlay {
+    opacity: 0.7;
+  }
+
+  .csn-category-name {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+
+  .csn-category-card:not([class*="span"]) {
+    aspect-ratio: 1; 
+  }
+
+  .csn-categories-grid.csn-grid-5,
+  .csn-categories-grid.csn-grid-6,
+  .csn-categories-grid.csn-grid-7 {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  /* ODD Categories (5 items): 2-1-2 pattern */
+  .csn-categories-grid.csn-grid-5 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item3"
+      "item4 item5";
+    grid-template-rows: auto auto auto; /* ✅ FIX: Explicitly set 3 auto-sized rows */
+  }
+
+  .csn-categories-grid.csn-grid-5 .csn-category-item-3 {
+    grid-column: span 2;
+    aspect-ratio: 1;
+  }
+
+  /* EVEN Categories (6 items): 2-2-2 pattern */
+  .csn-categories-grid.csn-grid-6 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item4"
+      "item5 item6";
+  }
+
+  /* ODD Categories (7 items): 2-1-2-1-1 pattern */
+  .csn-categories-grid.csn-grid-7 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item3"
+      "item4 item5"
+      "item6 item6"
+      "item7 item7";
+    grid-template-rows: auto auto auto auto auto; /* ✅ FIX: Explicitly set 5 auto-sized rows */
+  }
+
+  .csn-categories-grid.csn-grid-7 .csn-category-item-3,
+  .csn-categories-grid.csn-grid-7 .csn-category-item-6,
+  .csn-categories-grid.csn-grid-7 .csn-category-item-7 {
+    grid-column: span 2;
+    aspect-ratio: 1;
+  }
+
   .csn-categories-grid.csn-grid-4 {
     grid-template-areas: 
       "item1 item2"
       "item3 item4";
   }
-  
+
+  /* ODD Categories (3 items): 2-1 pattern */
   .csn-categories-grid.csn-grid-3 {
     grid-template-areas: 
       "item1 item2"
-      "item3 .";
+      "item3 item3";
+    grid-template-rows: auto auto; /* ✅ FIX: Explicitly set 2 auto-sized rows */
   }
-  
+
+  .csn-categories-grid.csn-grid-3 .csn-category-item-3 {
+    grid-column: span 2;
+    aspect-ratio: 1;
+  }
+
   .csn-categories-grid.csn-grid-2 {
+    grid-template-areas: "item1 item2";
+  }
+
+  .csn-categories-grid.csn-grid-1 {
+    grid-template-areas: "item1 item1";
+    grid-template-columns: 1fr;
+  }
+
+  .csn-categories-grid.csn-grid-1 .csn-category-item-1 {
+    height: auto;
+    min-height: 180px;
+  }
+
+  /* ODD Categories (9 items) */
+  .csn-categories-grid.csn-grid-9 {
     grid-template-areas: 
-      "item1 item2";
+      "item1 item2"
+      "item3 item3"
+      "item4 item5"
+      "item6 item6"
+      "item7 item8"
+      "item9 item9";
+    grid-template-rows: auto auto auto auto auto auto; /* ✅ FIX: Explicitly set 6 auto-sized rows */
+  }
+
+  .csn-categories-grid.csn-grid-9 .csn-category-item-3,
+  .csn-categories-grid.csn-grid-9 .csn-category-item-6,
+  .csn-categories-grid.csn-grid-9 .csn-category-item-9 {
+    grid-column: span 2;
+    aspect-ratio: 1;
+  }
+
+  .csn-categories-grid.csn-grid-8,
+  .csn-categories-grid.csn-grid-10 {
+    grid-template-areas: 
+      "item1 item2"
+      "item3 item4"
+      "item5 item6"
+      "item7 item8";
   }
   
-  .csn-categories-grid.csn-grid-1 {
+  .csn-categories-grid.csn-grid-10 {
     grid-template-areas: 
-      "item1 .";
+      "item1 item2"
+      "item3 item4"
+      "item5 item6"
+      "item7 item8"
+      "item9 item10";
+  }
+
+  .csn-category-large {
+    width: auto;
+    height: auto;
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  /* Remove redundant/conflicting height rules from general cards */
+  .csn-category-card,
+  .csn-categories-grid .csn-category-item-3,
+  .csn-categories-grid .csn-category-item-6,
+  .csn-categories-grid .csn-category-item-7,
+  .csn-categories-grid .csn-category-item-9 {
+    height: auto;
+    min-height: unset;
   }
 }
 
-@media (max-width: 768px) {
+
+/* Small Mobile Optimization */
+@media (max-width: 480px) {
   .csn-categories-section {
-    padding: 3rem 0;
+    padding: 2rem 0.75rem;
   }
-  
+
   .csn-categories-title {
-    font-size: 2rem;
+    font-size: 1.6rem;
+    margin-bottom: 1.5rem;
   }
-  
+
   .csn-categories-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+    gap: 0.6rem;
   }
-  
-  .csn-categories-grid.csn-grid-5 {
-    grid-template-areas: 
-      "item1"
-      "item2"
-      "item3"
-      "item4"
-      "item5";
-  }
-  
-  .csn-categories-grid.csn-grid-6 {
-    grid-template-areas: 
-      "item1"
-      "item2"
-      "item3"
-      "item4"
-      "item5"
-      "item6";
-  }
-  
-  .csn-categories-grid.csn-grid-4 {
-    grid-template-areas: 
-      "item1"
-      "item2"
-      "item3"
-      "item4";
-  }
-  
-  .csn-categories-grid.csn-grid-3 {
-    grid-template-areas: 
-      "item1"
-      "item2"
-      "item3";
-  }
-  
-  .csn-categories-grid.csn-grid-2 {
-    grid-template-areas: 
-      "item1"
-      "item2";
-  }
-  
-  .csn-categories-grid.csn-grid-1 {
-    grid-template-areas: 
-      "item1";
-  }
-  
+
   .csn-category-card {
-    height: 200px;
+    border-radius: 10px;
   }
+
+  .csn-category-name {
+    font-size: 0.8rem;
+    padding: 0.4rem;
+  }
+
+  .csn-categories-grid.csn-grid-1 .csn-category-item-1 {
+    min-height: 160px;
+  }
+}
+
+/* RTL Support for Mobile */
+[dir="rtl"] .csn-categories-section {
+  text-align: right;
+}
+
+[dir="rtl"] .csn-category-name {
+  text-align: right;
 }

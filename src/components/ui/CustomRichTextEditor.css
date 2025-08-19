@@ -1,0 +1,236 @@
+/* Custom Rich Text Editor Styles */
+.custom-rich-editor {
+  direction: rtl;
+  text-align: right;
+  border-radius: 8px;
+  border: 1px solid #e0e7ff;
+  overflow: hidden;
+}
+
+.custom-editor-toolbar {
+  background: #f8fafc;
+  border-bottom: 1px solid #e0e7ff;
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  direction: rtl;
+}
+
+.toolbar-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.toolbar-button {
+  background: white;
+  border: 1px solid #e0e7ff;
+  border-radius: 4px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-family: 'Cairo', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #64748b;
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.toolbar-button:hover {
+  background: #f1f5f9;
+  border-color: #8261c6;
+  color: #8261c6;
+}
+
+.toolbar-button:active {
+  background: #e2e8f0;
+  transform: scale(0.95);
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 24px;
+  background: #e0e7ff;
+  margin: 0 4px;
+}
+
+.color-picker {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #e0e7ff;
+  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
+  background: none;
+}
+
+.color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 2px;
+}
+
+.custom-editor-content {
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+  background: white;
+  color: var(--text-primary, #1e293b);
+}
+
+.custom-editor-content:empty:before {
+  content: attr(data-placeholder);
+  color: #94a3b8;
+  font-style: normal;
+  pointer-events: none;
+}
+
+.custom-editor-content:focus {
+  border-color: #8261c6;
+  box-shadow: 0 0 0 3px rgba(130, 97, 198, 0.1);
+}
+
+/* Rich text formatting in content */
+.custom-editor-content h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 1.5rem 0 1rem 0;
+  color: var(--text-primary, #1e293b);
+}
+
+.custom-editor-content h2 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 1.5rem 0 1rem 0;
+  color: var(--text-primary, #1e293b);
+}
+
+.custom-editor-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.75rem 0;
+  color: var(--text-primary, #1e293b);
+}
+
+.custom-editor-content p {
+  margin: 0.75rem 0;
+  line-height: 1.7;
+}
+
+.custom-editor-content strong {
+  font-weight: 700;
+}
+
+.custom-editor-content em {
+  font-style: italic;
+}
+
+.custom-editor-content u {
+  text-decoration: underline;
+}
+
+.custom-editor-content s {
+  text-decoration: line-through;
+}
+
+.custom-editor-content ul,
+.custom-editor-content ol {
+  margin: 1rem 0;
+  padding-right: 2rem;
+  padding-left: 0;
+}
+
+.custom-editor-content li {
+  margin: 0.5rem 0;
+  line-height: 1.6;
+}
+
+.custom-editor-content a {
+  color: #8261c6;
+  text-decoration: none;
+}
+
+.custom-editor-content a:hover {
+  text-decoration: underline;
+}
+
+/* Dark theme support */
+.dark .custom-editor-toolbar {
+  background: var(--admin-bg-secondary, #1e293b);
+  border-color: var(--admin-border-color, #334155);
+}
+
+.dark .toolbar-button {
+  background: var(--admin-bg-primary, #0f172a);
+  border-color: var(--admin-border-color, #334155);
+  color: var(--admin-text-primary, #f1f5f9);
+}
+
+.dark .toolbar-button:hover {
+  background: var(--admin-bg-secondary, #1e293b);
+  border-color: var(--admin-accent-primary, #8261c6);
+}
+
+.dark .custom-editor-content {
+  background: var(--admin-bg-primary, #0f172a);
+  color: var(--admin-text-primary, #f1f5f9);
+  border-color: var(--admin-border-color, #334155);
+}
+
+.dark .custom-rich-editor {
+  border-color: var(--admin-border-color, #334155);
+}
+
+.dark .toolbar-separator {
+  background: var(--admin-border-color, #334155);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .custom-editor-toolbar {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+  
+  .toolbar-button {
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 28px;
+    height: 28px;
+  }
+  
+  .color-picker {
+    width: 28px;
+    height: 28px;
+  }
+  
+  .custom-editor-content {
+    padding: 12px;
+    min-height: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .custom-editor-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+  
+  .toolbar-group {
+    gap: 2px;
+  }
+  
+  .toolbar-button {
+    padding: 3px 6px;
+    font-size: 11px;
+    min-width: 24px;
+    height: 24px;
+  }
+  
+  .custom-editor-content {
+    padding: 10px;
+    font-size: 13px;
+  }
+}

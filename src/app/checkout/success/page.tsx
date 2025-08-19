@@ -208,6 +208,13 @@ function CheckoutSuccessContent() {
             <FontAwesomeIcon icon={faEye} />
             عرض طلباتي
           </button>
+          <button
+            onClick={() => router.push(`/customer/reviews/add?orderId=${orderId || orderNumber}`)}
+            className="osu-btn-review"
+          >
+            <FontAwesomeIcon icon={faClipboard} />
+            إضافة تقييم
+          </button>
           <button onClick={() => router.push('/')} className="osu-btn-secondary">
             <FontAwesomeIcon icon={faShoppingCart} />
             متابعة التسوق

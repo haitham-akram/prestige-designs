@@ -66,7 +66,21 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         const data = await response.json()
 
         if (data.success) {
-          setCategories(data.data)
+          // Sort categories to prioritize discount categories
+          const sortedCategories = data.data.sort((a: NavCategory, b: NavCategory) => {
+            // Check if category name contains discount keywords
+            const isDiscountA = a.name.includes('عروض توفيرية') || a.name.includes('توفيرية')
+            const isDiscountB = b.name.includes('عروض توفيرية') || b.name.includes('توفيرية')
+
+            // Discount categories come first
+            if (isDiscountA && !isDiscountB) return -1
+            if (!isDiscountA && isDiscountB) return 1
+
+            // If both or neither are discount categories, maintain original order
+            return 0
+          })
+
+          setCategories(sortedCategories)
         }
       } catch (error) {
         console.error('Error fetching categories:', error)

@@ -29,6 +29,32 @@ import { faWhatsapp } from '@fortawesome/free-brands-svg-icons'
 import RefundVerification from '@/components/admin/RefundVerification'
 import './order-detail.css'
 
+// Helper function to download images
+const downloadImage = async (imageUrl: string, fileName: string) => {
+  try {
+    const response = await fetch(imageUrl)
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error downloading image:', error)
+    // Fallback: open in new tab
+    window.open(imageUrl, '_blank')
+  }
+}
+
+// Helper function to format currency to 2 decimal places
+const formatCurrency = (amount: number | string): string => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  return `$${numAmount.toFixed(2)}`
+}
+
 // Types
 interface OrderItem {
   productId: string
@@ -256,6 +282,7 @@ export default function OrderDetailPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({}), // Send empty JSON object for admin requests
       })
 
       if (!response.ok) {
@@ -695,6 +722,28 @@ export default function OrderDetailPage() {
                                 <h4>{item.productName}</h4>
                               </div>
 
+                              {/* Colors Section */}
+                              {item.customizations.colors && item.customizations.colors.length > 0 && (
+                                <div className="customization-section">
+                                  <h5>الألوان المختارة:</h5>
+                                  <div className="admin-colors-list">
+                                    {item.customizations.colors.map((color, colorIndex) => (
+                                      <div key={colorIndex} className="admin-color-item">
+                                        <div
+                                          className="admin-color-swatch"
+                                          style={{ backgroundColor: color.hex || '#cccccc' }}
+                                          title={`${color.name} - ${color.hex || 'لون مخصص'}`}
+                                        ></div>
+                                        <div className="admin-color-info">
+                                          <span className="admin-color-name">{color.name}</span>
+                                          <span className="admin-color-hex">{color.hex || 'لون مخصص'}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Text Changes */}
                               {item.customizations.textChanges && item.customizations.textChanges.length > 0 && (
                                 <div className="customization-section">
@@ -724,17 +773,44 @@ export default function OrderDetailPage() {
                                       // Handle both string URLs and object format
                                       const imageUrl =
                                         typeof image === 'string' ? image : image.url || image.publicId || image
+                                      const fileName = `uploaded-image-${imageIndex + 1}.${
+                                        imageUrl.split('.').pop() || 'jpg'
+                                      }`
+
                                       return (
                                         <div key={imageIndex} className="uploaded-image-item">
-                                          <img
-                                            src={imageUrl}
-                                            alt={`صورة مرفوعة ${imageIndex + 1}`}
-                                            className="customization-image"
-                                            onError={(e) => {
-                                              console.error('Failed to load customization image:', imageUrl)
-                                              e.currentTarget.style.display = 'none'
-                                            }}
-                                          />
+                                          <div className="image-container">
+                                            <img
+                                              src={imageUrl}
+                                              alt={`صورة مرفوعة ${imageIndex + 1}`}
+                                              className="customization-image"
+                                              onError={(e) => {
+                                                console.error('Failed to load customization image:', imageUrl)
+                                                e.currentTarget.style.display = 'none'
+                                              }}
+                                              onClick={() => window.open(imageUrl, '_blank')}
+                                              title="انقر لعرض الصورة في نافذة جديدة"
+                                            />
+                                            <div className="image-actions">
+                                              <button
+                                                className="btn btn-sm btn-primary"
+                                                onClick={() => downloadImage(imageUrl, fileName)}
+                                                title="تحميل الصورة"
+                                              >
+                                                <FontAwesomeIcon icon={faDownload} />
+                                              </button>
+                                              <button
+                                                className="btn btn-sm btn-secondary"
+                                                onClick={() => window.open(imageUrl, '_blank')}
+                                                title="عرض في نافذة جديدة"
+                                              >
+                                                <FontAwesomeIcon icon={faEye} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                          <div className="image-info">
+                                            <span className="image-name">{fileName}</span>
+                                          </div>
                                         </div>
                                       )
                                     })}
@@ -747,24 +823,69 @@ export default function OrderDetailPage() {
                                 <div className="customization-section">
                                   <h5>الشعار المرفوع:</h5>
                                   <div className="uploaded-logo">
-                                    <img
-                                      src={
-                                        typeof item.customizations.uploadedLogo === 'string'
-                                          ? item.customizations.uploadedLogo
-                                          : item.customizations.uploadedLogo.url ||
-                                            item.customizations.uploadedLogo.publicId ||
-                                            item.customizations.uploadedLogo
-                                      }
-                                      alt="الشعار المرفوع"
-                                      className="customization-logo"
-                                      onError={(e) => {
-                                        console.error(
-                                          'Failed to load customization logo:',
-                                          item.customizations.uploadedLogo
-                                        )
-                                        e.currentTarget.style.display = 'none'
-                                      }}
-                                    />
+                                    <div className="logo-container">
+                                      <img
+                                        src={
+                                          typeof item.customizations.uploadedLogo === 'string'
+                                            ? item.customizations.uploadedLogo
+                                            : (item.customizations.uploadedLogo as any).url ||
+                                              (item.customizations.uploadedLogo as any).publicId ||
+                                              item.customizations.uploadedLogo
+                                        }
+                                        alt="الشعار المرفوع"
+                                        className="customization-logo"
+                                        onError={(e) => {
+                                          console.error(
+                                            'Failed to load customization logo:',
+                                            item.customizations?.uploadedLogo
+                                          )
+                                          e.currentTarget.style.display = 'none'
+                                        }}
+                                        onClick={() => {
+                                          const logoUrl =
+                                            typeof item.customizations.uploadedLogo === 'string'
+                                              ? item.customizations.uploadedLogo
+                                              : (item.customizations.uploadedLogo as any).url ||
+                                                (item.customizations.uploadedLogo as any).publicId ||
+                                                item.customizations.uploadedLogo
+                                          window.open(logoUrl, '_blank')
+                                        }}
+                                        title="انقر لعرض الشعار في نافذة جديدة"
+                                      />
+                                      <div className="logo-actions">
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          onClick={() => {
+                                            const logoUrl =
+                                              typeof item.customizations.uploadedLogo === 'string'
+                                                ? item.customizations.uploadedLogo
+                                                : (item.customizations.uploadedLogo as any).url ||
+                                                  (item.customizations.uploadedLogo as any).publicId ||
+                                                  item.customizations.uploadedLogo
+                                            const fileName = `uploaded-logo.${logoUrl.split('.').pop() || 'png'}`
+                                            downloadImage(logoUrl, fileName)
+                                          }}
+                                          title="تحميل الشعار"
+                                        >
+                                          <FontAwesomeIcon icon={faDownload} />
+                                        </button>
+                                        <button
+                                          className="btn btn-sm btn-secondary"
+                                          onClick={() => {
+                                            const logoUrl =
+                                              typeof item.customizations.uploadedLogo === 'string'
+                                                ? item.customizations.uploadedLogo
+                                                : (item.customizations.uploadedLogo as any).url ||
+                                                  (item.customizations.uploadedLogo as any).publicId ||
+                                                  item.customizations.uploadedLogo
+                                            window.open(logoUrl, '_blank')
+                                          }}
+                                          title="عرض في نافذة جديدة"
+                                        >
+                                          <FontAwesomeIcon icon={faEye} />
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               )}

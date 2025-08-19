@@ -432,6 +432,16 @@
   box-shadow: 0 4px 12px rgba(237, 137, 54, 0.3);
 }
 
+.action-btn.duplicate-btn {
+  background: linear-gradient(135deg, #38b2ac, #319795);
+  color: white;
+}
+
+.action-btn.duplicate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(56, 178, 172, 0.3);
+}
+
 .action-btn.delete-btn {
   background: linear-gradient(135deg, #f56565, #e53e3e);
   color: white;

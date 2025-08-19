@@ -8,6 +8,7 @@ import { faSave, faArrowRight, faTrash, faPlus, faTimes } from '@fortawesome/fre
 import { useAlerts } from '@/components/ui/Alert'
 import Alert from '@/components/ui/Alert'
 import FileUpload from '@/components/ui/FileUpload'
+import CustomRichTextEditor from '@/components/ui/CustomRichTextEditor'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { getMimeType } from '@/lib/utils/clientUtils'
 import '../products.css'
@@ -1517,13 +1518,10 @@ export default function AddProduct() {
 
               <div className="form-group">
                 <label htmlFor="description">وصف المنتج *</label>
-                <textarea
-                  id="description"
+                <CustomRichTextEditor
                   value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="أدخل وصف المنتج"
-                  rows={4}
-                  required
+                  onChange={(value) => handleInputChange('description', value)}
+                  placeholder="أدخل وصف المنتج مع إمكانية التنسيق..."
                 />
               </div>
 

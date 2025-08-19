@@ -19,12 +19,12 @@ export default function HeroSection() {
       .catch(() => setSlides([]))
   }, [])
 
-  // Auto-play functionality - Faster timing for better performance
+  // Auto-play functionality - Set to 7 seconds as requested
   useEffect(() => {
     if (slides.length === 0) return
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 5000) // Reduced from 8000ms to 5000ms for faster auto-play
+    }, 7000) // Changed to 7000ms (7 seconds) as requested
     return () => clearInterval(interval)
   }, [slides.length])
 

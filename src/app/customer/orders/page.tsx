@@ -171,6 +171,11 @@ export default function CustomerOrdersPage() {
     })
   }
 
+  // Format price to 2 decimal places
+  const formatPrice = (price) => {
+    return parseFloat(price).toFixed(2)
+  }
+
   if (status === 'loading' || loading) {
     return (
       <CustomerLayout>
@@ -238,7 +243,7 @@ export default function CustomerOrdersPage() {
                         </span>
                         <span className="oc-total">
                           <FontAwesomeIcon icon={faDollarSign} />
-                          {order.totalPrice === 0 ? 'مجاني' : `$${order.totalPrice}`}
+                          {order.totalPrice === 0 ? 'مجاني' : `$${formatPrice(order.totalPrice)}`}
                         </span>
                       </div>
                     </div>
@@ -292,24 +297,24 @@ export default function CustomerOrdersPage() {
                                 : order.paymentStatus || 'مجاني'}
                             </span>
                           </div>
-                          {order.subtotal && (
+                          {order.subtotal ? (
                             <div className="oc-payment-item">
                               <span className="oc-label">المجموع الفرعي:</span>
-                              <span className="oc-value">${order.subtotal}</span>
+                              <span className="oc-value">${formatPrice(order.subtotal)}</span>
                             </div>
-                          )}
-                          {order.totalPromoDiscount && order.totalPromoDiscount > 0 && (
+                          ) : null}
+                          {order.totalPromoDiscount && order.totalPromoDiscount > 0 ? (
                             <div className="oc-payment-item">
                               <span className="oc-label">الخصم:</span>
-                              <span className="oc-value oc-discount">-${order.totalPromoDiscount}</span>
+                              <span className="oc-value oc-discount">-${formatPrice(order.totalPromoDiscount)}</span>
                             </div>
-                          )}
-                          {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 && (
+                          ) : null}
+                          {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 ? (
                             <div className="oc-payment-item">
                               <span className="oc-label">كوبونات الخصم:</span>
                               <span className="oc-value oc-promo-codes">{order.appliedPromoCodes.join(', ')}</span>
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -331,8 +336,8 @@ export default function CustomerOrdersPage() {
                         </h4>
                         <div className="oc-payment-item" style={{ background: 'transparent', border: 'none' }}>
                           <span className="oc-label">نوع الطلب:</span>
-                          <span className="oc-value" style={{ color: '#22c55e', fontWeight: 'bold' }}>
-                            💚 مجاني - $0.00
+                          <span className="oc-value" style={{ color: '#22c55e', fontWeight: 'bold', direction: 'rtl' }}>
+                            مجاني - $0.00
                           </span>
                         </div>
                       </div>
@@ -347,9 +352,9 @@ export default function CustomerOrdersPage() {
                           <h5>{item.productName || item.productId.name}</h5>
                           <div className="oc-item-details">
                             <span>الكمية: {item.quantity}</span>
-                            <span>السعر: ${item.totalPrice}</span>
+                            <span>السعر: ${formatPrice(item.totalPrice)}</span>
                             {item.hasCustomizations && <span className="oc-customizable">قابل للتخصيص</span>}
-                            {item.customizations?.colors && item.customizations.colors.length > 0 && (
+                            {item.customizations?.colors && item.customizations.colors.length > 0 ? (
                               <div className="oc-colors">
                                 <span>الألوان المختارة:</span>
                                 <div className="oc-color-list">
@@ -365,52 +370,18 @@ export default function CustomerOrdersPage() {
                                   ))}
                                 </div>
                               </div>
-                            )}
-                            {item.customizations?.customizationNotes && (
+                            ) : null}
+                            {item.customizations?.customizationNotes ? (
                               <div className="oc-notes">
                                 <span>ملاحظات التخصيص:</span>
                                 <p>{item.customizations.customizationNotes}</p>
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Order History Section */}
-                  {order.orderHistory && order.orderHistory.length > 0 && (
-                    <div className="oc-history">
-                      <h4>تاريخ الطلب</h4>
-                      <div className="oc-timeline">
-                        {order.orderHistory
-                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                          .map((history, index) => (
-                            <div key={index} className="oc-timeline-item">
-                              <div className="oc-timeline-marker"></div>
-                              <div className="oc-timeline-content">
-                                <div className="oc-timeline-status">
-                                  {history.status === 'completed'
-                                    ? 'مكتمل'
-                                    : history.status === 'pending'
-                                    ? 'في الانتظار'
-                                    : history.status === 'processing'
-                                    ? 'جاري المعالجة'
-                                    : history.status === 'awaiting_customization'
-                                    ? 'في انتظار التخصيص'
-                                    : history.status === 'under_customization'
-                                    ? 'تحت التخصيص'
-                                    : history.status}
-                                </div>
-                                <div className="oc-timeline-date">{formatDate(history.timestamp)}</div>
-                                {history.note && <div className="oc-timeline-note">{history.note}</div>}
-                                {history.changedBy && <div className="oc-timeline-by">بواسطة: {history.changedBy}</div>}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
 
                   {order.designFiles && order.designFiles.length > 0 && (
                     <div className="oc-downloads">
@@ -438,6 +409,15 @@ export default function CustomerOrdersPage() {
                       <FontAwesomeIcon icon={faEye} />
                       عرض التفاصيل
                     </button>
+                    {order.orderStatus === 'completed' && (
+                      <button
+                        onClick={() => router.push(`/customer/reviews/add?orderId=${order._id}`)}
+                        className="oc-add-review-btn"
+                      >
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                        إضافة تقييم
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

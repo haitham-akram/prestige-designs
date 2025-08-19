@@ -8,6 +8,7 @@ import { faSave, faArrowRight, faUpload, faTrash, faEye, faPlus, faTimes } from 
 import { useAlerts } from '@/components/ui/Alert'
 import Alert from '@/components/ui/Alert'
 import FileUpload, { UploadProgress } from '@/components/ui/FileUpload'
+import CustomRichTextEditor from '@/components/ui/CustomRichTextEditor'
 import { useFileUpload } from '@/hooks/useFileUpload'
 import { getMimeType } from '@/lib/utils/clientUtils'
 import '../products.css'
@@ -53,6 +54,7 @@ interface ProductFormData {
       fileUrl: string
       fileSize: number
       isTemp?: boolean
+      _id?: string // Add _id to track existing files
     }[]
   }[]
   designFiles: {
@@ -66,6 +68,7 @@ interface ProductFormData {
       fileUrl: string
       fileSize: number
       isTemp?: boolean
+      _id?: string // Add _id to track existing files
     }[]
   }[]
 }
@@ -387,6 +390,7 @@ export default function EditProduct() {
               fileUrl: file.fileUrl,
               fileSize: file.fileSize,
               isTemp: false,
+              _id: file._id, // Add the database ID to track existing files
             })
           } else {
             // This is a general file
@@ -396,6 +400,7 @@ export default function EditProduct() {
               fileUrl: file.fileUrl,
               fileSize: file.fileSize,
               isTemp: false,
+              _id: file._id, // Add the database ID to track existing files
             })
           }
         })
@@ -635,7 +640,18 @@ export default function EditProduct() {
 
           // Save each design file to database with the correct productId
           for (const designFile of formData.designFiles) {
-            const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp)
+            const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp && !file._id)
+
+            console.log('Design files processing:', {
+              totalFiles: designFile.uploadedFiles.length,
+              filesToSave: filesToSave.length,
+              fileDetails: designFile.uploadedFiles.map((f) => ({
+                name: f.fileName,
+                isTemp: f.isTemp,
+                hasId: !!f._id,
+                id: f._id,
+              })),
+            })
 
             for (const file of filesToSave) {
               try {
@@ -712,7 +728,20 @@ export default function EditProduct() {
 
           // Save color files to database
           for (const color of formData.colors) {
-            const colorFilesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
+            const colorFilesToSave = color.uploadedFiles?.filter((file) => !file.isTemp && !file._id) || []
+
+            console.log('Color files processing:', {
+              colorName: color.name,
+              totalFiles: color.uploadedFiles?.length || 0,
+              filesToSave: colorFilesToSave.length,
+              fileDetails:
+                color.uploadedFiles?.map((f) => ({
+                  name: f.fileName,
+                  isTemp: f.isTemp,
+                  hasId: !!f._id,
+                  id: f._id,
+                })) || [],
+            })
 
             for (const file of colorFilesToSave) {
               try {
@@ -1302,12 +1331,12 @@ export default function EditProduct() {
   }
 
   const handleColorFileRemove = async (fileName: string, colorIndex: number) => {
-    // Find the file to get its URL
+    // Find the file to get its URL and ID
     const fileToDelete = formData.colors[colorIndex]?.uploadedFiles?.find((f) => f.fileName === fileName)
 
     if (fileToDelete?.fileUrl) {
       try {
-        // Delete file from server
+        // Delete file from server (and database if it has an _id)
         const response = await fetch('/api/admin/upload/delete-file', {
           method: 'DELETE',
           headers: {
@@ -1315,6 +1344,7 @@ export default function EditProduct() {
           },
           body: JSON.stringify({
             fileUrl: fileToDelete.fileUrl,
+            deleteFromDatabase: !!fileToDelete._id, // Only delete from DB if it has an ID
           }),
         })
 
@@ -1583,13 +1613,10 @@ export default function EditProduct() {
 
               <div className="form-group">
                 <label htmlFor="description">وصف المنتج *</label>
-                <textarea
-                  id="description"
+                <CustomRichTextEditor
                   value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="أدخل وصف المنتج"
-                  rows={4}
-                  required
+                  onChange={(value) => handleInputChange('description', value)}
+                  placeholder="أدخل وصف المنتج مع إمكانية التنسيق..."
                 />
               </div>
 
@@ -2066,14 +2093,14 @@ export default function EditProduct() {
                           }
                           uploadedFiles={formData.designFiles[index]?.uploadedFiles || []}
                           onFileRemove={async (fileName) => {
-                            // Find the file to get its URL
+                            // Find the file to get its URL and ID
                             const fileToDelete = formData.designFiles[index]?.uploadedFiles.find(
                               (f) => f.fileName === fileName
                             )
 
                             if (fileToDelete?.fileUrl) {
                               try {
-                                // Delete file from server
+                                // Delete file from server (and database if it has an _id)
                                 const response = await fetch('/api/admin/upload/delete-file', {
                                   method: 'DELETE',
                                   headers: {
@@ -2081,6 +2108,7 @@ export default function EditProduct() {
                                   },
                                   body: JSON.stringify({
                                     fileUrl: fileToDelete.fileUrl,
+                                    deleteFromDatabase: !!fileToDelete._id, // Only delete from DB if it has an ID
                                   }),
                                 })
 

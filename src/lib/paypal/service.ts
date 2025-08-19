@@ -82,6 +82,7 @@ export class PayPalService {
         try {
             console.log('🔄 Creating PayPal order...', orderRequest.orderId);
             console.log('💰 Total amount (after discounts):', orderRequest.totalAmount);
+            console.log('🔍 PayPal Service DEBUG - Full orderRequest:', JSON.stringify(orderRequest, null, 2));
 
             // Calculate totals and ensure proper formatting
             const totalAmount = parseFloat(orderRequest.totalAmount);
@@ -94,22 +95,30 @@ export class PayPalService {
 
             // Check if there's a discount applied
             const hasDiscount = Math.abs(itemsTotal - totalAmount) > 0.01; // Account for floating point precision
+            const discountAmount = hasDiscount ? itemsTotal - totalAmount : 0;
             console.log('🎫 Has discount:', hasDiscount);
+            console.log('💸 Discount amount:', discountAmount.toFixed(2));
 
-            // Create amount object - only include breakdown if no discount to avoid PayPal validation errors
+            // Create amount object with proper breakdown
+            // PayPal requires item_total in breakdown when items are specified
             const amountObject: any = {
                 currencyCode: PAYPAL_CONFIG.currency,
-                value: totalAmount.toFixed(2)
-            };
-
-            // Only include breakdown if totals match (no discount applied)
-            if (!hasDiscount) {
-                amountObject.breakdown = {
+                value: totalAmount.toFixed(2),
+                breakdown: {
                     itemTotal: {
                         currencyCode: PAYPAL_CONFIG.currency,
                         value: itemsTotal.toFixed(2),
                     }
+                }
+            };
+
+            // If there's a discount, add it to the breakdown
+            if (hasDiscount && discountAmount > 0) {
+                amountObject.breakdown.discount = {
+                    currencyCode: PAYPAL_CONFIG.currency,
+                    value: discountAmount.toFixed(2),
                 };
+                console.log('💰 Added discount to PayPal breakdown:', discountAmount.toFixed(2));
             }
 
             // Create order body
@@ -289,12 +298,47 @@ export class PayPalService {
                 return order;
             }
 
+            console.log('🔍 PROMO CODE DEBUG - Order before completion:', {
+                orderNumber: order.orderNumber,
+                appliedPromoCodes: order.appliedPromoCodes,
+                totalPromoDiscount: order.totalPromoDiscount,
+                totalPrice: order.totalPrice,
+                itemPromoData: order.items.map(item => ({
+                    name: item.productName,
+                    promoCode: item.promoCode,
+                    promoDiscount: item.promoDiscount
+                }))
+            });
+
+            // Preserve promo code data - ensure they remain intact after payment
+            // The promo codes and discounts were already calculated and saved during order creation
+            // We need to ensure they are not lost during payment completion
+            const preservedPromoDiscount = order.totalPromoDiscount;
+            const preservedAppliedPromoCodes = [...(order.appliedPromoCodes || [])];
+
+            if (preservedAppliedPromoCodes.length > 0) {
+                console.log('💰 PROMO CODE FIX - Preserving promo code data during payment completion:', {
+                    appliedPromoCodes: preservedAppliedPromoCodes,
+                    totalPromoDiscount: preservedPromoDiscount,
+                    originalTotalPrice: order.totalPrice
+                });
+            }
+
             // Update order with payment info
             order.paymentStatus = 'paid';
             order.paypalTransactionId = paypalData.transactionId;
             order.paypalOrderId = paypalData.id;
             order.paidAt = new Date();
             order.orderStatus = 'processing';
+
+            // Explicitly preserve promo code data after payment status updates
+            // Now that we've removed the problematic pre-save middleware,
+            // the promo code data should be preserved automatically
+            if (preservedAppliedPromoCodes.length > 0) {
+                order.totalPromoDiscount = preservedPromoDiscount;
+                order.appliedPromoCodes = preservedAppliedPromoCodes;
+                console.log('💰 Promo code data preserved after payment status update');
+            }
 
             // Store PayPal address if provided
             if (paypalData.payer.address) {
@@ -320,6 +364,25 @@ export class PayPalService {
 
             await order.save();
 
+            console.log('🔍 PROMO CODE DEBUG - Order after save:', {
+                orderNumber: order.orderNumber,
+                appliedPromoCodes: order.appliedPromoCodes,
+                totalPromoDiscount: order.totalPromoDiscount,
+                totalPrice: order.totalPrice,
+                paymentStatus: order.paymentStatus
+            });
+
+            if (preservedAppliedPromoCodes.length > 0) {
+                if (order.totalPromoDiscount === preservedPromoDiscount) {
+                    console.log('✅ PROMO CODE FIX SUCCESS - Promo code data preserved correctly!');
+                } else {
+                    console.log('❌ PROMO CODE FIX FAILED - Promo code data was lost:', {
+                        expected: preservedPromoDiscount,
+                        actual: order.totalPromoDiscount
+                    });
+                }
+            }
+
             // Check delivery type based on color variant availability
             const deliveryResult = await this.checkDeliveryType(order);
             order.deliveryType = deliveryResult.deliveryType;
@@ -327,46 +390,55 @@ export class PayPalService {
 
             await order.save();
 
+            let emailSent = false; // Track if customer email was already sent
+
             if (deliveryResult.deliveryType === 'auto_delivery' && !deliveryResult.requiresCustomWork) {
                 // Auto-complete the order and send files immediately
                 await this.autoCompleteOrder(order);
+                emailSent = true; // autoCompleteOrder sends the email
                 console.log('🎉 Order auto-completed with immediate delivery');
             } else if (deliveryResult.deliveryType === 'auto_delivery' && deliveryResult.requiresCustomWork) {
                 // Send immediate files and customization email for remaining items
                 await this.sendImmediateFiles(order, deliveryResult.availableFiles);
                 await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
+                emailSent = true; // sendImmediateFiles sends the email
                 console.log('📧 Immediate files sent and customization email sent for remaining items');
             } else {
                 // All items require custom work - send customization email only
                 await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
                 console.log('📧 Customization email sent for all items');
+                // No customer email sent yet, will be sent below
             }
 
-            // Send customer notification email after payment
-            try {
-                console.log('📧 Sending customer notification email...');
-                const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+            // Send customer notification email after payment (only if not already sent)
+            if (!emailSent) {
+                try {
+                    console.log('📧 Sending customer notification email...');
+                    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
 
-                const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer system-internal-call'
-                    },
-                    body: JSON.stringify({
-                        orderId: order._id.toString(),
-                        orderNumber: order.orderNumber,
-                        isFreeOrder: false
-                    }),
-                });
+                    const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer system-internal-call'
+                        },
+                        body: JSON.stringify({
+                            orderId: order._id.toString(),
+                            orderNumber: order.orderNumber,
+                            isFreeOrder: false
+                        }),
+                    });
 
-                if (response.ok) {
-                    console.log('✅ Customer notification email sent successfully');
-                } else {
-                    console.log('⚠️ Failed to send customer notification email:', await response.text());
+                    if (response.ok) {
+                        console.log('✅ Customer notification email sent successfully');
+                    } else {
+                        console.log('⚠️ Failed to send customer notification email:', await response.text());
+                    }
+                } catch (emailError) {
+                    console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
                 }
-            } catch (emailError) {
-                console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
+            } else {
+                console.log('📧 Customer email already sent via delivery process, skipping duplicate');
             }
 
             // Send admin notification about new paid order
@@ -398,6 +470,38 @@ export class PayPalService {
             } catch (notificationError) {
                 console.error('⚠️ Error sending admin notification (non-critical):', notificationError);
                 // Don't throw error here - notification failure shouldn't break order completion
+            }
+
+            // Send Discord webhook notification
+            try {
+                console.log('🔔 Sending Discord webhook notification for paid order...');
+                const { DiscordWebhookService } = await import('@/lib/services/discordWebhookService');
+
+                const discordResult = await DiscordWebhookService.sendPaidOrderNotification({
+                    orderNumber: order.orderNumber,
+                    customerName: order.customerName,
+                    customerEmail: order.customerEmail,
+                    totalPrice: order.totalPrice,
+                    currency: 'USD', // You can make this dynamic if needed
+                    items: order.items.map(item => ({
+                        productName: item.productName || 'Unknown Product',
+                        quantity: item.quantity || 1,
+                        price: item.unitPrice || item.totalPrice || 0
+                    })),
+                    paymentMethod: 'PayPal',
+                    orderStatus: order.orderStatus,
+                    hasCustomizations: deliveryResult.requiresCustomWork,
+                    paidAt: new Date()
+                });
+
+                if (discordResult.success) {
+                    console.log('✅ Discord webhook notification sent successfully');
+                } else {
+                    console.log('⚠️ Discord webhook failed (non-critical):', discordResult.error);
+                }
+            } catch (discordError) {
+                console.error('⚠️ Error sending Discord webhook (non-critical):', discordError);
+                // Don't throw error here - Discord notification failure shouldn't break order completion
             }
 
             console.log('✅ Order completion process finished');
@@ -670,90 +774,39 @@ ${itemsList}
      */
     private static async sendCustomizationEmail(order: IOrder, customWorkItems?: any[]): Promise<void> {
         try {
-            // Create a custom HTML message for customization processing  
-            let customizationDetails = '';
-            if (customWorkItems && customWorkItems.length > 0) {
-                const itemsList = customWorkItems.map(item =>
-                    `• ${item.productName} (${item.quantity}x)`
-                ).join('\n');
+            // Import email service
+            const { EmailService } = await import('@/lib/services/emailService');
 
-                customizationDetails = `
-                    <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
-                        العناصر التي تتطلب عمل مخصص:
-                    </p>
-                    <pre style="background: #e9ecef; padding: 10px; border-radius: 4px; font-size: 14px;">
-${itemsList}
-                    </pre>
-                `;
-            }
+            // Convert customWorkItems to proper format
+            const formattedCustomWorkItems = customWorkItems?.map(item => ({
+                productName: item.productName,
+                quantity: item.quantity
+            }));
 
-            const customMessage = `
-                <div style="padding: 20px; background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
-                    <h3 style="color: #8261c6; margin-bottom: 15px;">🎨 طلبك قيد المعالجة</h3>
-                    <p style="color: #495057; line-height: 1.6; margin-bottom: 15px;">
-                        تم استلام طلبك بنجاح وتأكيد الدفع. سيتم العمل على تخصيص التصاميم حسب متطلباتك وإرسالها إليك في أقرب وقت ممكن.
-                    </p>
-                    ${customizationDetails}
-                    <p style="color: #6c757d; font-size: 14px;">
-                        شكراً لثقتك بنا. سنتواصل معك في حال احتجنا لأي توضيحات إضافية.
-                    </p>
-                </div>
-            `;
+            // Use the consistent email service
+            const result = await EmailService.sendCustomizationProcessingEmail(
+                order.customerEmail,
+                {
+                    orderNumber: order.orderNumber,
+                    customerName: order.customerName,
+                    customWorkItems: formattedCustomWorkItems,
+                }
+            );
 
-            // Use a simple email sending method
-            const transporter = await import('nodemailer').then(nm => {
-                return nm.default.createTransport({
-                    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-                    port: parseInt(process.env.SMTP_PORT || '587'),
-                    secure: false,
-                    auth: {
-                        user: process.env.SMTP_USER,
-                        pass: process.env.SMTP_PASS,
-                    },
+            if (result.success) {
+                // Add email to order history
+                order.orderHistory.push({
+                    status: 'email_sent',
+                    timestamp: new Date(),
+                    note: 'تم إرسال بريد إلكتروني بخصوص معالجة التخصيصات',
+                    changedBy: 'system',
                 });
-            });
+                await order.save();
 
-            const mailOptions = {
-                from: `"Prestige Designs" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
-                to: order.customerEmail,
-                subject: `معالجة طلبك - ${order.orderNumber}`,
-                html: `
-                    <!DOCTYPE html>
-                    <html dir="rtl" lang="ar">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>معالجة طلبك</title>
-                    </head>
-                    <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f4f4;">
-                        <div style="max-width: 600px; margin: 0 auto; background-color: white; border-radius: 10px; padding: 30px; box-shadow: 0 0 20px rgba(0,0,0,0.1);">
-                            <h1 style="color: #8261c6; text-align: center; margin-bottom: 30px;">Prestige Designs</h1>
-                            <h2 style="color: #333; margin-bottom: 20px;">مرحباً ${order.customerName}</h2>
-                            ${customMessage}
-                            <div style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
-                                <strong>رقم الطلب:</strong> ${order.orderNumber}
-                            </div>
-                            <p style="color: #666; text-align: center; margin-top: 30px; font-size: 14px;">
-                                شكراً لاختيارك Prestige Designs
-                            </p>
-                        </div>
-                    </body>
-                    </html>
-                `,
-            };
-
-            await transporter.sendMail(mailOptions);
-
-            // Add email to order history
-            order.orderHistory.push({
-                status: 'email_sent',
-                timestamp: new Date(),
-                note: 'تم إرسال بريد إلكتروني بخصوص معالجة التخصيصات',
-                changedBy: 'system',
-            });
-            await order.save();
-
-            console.log('✅ Customization processing email sent successfully');
+                console.log('✅ Customization processing email sent successfully');
+            } else {
+                console.error('❌ Error sending customization email:', result.error);
+            }
         } catch (error) {
             console.error('❌ Error sending customization email:', error);
         }

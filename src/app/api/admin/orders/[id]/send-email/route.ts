@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import Order from '@/lib/db/models/Order';
 import connectDB from '@/lib/db/connection';
+import { EmailService } from '@/lib/services/emailService';
 
 export async function POST(
     request: NextRequest,
@@ -78,15 +79,74 @@ export async function POST(
             );
         }
 
-        // TODO: Implement actual email sending
-        // For now, we'll just mark the email as sent in the database
+        let emailResult;
+
+        // Send the actual email using our EmailService
+        try {
+            switch (emailType) {
+                case 'order_completed':
+                    // Convert download links from strings to objects
+                    const downloadLinksForEmail = (order.downloadLinks || []).map((url: string, index: number) => ({
+                        fileName: `design-file-${index + 1}`,
+                        fileUrl: url,
+                        fileSize: 1024 * 1024, // 1MB default
+                        fileType: 'design'
+                    }));
+
+                    emailResult = await EmailService.sendOrderCompletedEmail(
+                        order.customerEmail,
+                        {
+                            orderNumber: order.orderNumber,
+                            customerName: order.customerName,
+                            downloadLinks: downloadLinksForEmail,
+                            downloadExpiry: order.downloadExpiry || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+                        }
+                    );
+                    break;
+                case 'custom_message':
+                    emailResult = await EmailService.sendCustomMessage(
+                        order.customerEmail,
+                        {
+                            orderNumber: order.orderNumber,
+                            customerName: order.customerName,
+                            subject: template.subject,
+                            message: customMessage || 'رسالة مخصصة من إدارة الموقع'
+                        }
+                    );
+                    break;
+                default:
+                    // For other email types, send custom message with appropriate content
+                    emailResult = await EmailService.sendCustomMessage(
+                        order.customerEmail,
+                        {
+                            orderNumber: order.orderNumber,
+                            customerName: order.customerName,
+                            subject: template.subject,
+                            message: customMessage || 'تحديث على حالة طلبك'
+                        }
+                    );
+            }
+
+            if (!emailResult.success) {
+                throw new Error(emailResult.error);
+            }
+        } catch (emailError) {
+            console.error('Failed to send email:', emailError);
+            return NextResponse.json(
+                { error: 'Failed to send email', details: emailError },
+                { status: 500 }
+            );
+        }
+
+        // Create email data for database
         const emailData = {
             type: emailType,
             subject: template.subject,
             sentAt: new Date(),
             sentBy: session.user.id || 'admin',
             recipient: order.customerEmail,
-            customMessage: customMessage || null
+            customMessage: customMessage || null,
+            messageId: emailResult.messageId
         };
 
         // Update order with email sent status
@@ -95,19 +155,11 @@ export async function POST(
         order.orderHistory.push({
             status: 'email_sent',
             timestamp: new Date(),
-            note: `تم إرسال بريد إلكتروني ${emailType} إلى العميل`,
+            note: `تم إرسال بريد إلكتروني ${emailType} إلى العميل بنجاح`,
             changedBy: session.user.name || 'admin'
         });
 
         await order.save();
-
-        // TODO: Replace with actual email service (SendGrid, AWS SES, etc.)
-        console.log('Email would be sent:', {
-            to: order.customerEmail,
-            subject: template.subject,
-            template: template.template,
-            data: template.data
-        });
 
         return NextResponse.json({
             message: 'Email sent successfully',

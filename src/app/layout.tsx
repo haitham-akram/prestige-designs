@@ -52,7 +52,7 @@ function HydrationWrapper({ children }: { children: React.ReactNode }) {
 function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = 'ar' // Default to Arabic for now
   return (
-    <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+    <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} className={`${geistSans.variable} ${geistMono.variable}`}>
       <body suppressHydrationWarning={true}>
         <SessionProvider>
           <HydrationWrapper>{children}</HydrationWrapper>

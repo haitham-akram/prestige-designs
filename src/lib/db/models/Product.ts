@@ -275,7 +275,7 @@ const ProductSchema = new Schema<IProduct>({
 
     rating: {
         type: Number,
-        default: 0,
+        default: 5,
         min: [0, 'Rating cannot be negative'],
         max: [5, 'Rating cannot exceed 5']
     },

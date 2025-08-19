@@ -522,37 +522,6 @@ OrderSchema.index({ deliveryType: 1 });
 OrderSchema.index({ requiresCustomWork: 1 });
 OrderSchema.index({ orderStatus: 1, deliveryType: 1 });
 
-// Pre-save middleware to calculate totals and promo codes
-OrderSchema.pre('save', function (this: IOrder, next) {
-    // Calculate subtotal from original prices
-    this.subtotal = this.items.reduce((sum, item) => {
-        return sum + (item.originalPrice * item.quantity);
-    }, 0);
-
-    // Calculate total promo discount
-    this.totalPromoDiscount = this.items.reduce((sum, item) => {
-        return sum + (item.promoDiscount || 0);
-    }, 0);
-
-    // Calculate final total price (item totals minus promo discounts)
-    this.totalPrice = this.items.reduce((sum, item) => {
-        const itemTotal = item.totalPrice;
-        const itemPromoDiscount = item.promoDiscount || 0;
-        const itemFinalPrice = itemTotal - itemPromoDiscount;
-        return sum + itemFinalPrice;
-    }, 0);
-
-    // Update applied promo codes list
-    const promoCodes = this.items
-        .filter(item => item.promoCode)
-        .map(item => item.promoCode!)
-        .filter((code, index, array) => array.indexOf(code) === index); // Remove duplicates
-
-    this.appliedPromoCodes = promoCodes;
-
-    next();
-});
-
 // Pre-save middleware to generate order number
 OrderSchema.pre('save', async function (this: IOrder, next) {
     if (this.isNew && !this.orderNumber) {

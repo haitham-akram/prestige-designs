@@ -109,8 +109,6 @@ export default function CategoriesWithProducts() {
       const categoriesResponse = await fetch('/api/categories')
       const categoriesData = await categoriesResponse.json()
 
-      console.log('📂 Categories response:', categoriesData)
-
       if (!categoriesResponse.ok) {
         throw new Error('Failed to fetch categories')
       }
@@ -122,16 +120,24 @@ export default function CategoriesWithProducts() {
       }
 
       const activeCategories = categoriesData.data
-      console.log('✅ Active categories:', activeCategories.length)
-
+     
       if (activeCategories.length === 0) {
         console.log('⚠️ No active categories found')
         setCategories([])
         return
       }
 
-      // Sort categories: those with images first, then by order
+      // Sort categories: discount categories first, then those with images, then by order
       const sortedCategories = activeCategories.sort((a: Category, b: Category) => {
+        // Check if category name contains discount keywords
+        const isDiscountA = a.name.includes('عروض توفيرية') || a.name.includes('توفيرية')
+        const isDiscountB = b.name.includes('عروض توفيرية') || b.name.includes('توفيرية')
+
+        // Discount categories come first
+        if (isDiscountA && !isDiscountB) return -1
+        if (!isDiscountA && isDiscountB) return 1
+
+        // If both or neither are discount categories, sort by image presence, then order
         if (a.image && !b.image) return -1
         if (!a.image && b.image) return 1
         return a.order - b.order

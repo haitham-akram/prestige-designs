@@ -334,21 +334,21 @@
   }
   
   .customer-carousel .carousel-controls {
-    gap: 60px;
+    gap: 9rem;
   }
   
   .customer-carousel .carousel-dots {
-    top: 225px;
+    top: 20rem;
   }
 }
 
 @media (max-width: 375px) {
   .customer-carousel .carousel-controls {
-    gap: 120px;
+    gap: 9rem;
   }
   
   .customer-carousel .carousel-dots {
-    top: 225px;
+    top: 20rem;
   }
 }
 
