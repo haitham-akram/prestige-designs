@@ -78,6 +78,7 @@ export interface IOrder extends Document {
     customerId: string;              // Reference to User
     customerEmail: string;           // Customer email for notifications
     customerName: string;            // Customer name for order emails
+    customerPhone?: string;          // Customer phone number with country code
 
     // PayPal address (populated after payment completion)
     paypalAddress?: IPayPalAddress;  // Address info from PayPal (optional)
@@ -281,6 +282,13 @@ const OrderSchema = new Schema<IOrder>({
         trim: true,
     },
 
+    customerPhone: {
+        type: String,
+        required: false,
+        trim: true,
+        maxlength: [20, 'Customer phone cannot exceed 20 characters']
+    },
+
     // PayPal address (populated after payment completion)
     paypalAddress: {
         type: PayPalAddressSchema,
@@ -314,7 +322,14 @@ const OrderSchema = new Schema<IOrder>({
     totalPrice: {
         type: Number,
         required: [true, 'Total price is required'],
-        min: [0, 'Total price cannot be negative']
+        // Allow negative values for free orders with excessive promo discounts
+        validate: {
+            validator: function (value: number) {
+                // Allow negative values if payment status is 'free' or order total is 0
+                return value >= 0 || this.paymentStatus === 'free' || value === 0;
+            },
+            message: 'Total price cannot be negative for paid orders'
+        }
     },
 
     // Applied promo codes summary
@@ -506,37 +521,6 @@ OrderSchema.index({ paymentStatus: 1, orderStatus: 1 });
 OrderSchema.index({ deliveryType: 1 });
 OrderSchema.index({ requiresCustomWork: 1 });
 OrderSchema.index({ orderStatus: 1, deliveryType: 1 });
-
-// Pre-save middleware to calculate totals and promo codes
-OrderSchema.pre('save', function (this: IOrder, next) {
-    // Calculate subtotal from original prices
-    this.subtotal = this.items.reduce((sum, item) => {
-        return sum + (item.originalPrice * item.quantity);
-    }, 0);
-
-    // Calculate total promo discount
-    this.totalPromoDiscount = this.items.reduce((sum, item) => {
-        return sum + (item.promoDiscount || 0);
-    }, 0);
-
-    // Calculate final total price (item totals minus promo discounts)
-    this.totalPrice = this.items.reduce((sum, item) => {
-        const itemTotal = item.totalPrice;
-        const itemPromoDiscount = item.promoDiscount || 0;
-        const itemFinalPrice = itemTotal - itemPromoDiscount;
-        return sum + itemFinalPrice;
-    }, 0);
-
-    // Update applied promo codes list
-    const promoCodes = this.items
-        .filter(item => item.promoCode)
-        .map(item => item.promoCode!)
-        .filter((code, index, array) => array.indexOf(code) === index); // Remove duplicates
-
-    this.appliedPromoCodes = promoCodes;
-
-    next();
-});
 
 // Pre-save middleware to generate order number
 OrderSchema.pre('save', async function (this: IOrder, next) {

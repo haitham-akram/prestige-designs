@@ -19,12 +19,12 @@ export default function HeroSection() {
       .catch(() => setSlides([]))
   }, [])
 
-  // Auto-play functionality - Faster timing for better performance
+  // Auto-play functionality - Set to 7 seconds as requested
   useEffect(() => {
     if (slides.length === 0) return
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % slides.length)
-    }, 5000) // Reduced from 8000ms to 5000ms for faster auto-play
+    }, 7000) // Changed to 7000ms (7 seconds) as requested
     return () => clearInterval(interval)
   }, [slides.length])
 
@@ -63,7 +63,7 @@ export default function HeroSection() {
                 className="carousel-image"
                 priority={index === 0}
                 loading={index === 0 ? 'eager' : 'lazy'}
-                quality={85} // Reduced from 100 to 85 for better performance
+                quality={100} // Reduced from 100 to 85 for better performance
                 placeholder="blur"
                 blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWGRkqGx0f/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyugDYfvE2AU=" // Low quality placeholder
               />

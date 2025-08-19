@@ -21,14 +21,54 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import './order-details.css'
 
+// Types
+interface Order {
+  _id: string
+  orderNumber: string
+  orderStatus: string
+  createdAt: string
+  updatedAt: string
+  totalPrice: number
+  discountAmount?: number
+  promoCode?: string
+  customerInfo?: {
+    name: string
+    email: string
+    phone: string
+    address: string
+  }
+  items: OrderItem[]
+  designFiles?: DesignFile[]
+}
+
+interface OrderItem {
+  productName: string
+  productId?: { name: string }
+  quantity: number
+  totalPrice: number
+  originalPrice?: number
+  discountAmount?: number
+  hasCustomizations?: boolean
+  customizations?: {
+    colors?: { name: string; hex: string }[]
+    uploadedImages?: string[]
+  }
+}
+
+interface DesignFile {
+  fileName: string
+  fileUrl: string
+  fileType: string
+}
+
 export default function OrderDetailsPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const params = useParams()
   const orderId = params.orderId
-  const [order, setOrder] = useState(null)
+  const [order, setOrder] = useState<Order | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -62,7 +102,7 @@ export default function OrderDetailsPage() {
     }
   }, [status, session, router, orderId])
 
-  const handleDownloadFile = async (fileUrl, fileName) => {
+  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
     try {
       const response = await fetch(fileUrl)
       const blob = await response.blob()
@@ -80,7 +120,7 @@ export default function OrderDetailsPage() {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'completed':
         return faCheckCircle
@@ -93,7 +133,7 @@ export default function OrderDetailsPage() {
     }
   }
 
-  const getStatusColor = (status) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return '#10b981' // green
@@ -106,7 +146,7 @@ export default function OrderDetailsPage() {
     }
   }
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('ar-EG', {
       year: 'numeric',
       month: 'long',
@@ -114,6 +154,11 @@ export default function OrderDetailsPage() {
       hour: '2-digit',
       minute: '2-digit',
     })
+  }
+
+  // Format price to 2 decimal places
+  const formatPrice = (price: number) => {
+    return parseFloat(price.toString()).toFixed(2)
   }
 
   if (status === 'loading' || loading) {
@@ -209,8 +254,20 @@ export default function OrderDetailsPage() {
               </div>
               <div className="detail-row">
                 <span className="detail-label">إجمالي السعر:</span>
-                <span className="detail-value price">${order.totalPrice}</span>
+                <span className="detail-value price">${formatPrice(order.totalPrice)}</span>
               </div>
+              {order.discountAmount && order.discountAmount > 0 && (
+                <div className="detail-row">
+                  <span className="detail-label">الخصم:</span>
+                  <span className="detail-value discount">-${formatPrice(order.discountAmount)}</span>
+                </div>
+              )}
+              {order.promoCode && (
+                <div className="detail-row">
+                  <span className="detail-label">كود الخصم:</span>
+                  <span className="detail-value promo-code">{order.promoCode}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -271,9 +328,30 @@ export default function OrderDetailsPage() {
                     <h4>{item.productName || item.productId?.name || 'منتج غير محدد'}</h4>
                     <div className="item-specs">
                       <span>الكمية: {item.quantity}</span>
-                      <span>السعر: ${item.totalPrice}</span>
+                      <span>السعر: ${formatPrice(item.totalPrice)}</span>
+                      {item.originalPrice && item.originalPrice !== item.totalPrice && (
+                        <span className="original-price">السعر الأصلي: ${formatPrice(item.originalPrice)}</span>
+                      )}
+                      {item.discountAmount && item.discountAmount > 0 && (
+                        <span className="item-discount">خصم: -${formatPrice(item.discountAmount)}</span>
+                      )}
+                      {item.hasCustomizations && <span className="customizable-badge">قابل للتخصيص</span>}
                       {item.customizations?.colors && item.customizations.colors.length > 0 && (
-                        <span>الألوان: {item.customizations.colors.map((color) => color.name).join(', ')}</span>
+                        <div className="color-display">
+                          <span className="color-label">الألوان: </span>
+                          <div className="color-chips">
+                            {item.customizations.colors.map((color, colorIndex) => (
+                              <span
+                                key={colorIndex}
+                                className="color-chip"
+                                style={{ backgroundColor: color.hex || '#cccccc' }}
+                                title={color.name}
+                              >
+                                {color.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
                   </div>

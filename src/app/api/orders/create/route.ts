@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 import { Order } from '@/lib/db/models';
+import PromoCode from '@/lib/db/models/PromoCode';
+import PromoCodeUsage from '@/lib/db/models/PromoCodeUsage';
 import connectDB from '@/lib/db/connection';
 import { z } from 'zod';
 
@@ -84,7 +86,22 @@ export async function POST(request: NextRequest) {
 
         // Fix any double-stringified customization data
         if (body.items) {
-            body.items = body.items.map((item: any) => {
+            interface CartItemCustomizations {
+                uploadedImages?: string | string[];
+                uploadedLogo?: string | string[];
+                selectedColor?: string;
+                textContent?: string;
+                logoImages?: string[];
+            }
+            interface CartItem {
+                productId: string;
+                productName: string;
+                price: number;
+                quantity: number;
+                customizations?: CartItemCustomizations;
+                hasCustomizations?: boolean;
+            }
+            body.items = body.items.map((item: CartItem) => {
                 if (item.customizations) {
                     // Check if uploadedImages is a string instead of array
                     if (typeof item.customizations.uploadedImages === 'string') {
@@ -116,9 +133,45 @@ export async function POST(request: NextRequest) {
 
         await connectDB();
 
+        // Check if any items have customizations and if products support customizations
+        const Product = (await import('@/lib/db/models')).Product;
+        const productIds = orderData.items.map(item => item.productId);
+        const products = await Product.find({ _id: { $in: productIds } });
+
+        const hasCustomizableProducts = orderData.items.some(item => {
+            // Find the corresponding product from database
+            const product = products.find(p => p._id.toString() === item.productId);
+            return product && product.EnableCustomizations === true;
+        });
+
+        // Also check if any items actually have customizations applied
+        const hasCustomizations = orderData.items.some(item => {
+            return item.hasCustomizations ||
+                (item.customizations && (
+                    (item.customizations.colors && item.customizations.colors.length > 0) ||
+                    (item.customizations.textChanges && item.customizations.textChanges.length > 0) ||
+                    (item.customizations.uploadedImages && item.customizations.uploadedImages.length > 0) ||
+                    (item.customizations.uploadedLogo) ||
+                    (item.customizations.customizationNotes && item.customizations.customizationNotes.trim().length > 0)
+                ));
+        });
+
+        console.log('🔍 Customization analysis:', {
+            hasCustomizableProducts,
+            hasCustomizations,
+            productAnalysis: orderData.items.map(item => {
+                const product = products.find(p => p._id.toString() === item.productId);
+                return {
+                    productName: item.productName,
+                    EnableCustomizations: product?.EnableCustomizations || false,
+                    hasCustomizations: item.hasCustomizations,
+                    customizations: item.customizations
+                };
+            })
+        });
+
         // Check for existing pending orders to avoid duplicates
         // Look for orders with same user, same items (by productId), and pending payment status
-        const productIds = orderData.items.map(item => item.productId);
         const existingOrder = await Order.findOne({
             customerId: session.user.id,
             paymentStatus: 'pending',
@@ -130,10 +183,6 @@ export async function POST(request: NextRequest) {
 
         let order;
         let orderNumber;
-        let isNewOrder = false;
-
-        // Check if any items have customizations
-        const hasCustomizableProducts = orderData.items.some(item => item.hasCustomizations);
 
         if (existingOrder) {
             // Update existing order instead of creating a new one
@@ -145,7 +194,7 @@ export async function POST(request: NextRequest) {
             existingOrder.totalPrice = orderData.totalPrice;
             existingOrder.appliedPromoCodes = orderData.appliedPromoCodes;
             existingOrder.customerNotes = orderData.customerNotes;
-            existingOrder.hasCustomizableProducts = orderData.items.some(item => item.hasCustomizations);
+            existingOrder.hasCustomizableProducts = hasCustomizableProducts;
             existingOrder.customizationStatus = existingOrder.hasCustomizableProducts ? 'pending' : 'none';
             existingOrder.updatedAt = new Date();
 
@@ -162,9 +211,50 @@ export async function POST(request: NextRequest) {
             orderNumber = existingOrder.orderNumber;
 
             console.log('✅ Order updated successfully:', orderNumber);
+
+            // Handle promo code usage for updated orders
+            if (orderData.appliedPromoCodes && orderData.appliedPromoCodes.length > 0) {
+                // Check if any new promo codes were added that weren't previously recorded
+                for (const promoCodeString of orderData.appliedPromoCodes) {
+                    const existingUsage = await PromoCodeUsage.findOne({
+                        userId: session.user.id,
+                        promoCode: promoCodeString.toUpperCase(),
+                        orderId: existingOrder._id.toString(),
+                        isActive: true
+                    });
+
+                    if (!existingUsage) {
+                        // This is a new promo code for this order, record it
+                        try {
+                            const promoCodeDoc = await PromoCode.findOne({
+                                code: promoCodeString.toUpperCase(),
+                                isActive: true
+                            });
+
+                            if (promoCodeDoc) {
+                                await PromoCodeUsage.create({
+                                    userId: session.user.id,
+                                    promoCodeId: promoCodeDoc._id.toString(),
+                                    promoCode: promoCodeString.toUpperCase(),
+                                    orderId: existingOrder._id.toString(),
+                                    orderNumber: existingOrder.orderNumber,
+                                    discountAmount: orderData.totalPromoDiscount,
+                                    orderTotal: orderData.totalPrice + orderData.totalPromoDiscount,
+                                    usedAt: new Date()
+                                });
+
+                                await promoCodeDoc.incrementUsage();
+
+                                console.log('✅ Recorded new promo code usage for updated order:', promoCodeString);
+                            }
+                        } catch (promoError) {
+                            console.error('❌ Failed to record promo code usage for updated order:', promoError);
+                        }
+                    }
+                }
+            }
         } else {
             // Create new order - generate order number first
-            isNewOrder = true;
             let isUnique = false;
             let attempts = 0;
 
@@ -191,6 +281,7 @@ export async function POST(request: NextRequest) {
                 customerId: session.user.id,
                 customerEmail: orderData.customerEmail,
                 customerName: orderData.customerName,
+                customerPhone: orderData.customerPhone,
                 items: orderData.items,
                 subtotal: orderData.subtotal,
                 totalPromoDiscount: orderData.totalPromoDiscount,
@@ -217,6 +308,41 @@ export async function POST(request: NextRequest) {
             await order.save();
 
             console.log('✅ Order created successfully:', orderNumber);
+
+            // Record promo code usage for new orders with promo codes
+            if (orderData.appliedPromoCodes && orderData.appliedPromoCodes.length > 0) {
+                for (const promoCodeString of orderData.appliedPromoCodes) {
+                    try {
+                        // Find the promo code document to get its ID
+                        const promoCodeDoc = await PromoCode.findOne({
+                            code: promoCodeString.toUpperCase(),
+                            isActive: true
+                        });
+
+                        if (promoCodeDoc) {
+                            // Record the usage
+                            await PromoCodeUsage.create({
+                                userId: session.user.id,
+                                promoCodeId: promoCodeDoc._id.toString(),
+                                promoCode: promoCodeString.toUpperCase(),
+                                orderId: order._id.toString(),
+                                orderNumber: order.orderNumber,
+                                discountAmount: orderData.totalPromoDiscount,
+                                orderTotal: orderData.totalPrice + orderData.totalPromoDiscount, // Pre-discount total
+                                usedAt: new Date()
+                            });
+
+                            // Increment the promo code usage count
+                            await promoCodeDoc.incrementUsage();
+
+                            console.log('✅ Recorded promo code usage:', promoCodeString);
+                        }
+                    } catch (promoError) {
+                        console.error('❌ Failed to record promo code usage:', promoError);
+                        // Don't fail the order creation if promo recording fails
+                    }
+                }
+            }
         }
 
         return NextResponse.json({

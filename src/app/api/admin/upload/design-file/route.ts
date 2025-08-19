@@ -30,7 +30,7 @@ const uploadSchema = z.object({
     fileType: z.enum(['psd', 'ai', 'eps', 'pdf', 'svg', 'zip', 'rar', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']),
     fileSize: z.number()
         .min(1, 'File size must be greater than 0')
-        .max(100 * 1024 * 1024, 'File size cannot exceed 100MB'), // 100MB limit
+        .max(500 * 1024 * 1024, 'File size cannot exceed 500MB'), // Increased to 500MB limit
     description: z.string()
         .max(500, 'Description cannot exceed 500 characters')
         .nullable()
@@ -257,4 +257,8 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
 }
 
 // Apply middleware and export handlers
-export const POST = withAdmin(uploadDesignFile); 
+export const POST = withAdmin(uploadDesignFile);
+
+// Configure route segment to handle large files
+export const runtime = 'nodejs'
+export const maxDuration = 300 // 5 minutes timeout for large file uploads 

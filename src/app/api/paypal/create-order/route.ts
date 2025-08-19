@@ -64,17 +64,36 @@ export async function POST(request: NextRequest) {
         }
 
         // Prepare PayPal order items
+        // Use the unitPrice (after product discount) as the base price for PayPal
+        // This ensures only the promo code discount is applied in PayPal, not double discounts
         const paypalItems = order.items.map(item => ({
             name: item.productName,
             description: `${item.productName} - Quantity: ${item.quantity}`,
             quantity: item.quantity.toString(),
             unitAmount: {
                 currencyCode: 'USD',
-                value: item.unitPrice.toFixed(2)
+                value: item.unitPrice.toFixed(2) // unitPrice is already after product discount
             }
         }));
 
         // Create PayPal order
+        console.log('🔄 Creating PayPal order...', orderId);
+        console.log('📊 Order details for PayPal:', {
+            orderId: order._id.toString(),
+            orderNumber: order.orderNumber,
+            totalPrice: order.totalPrice,
+            totalPromoDiscount: order.totalPromoDiscount,
+            appliedPromoCodes: order.appliedPromoCodes,
+            items: order.items.map(item => ({
+                name: item.productName,
+                originalPrice: item.originalPrice,
+                unitPrice: item.unitPrice,
+                totalPrice: item.totalPrice,
+                promoCode: item.promoCode,
+                promoDiscount: item.promoDiscount
+            }))
+        });
+
         const paypalOrderResponse = await PayPalService.createOrder({
             items: paypalItems,
             totalAmount: order.totalPrice.toFixed(2),

@@ -4,25 +4,13 @@ import { useEffect, useState, useRef } from 'react'
 import { useParams } from 'next/navigation'
 import Image from 'next/image'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import {
-  faStar,
-  faHeart,
-  faShare,
-  faArrowLeft,
-  faImage,
-  faPalette,
-  faPen,
-  faImage as faImageIcon,
-  faTag,
-} from '@fortawesome/free-solid-svg-icons'
+import { faStar, faHeart, faShare, faImage } from '@fortawesome/free-solid-svg-icons'
 import Link from 'next/link'
 import CustomerLayout from '@/app/customer-layout'
 import AddToCartButton from '@/components/ui/AddToCartButton'
-import LoadingSpinner from '@/components/LoadingSpinner'
 import Breadcrumb from '@/components/ui/Breadcrumb'
 import CustomizationForm, { CustomizationFormRef } from '@/components/ui/CustomizationForm'
 import { CartItemCustomization } from '@/contexts/CartContext'
-import CartDebug from '@/components/ui/CartDebug'
 import ColorPicker from '@/components/ui/ColorPicker'
 import './product-details.css'
 
@@ -112,32 +100,32 @@ export default function ProductDetailsPage() {
   }
 
   useEffect(() => {
+    const fetchProduct = async () => {
+      try {
+        setLoading(true)
+        console.log('🔍 Fetching product with slug:', slug)
+
+        const response = await fetch(`/api/products/${slug}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Product not found')
+        }
+
+        setProduct(data.data)
+        setRelatedProducts(data.relatedProducts || [])
+      } catch (error) {
+        console.error('❌ Error fetching product:', error)
+        setError('Failed to load product. Please try again.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
     if (slug) {
       fetchProduct()
     }
   }, [slug])
-
-  const fetchProduct = async () => {
-    try {
-      setLoading(true)
-      console.log('🔍 Fetching product with slug:', slug)
-
-      const response = await fetch(`/api/products/${slug}`)
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Product not found')
-      }
-
-      setProduct(data.data)
-      setRelatedProducts(data.relatedProducts || [])
-    } catch (error) {
-      console.error('❌ Error fetching product:', error)
-      setError('Failed to load product. Please try again.')
-    } finally {
-      setLoading(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -180,7 +168,6 @@ export default function ProductDetailsPage() {
 
   return (
     <CustomerLayout>
-    
       <div className="container">
         {/* Breadcrumb */}
         <div className="pd-breadcrumb">
@@ -242,8 +229,8 @@ export default function ProductDetailsPage() {
             {/* Description */}
             {product.description && (
               <div className="pd-product-description">
-                <h3>الوصف</h3>
-                <p>{product.description}</p>
+                <h3>وصف المنتج</h3>
+                <div className="pd-description-content" dangerouslySetInnerHTML={{ __html: product.description }} />
               </div>
             )}
           </div>
@@ -330,81 +317,31 @@ export default function ProductDetailsPage() {
             )}
 
             {/* Colors - Displayed above Add to Cart */}
-            {product.colors && product.colors.length > 0 && (
+            {((product.colors && product.colors.length > 0) || product.allowColorChanges) && (
               <div className="pd-product-colors">
                 <h3>الألوان المتاحة لتخصيص التصميم</h3>
                 <div className="pd-colors-grid">
-                  {/* Predefined Colors */}
-                  {product.colors.map((color, index) => {
-                    const isSelected = customizations.colors?.some((c) => c.hex === color.hex) || false
-                    return (
-                      <div
-                        key={`predefined-${index}`}
-                        className={`pd-color-option ${isSelected ? 'selected' : ''}`}
-                        style={{ backgroundColor: color.hex }}
-                        title={color.name}
-                        onClick={() => {
-                          // Handle color selection for customizations
-                          const currentColors = customizations.colors || []
-                          const colorExists = currentColors.find((c) => c.hex === color.hex)
-                          let newColors
-
-                          if (colorExists) {
-                            newColors = currentColors.filter((c) => c.hex !== color.hex)
-                          } else {
-                            newColors = [...currentColors, { name: color.name, hex: color.hex }]
-                          }
-
-                          setCustomizations({
-                            ...customizations,
-                            colors: newColors,
-                          })
-                        }}
-                      />
-                    )
-                  })}
-
-                  {/* Color Picker */}
-                  <ColorPicker
-                    onColorSelect={(customColor) => {
-                      const currentColors = customizations.colors || []
-                      const colorExists = currentColors.find((c) => c.hex === customColor.hex)
-                      let newColors
-
-                      if (colorExists) {
-                        newColors = currentColors.filter((c) => c.hex !== customColor.hex)
-                      } else {
-                        newColors = [...currentColors, customColor]
-                      }
-
-                      setCustomizations({
-                        ...customizations,
-                        colors: newColors,
-                      })
-                    }}
-                  />
-
-                  {/* Custom Colors Display */}
-                  {customizations.colors
-                    ?.filter((color) => color.name === 'custom color')
-                    .map((customColor, index) => {
-                      const isSelected = customizations.colors?.some((c) => c.hex === customColor.hex) || false
+                  {/* Predefined Colors - Only show if they exist */}
+                  {product.colors &&
+                    product.colors.length > 0 &&
+                    product.colors.map((color, index) => {
+                      const isSelected = customizations.colors?.some((c) => c.hex === color.hex) || false
                       return (
                         <div
-                          key={`custom-${index}`}
+                          key={`predefined-${index}`}
                           className={`pd-color-option ${isSelected ? 'selected' : ''}`}
-                          style={{ backgroundColor: customColor.hex }}
-                          title={`Custom Color: ${customColor.hex}`}
+                          style={{ backgroundColor: color.hex }}
+                          title={color.name}
                           onClick={() => {
-                            // Handle custom color selection
+                            // Handle color selection for customizations
                             const currentColors = customizations.colors || []
-                            const colorExists = currentColors.find((c) => c.hex === customColor.hex)
+                            const colorExists = currentColors.find((c) => c.hex === color.hex)
                             let newColors
 
                             if (colorExists) {
-                              newColors = currentColors.filter((c) => c.hex !== customColor.hex)
+                              newColors = currentColors.filter((c) => c.hex !== color.hex)
                             } else {
-                              newColors = [...currentColors, customColor]
+                              newColors = [...currentColors, { name: color.name, hex: color.hex }]
                             }
 
                             setCustomizations({
@@ -415,6 +352,61 @@ export default function ProductDetailsPage() {
                         />
                       )
                     })}
+
+                  {/* Color Picker - Only show if color changes are allowed */}
+                  {product.allowColorChanges && (
+                    <ColorPicker
+                      onColorSelect={(customColor) => {
+                        const currentColors = customizations.colors || []
+                        const colorExists = currentColors.find((c) => c.hex === customColor.hex)
+                        let newColors
+
+                        if (colorExists) {
+                          newColors = currentColors.filter((c) => c.hex !== customColor.hex)
+                        } else {
+                          newColors = [...currentColors, customColor]
+                        }
+
+                        setCustomizations({
+                          ...customizations,
+                          colors: newColors,
+                        })
+                      }}
+                    />
+                  )}
+
+                  {/* Custom Colors Display - Only show if color changes are allowed */}
+                  {product.allowColorChanges &&
+                    customizations.colors
+                      ?.filter((color) => color.name === 'custom color')
+                      .map((customColor, index) => {
+                        const isSelected = customizations.colors?.some((c) => c.hex === customColor.hex) || false
+                        return (
+                          <div
+                            key={`custom-${index}`}
+                            className={`pd-color-option ${isSelected ? 'selected' : ''}`}
+                            style={{ backgroundColor: customColor.hex }}
+                            title={`Custom Color: ${customColor.hex}`}
+                            onClick={() => {
+                              // Handle custom color selection
+                              const currentColors = customizations.colors || []
+                              const colorExists = currentColors.find((c) => c.hex === customColor.hex)
+                              let newColors
+
+                              if (colorExists) {
+                                newColors = currentColors.filter((c) => c.hex !== customColor.hex)
+                              } else {
+                                newColors = [...currentColors, customColor]
+                              }
+
+                              setCustomizations({
+                                ...customizations,
+                                colors: newColors,
+                              })
+                            }}
+                          />
+                        )
+                      })}
                 </div>
               </div>
             )}

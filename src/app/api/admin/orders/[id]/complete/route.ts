@@ -45,9 +45,19 @@ export async function POST(
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
-        // Parse request body for free order handling
-        const body = await request.json();
-        const { isFreeOrder, paymentId, payerId, paymentStatus } = body;
+        // Parse request body for free order handling (optional)
+        let body = {};
+        try {
+            const requestText = await request.text();
+            if (requestText.trim()) {
+                body = JSON.parse(requestText);
+            }
+        } catch {
+            // No body or invalid JSON - use empty object as default
+            body = {};
+        }
+
+        const { isFreeOrder = false, paymentId, payerId, paymentStatus } = body;
 
         // Authorization check: Admin can complete any order, customers can only complete their own free orders
         const isAdmin = session.user.role === 'admin';

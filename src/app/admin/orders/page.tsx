@@ -27,6 +27,7 @@ import {
   faSort,
   faSortUp,
   faSortDown,
+  faExclamationTriangle,
 } from '@fortawesome/free-solid-svg-icons'
 import { useRouter } from 'next/navigation'
 
@@ -94,6 +95,7 @@ const statusColors = {
   processing: '#3b82f6',
   completed: '#10b981',
   cancelled: '#ef4444',
+  awaiting_customization: '#f59e0b',
 }
 
 const paymentStatusColors = {
@@ -109,6 +111,7 @@ const customizationStatusColors = {
   pending: '#f59e0b',
   processing: '#3b82f6',
   completed: '#10b981',
+  awaiting_customization: '#f59e0b',
 }
 
 const statusIcons = {
@@ -116,6 +119,7 @@ const statusIcons = {
   processing: faEdit,
   completed: faCheck,
   cancelled: faTimes,
+  awaiting_customization: faClock,
 }
 
 export default function OrdersPage() {
@@ -512,7 +516,7 @@ export default function OrdersPage() {
                             border: `1px solid ${statusColors[order.orderStatus]}40`,
                           }}
                         >
-                          <FontAwesomeIcon icon={statusIcons[order.orderStatus]} />
+                          <FontAwesomeIcon icon={statusIcons[order.orderStatus] || faClock} />
                           {order.orderStatus === 'pending'
                             ? 'في الانتظار'
                             : order.orderStatus === 'processing'
@@ -521,6 +525,8 @@ export default function OrdersPage() {
                             ? 'مكتمل'
                             : order.orderStatus === 'cancelled'
                             ? 'ملغي'
+                            : order.orderStatus === 'awaiting_customization'
+                            ? 'في انتظار التخصيص'
                             : order.orderStatus}
                         </span>
                       </td>
@@ -564,8 +570,20 @@ export default function OrdersPage() {
                             ? 'قيد المعالجة'
                             : order.customizationStatus === 'completed'
                             ? 'مكتمل'
+                            : order.customizationStatus === 'awaiting_customization'
+                            ? 'في انتظار التخصيص'
                             : order.customizationStatus}
                         </span>
+
+                        {/* Red Alert for Orders Needing Customer Input */}
+                        {order.hasCustomizableProducts &&
+                          order.customizationStatus === 'pending' &&
+                          (order.paymentStatus === 'paid' || order.paymentStatus === 'free') && (
+                            <div className="customization-alert" title="يحتاج مراجعة التخصيصات">
+                              <FontAwesomeIcon icon={faExclamationTriangle} />
+                              <span>يحتاج مراجعة</span>
+                            </div>
+                          )}
                       </td>
                       <td>
                         <div className="action-buttons">

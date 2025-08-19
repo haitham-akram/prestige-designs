@@ -422,7 +422,7 @@
   }
   
   .reviews-carousel .carousel-controls {
-    gap: 150px;
+           gap: 9rem;
   }
   
   .reviews-carousel .review-header {
@@ -439,20 +439,20 @@
     font-size: 1.2rem;
   }
   .reviews-carousel .carousel-dots {
-    top:210px
+   top: 20.5rem;
   }
 }
 
 @media (max-width: 375px) {
   .reviews-carousel .carousel-controls {
-    gap: 150px;
+    gap: 9rem;
   }
   .reviews-carousel .carousel-dots {
-    top:210px
+    top: 20.5rem;
   }
 }
 @media (max-width: 320px) {
   .reviews-carousel .carousel-dots {
-    top:235px
+   top: 20.5rem;
   }
 }

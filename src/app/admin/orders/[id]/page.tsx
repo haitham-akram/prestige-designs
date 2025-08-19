@@ -23,9 +23,37 @@ import {
   faEye,
   faHistory,
   faNotesMedical,
+  faPhone,
 } from '@fortawesome/free-solid-svg-icons'
+import { faWhatsapp } from '@fortawesome/free-brands-svg-icons'
 import RefundVerification from '@/components/admin/RefundVerification'
 import './order-detail.css'
+
+// Helper function to download images
+const downloadImage = async (imageUrl: string, fileName: string) => {
+  try {
+    const response = await fetch(imageUrl)
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    console.error('Error downloading image:', error)
+    // Fallback: open in new tab
+    window.open(imageUrl, '_blank')
+  }
+}
+
+// Helper function to format currency to 2 decimal places
+const formatCurrency = (amount: number | string): string => {
+  const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount
+  return `$${numAmount.toFixed(2)}`
+}
 
 // Types
 interface OrderItem {
@@ -118,6 +146,7 @@ const statusColors = {
   processing: '#3b82f6',
   completed: '#10b981',
   cancelled: '#ef4444',
+  awaiting_customization: '#f59e0b',
 }
 
 const paymentStatusColors = {
@@ -125,6 +154,7 @@ const paymentStatusColors = {
   paid: '#10b981',
   failed: '#ef4444',
   refunded: '#6b7280',
+  free: '#22c55e',
 }
 
 const customizationStatusColors = {
@@ -132,6 +162,7 @@ const customizationStatusColors = {
   pending: '#f59e0b',
   processing: '#3b82f6',
   completed: '#10b981',
+  awaiting_customization: '#f59e0b',
 }
 
 export default function OrderDetailPage() {
@@ -226,6 +257,18 @@ export default function OrderDetailPage() {
     return adminId || 'المدير'
   }
 
+  // Generate WhatsApp link
+  const generateWhatsAppLink = (phoneNumber: string, orderNumber: string) => {
+    // Remove any non-digit characters from phone number
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '')
+
+    // Default message in Arabic
+    const message = `السلام عليكم، أتواصل معكم بخصوص طلب رقم ${orderNumber}`
+
+    // WhatsApp URL with phone number and pre-filled message
+    return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+  }
+
   // Handle mark as complete
   const handleMarkAsComplete = async () => {
     if (!confirm('هل أنت متأكد من تحديد الطلب كمكتمل؟ سيتم إرسال بريد إلكتروني للعميل مع روابط التحميل.')) {
@@ -239,6 +282,7 @@ export default function OrderDetailPage() {
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({}), // Send empty JSON object for admin requests
       })
 
       if (!response.ok) {
@@ -246,7 +290,7 @@ export default function OrderDetailPage() {
         throw new Error(errorData.error || 'Failed to mark order as complete')
       }
 
-     await response.json()
+      await response.json()
 
       setSuccess('تم تحديد الطلب كمكتمل بنجاح')
       fetchOrder() // Refresh order data
@@ -405,6 +449,8 @@ export default function OrderDetailPage() {
                   ? 'مكتمل'
                   : order.orderStatus === 'cancelled'
                   ? 'ملغي'
+                  : order.orderStatus === 'awaiting_customization'
+                  ? 'في انتظار التخصيص'
                   : order.orderStatus}
               </div>
             </div>
@@ -425,6 +471,8 @@ export default function OrderDetailPage() {
                   ? 'فشل'
                   : order.paymentStatus === 'refunded'
                   ? 'مسترد'
+                  : order.paymentStatus === 'free'
+                  ? 'مجاني'
                   : order.paymentStatus}
               </div>
             </div>
@@ -445,6 +493,8 @@ export default function OrderDetailPage() {
                   ? 'قيد المعالجة'
                   : order.customizationStatus === 'completed'
                   ? 'مكتمل'
+                  : order.customizationStatus === 'awaiting_customization'
+                  ? 'في انتظار التخصيص'
                   : order.customizationStatus}
               </div>
             </div>
@@ -518,7 +568,19 @@ export default function OrderDetailPage() {
                     {order.customerPhone && (
                       <div className="detail-row">
                         <span className="detail-label">الهاتف:</span>
-                        <span className="detail-value">{order.customerPhone}</span>
+                        <div className="detail-value phone-with-whatsapp">
+                          <span className="phone-number">{order.customerPhone}</span>
+                          <a
+                            href={generateWhatsAppLink(order.customerPhone, order.orderNumber)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="whatsapp-btn"
+                            title="فتح محادثة واتساب"
+                          >
+                            <FontAwesomeIcon icon={faWhatsapp} />
+                            واتساب
+                          </a>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -660,6 +722,28 @@ export default function OrderDetailPage() {
                                 <h4>{item.productName}</h4>
                               </div>
 
+                              {/* Colors Section */}
+                              {item.customizations.colors && item.customizations.colors.length > 0 && (
+                                <div className="customization-section">
+                                  <h5>الألوان المختارة:</h5>
+                                  <div className="admin-colors-list">
+                                    {item.customizations.colors.map((color, colorIndex) => (
+                                      <div key={colorIndex} className="admin-color-item">
+                                        <div
+                                          className="admin-color-swatch"
+                                          style={{ backgroundColor: color.hex || '#cccccc' }}
+                                          title={`${color.name} - ${color.hex || 'لون مخصص'}`}
+                                        ></div>
+                                        <div className="admin-color-info">
+                                          <span className="admin-color-name">{color.name}</span>
+                                          <span className="admin-color-hex">{color.hex || 'لون مخصص'}</span>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+
                               {/* Text Changes */}
                               {item.customizations.textChanges && item.customizations.textChanges.length > 0 && (
                                 <div className="customization-section">
@@ -685,15 +769,51 @@ export default function OrderDetailPage() {
                                 <div className="customization-section">
                                   <h5>الصور المرفوعة:</h5>
                                   <div className="uploaded-images-list">
-                                    {item.customizations.uploadedImages.map((imageUrl, imageIndex) => (
-                                      <div key={imageIndex} className="uploaded-image-item">
-                                        <img
-                                          src={imageUrl}
-                                          alt={`صورة مرفوعة ${imageIndex + 1}`}
-                                          className="customization-image"
-                                        />
-                                      </div>
-                                    ))}
+                                    {item.customizations.uploadedImages.map((image, imageIndex) => {
+                                      // Handle both string URLs and object format
+                                      const imageUrl =
+                                        typeof image === 'string' ? image : image.url || image.publicId || image
+                                      const fileName = `uploaded-image-${imageIndex + 1}.${
+                                        imageUrl.split('.').pop() || 'jpg'
+                                      }`
+
+                                      return (
+                                        <div key={imageIndex} className="uploaded-image-item">
+                                          <div className="image-container">
+                                            <img
+                                              src={imageUrl}
+                                              alt={`صورة مرفوعة ${imageIndex + 1}`}
+                                              className="customization-image"
+                                              onError={(e) => {
+                                                console.error('Failed to load customization image:', imageUrl)
+                                                e.currentTarget.style.display = 'none'
+                                              }}
+                                              onClick={() => window.open(imageUrl, '_blank')}
+                                              title="انقر لعرض الصورة في نافذة جديدة"
+                                            />
+                                            <div className="image-actions">
+                                              <button
+                                                className="btn btn-sm btn-primary"
+                                                onClick={() => downloadImage(imageUrl, fileName)}
+                                                title="تحميل الصورة"
+                                              >
+                                                <FontAwesomeIcon icon={faDownload} />
+                                              </button>
+                                              <button
+                                                className="btn btn-sm btn-secondary"
+                                                onClick={() => window.open(imageUrl, '_blank')}
+                                                title="عرض في نافذة جديدة"
+                                              >
+                                                <FontAwesomeIcon icon={faEye} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                          <div className="image-info">
+                                            <span className="image-name">{fileName}</span>
+                                          </div>
+                                        </div>
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               )}
@@ -703,11 +823,69 @@ export default function OrderDetailPage() {
                                 <div className="customization-section">
                                   <h5>الشعار المرفوع:</h5>
                                   <div className="uploaded-logo">
-                                    <img
-                                      src={item.customizations.uploadedLogo}
-                                      alt="الشعار المرفوع"
-                                      className="customization-logo"
-                                    />
+                                    <div className="logo-container">
+                                      <img
+                                        src={
+                                          typeof item.customizations.uploadedLogo === 'string'
+                                            ? item.customizations.uploadedLogo
+                                            : (item.customizations.uploadedLogo as any).url ||
+                                              (item.customizations.uploadedLogo as any).publicId ||
+                                              item.customizations.uploadedLogo
+                                        }
+                                        alt="الشعار المرفوع"
+                                        className="customization-logo"
+                                        onError={(e) => {
+                                          console.error(
+                                            'Failed to load customization logo:',
+                                            item.customizations?.uploadedLogo
+                                          )
+                                          e.currentTarget.style.display = 'none'
+                                        }}
+                                        onClick={() => {
+                                          const logoUrl =
+                                            typeof item.customizations.uploadedLogo === 'string'
+                                              ? item.customizations.uploadedLogo
+                                              : (item.customizations.uploadedLogo as any).url ||
+                                                (item.customizations.uploadedLogo as any).publicId ||
+                                                item.customizations.uploadedLogo
+                                          window.open(logoUrl, '_blank')
+                                        }}
+                                        title="انقر لعرض الشعار في نافذة جديدة"
+                                      />
+                                      <div className="logo-actions">
+                                        <button
+                                          className="btn btn-sm btn-primary"
+                                          onClick={() => {
+                                            const logoUrl =
+                                              typeof item.customizations.uploadedLogo === 'string'
+                                                ? item.customizations.uploadedLogo
+                                                : (item.customizations.uploadedLogo as any).url ||
+                                                  (item.customizations.uploadedLogo as any).publicId ||
+                                                  item.customizations.uploadedLogo
+                                            const fileName = `uploaded-logo.${logoUrl.split('.').pop() || 'png'}`
+                                            downloadImage(logoUrl, fileName)
+                                          }}
+                                          title="تحميل الشعار"
+                                        >
+                                          <FontAwesomeIcon icon={faDownload} />
+                                        </button>
+                                        <button
+                                          className="btn btn-sm btn-secondary"
+                                          onClick={() => {
+                                            const logoUrl =
+                                              typeof item.customizations.uploadedLogo === 'string'
+                                                ? item.customizations.uploadedLogo
+                                                : (item.customizations.uploadedLogo as any).url ||
+                                                  (item.customizations.uploadedLogo as any).publicId ||
+                                                  item.customizations.uploadedLogo
+                                            window.open(logoUrl, '_blank')
+                                          }}
+                                          title="عرض في نافذة جديدة"
+                                        >
+                                          <FontAwesomeIcon icon={faEye} />
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               )}
@@ -800,6 +978,7 @@ export default function OrderDetailPage() {
                           {entry.status === 'promo_removed' && 'تم إزالة الكوبون'}
                           {entry.status === 'note_added' && 'تم إضافة ملاحظة'}
                           {entry.status === 'system' && 'النظام'}
+                          {entry.status === 'awaiting_customization' && 'في انتظار التخصيص'}
                           {![
                             'pending',
                             'processing',
@@ -813,6 +992,7 @@ export default function OrderDetailPage() {
                             'promo_removed',
                             'note_added',
                             'system',
+                            'awaiting_customization',
                           ].includes(entry.status) && entry.status}
                         </span>
                         <span className="history-date">{formatDate(entry.timestamp)}</span>

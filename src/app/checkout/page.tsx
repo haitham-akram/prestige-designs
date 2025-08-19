@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { useCart } from '@/contexts/CartContext'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
+import Link from 'next/link'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faShoppingCart, faUser, faEnvelope, faPhone, faTrash, faArrowRight } from '@fortawesome/free-solid-svg-icons'
 import { faPaypal as faPaypalBrand } from '@fortawesome/free-brands-svg-icons'
@@ -43,17 +45,6 @@ export default function CheckoutPage() {
       subtotal: state.subtotal,
       itemsCount: state.items.length,
     })
-    console.log(
-      'CheckoutPage: Cart items details:',
-      state.items.map((item) => ({
-        name: item.name,
-        price: item.price,
-        originalPrice: item.originalPrice,
-        quantity: item.quantity,
-        totalPrice: item.price * item.quantity,
-        savings: item.originalPrice ? (item.originalPrice - item.price) * item.quantity : 0,
-      }))
-    )
 
     const [formData, setFormData] = useState<CheckoutForm>({
       firstName: '',
@@ -250,17 +241,6 @@ export default function CheckoutPage() {
       setPromoCodeSuccess('')
 
       try {
-        console.log(
-          'Debug - Cart items being sent:',
-          state.items.map((item) => ({
-            productId: item.id, // Use item.id, not item.productId
-            _id: item.id, // Use item.id, not item._id
-            name: item.name,
-            quantity: item.quantity,
-            price: item.price,
-          }))
-        )
-
         const response = await fetch('/api/promo-codes/validate', {
           method: 'POST',
           headers: {
@@ -276,7 +256,6 @@ export default function CheckoutPage() {
         const data = await response.json()
 
         if (response.ok) {
-          console.log('Promo code validation response:', data) // Debug log
           setAppliedPromoCode({
             code: data.code,
             discount: data.discount || 0, // Add fallback
@@ -386,7 +365,6 @@ export default function CheckoutPage() {
             },
             onApprove: async (data: { orderID: string }) => {
               try {
-                console.log('Payment approved, capturing payment...')
                 setIsProcessingOrder(true)
 
                 const response = await fetch('/api/paypal/capture-payment', {
@@ -487,6 +465,7 @@ export default function CheckoutPage() {
           : 0
 
         // Final total = current cart total (after product discounts) - promo discount
+        // Ensure final total is never negative (minimum 0)
         const finalTotal = Math.max(0, currentTotal - promoDiscountAmount)
 
         console.log('💰 Pricing calculation:', {
@@ -532,7 +511,7 @@ export default function CheckoutPage() {
                 originalPrice: item.originalPrice || item.price,
                 discountAmount: (item.originalPrice || item.price) - item.price,
                 unitPrice: item.price,
-                totalPrice: item.price * item.quantity - itemPromoDiscount,
+                totalPrice: Math.max(0, item.price * item.quantity - itemPromoDiscount), // Ensure never negative
                 promoCode: appliedPromoCode?.code || '',
                 promoDiscount: itemPromoDiscount,
                 hasCustomizations: !!(
@@ -565,39 +544,229 @@ export default function CheckoutPage() {
         const orderData = await orderResponse.json()
         console.log('Order created successfully:', orderData)
 
-        // Handle free orders (total = 0) - bypass PayPal and complete immediately
-        if (finalTotal === 0) {
-          console.log('🎉 Processing free order - bypassing PayPal')
+        // Handle free orders (total <= 0) - check for customizable products
+        if (finalTotal <= 0) {
+          console.log('🎉 Processing free order - checking for customizable products')
 
           try {
-            // Mark the order as completed
-            const completeResponse = await fetch(`/api/admin/orders/${orderData.orderId}/complete`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-              body: JSON.stringify({
-                paymentId: 'FREE-ORDER-' + Date.now(),
-                payerId: 'FREE-CUSTOMER',
-                paymentStatus: 'free',
-                amount: '0.00',
-                currency: 'USD',
-                isFreeOrder: true,
-              }),
+            // Check if any products have EnableCustomizations: true (not actual customization data)
+            const hasCustomizableProducts = orderData.hasCustomizableProducts
+
+            // Also check if any products have actual customization data provided
+            const hasActualCustomizations = state.items.some((item) => {
+              return (
+                item.customizations &&
+                ((item.customizations.colors && item.customizations.colors.length > 0) ||
+                  (item.customizations.textChanges && item.customizations.textChanges.length > 0) ||
+                  (item.customizations.uploadedImages && item.customizations.uploadedImages.length > 0) ||
+                  item.customizations.uploadedLogo ||
+                  (item.customizations.customizationNotes && item.customizations.customizationNotes.trim().length > 0))
+              )
             })
 
-            if (!completeResponse.ok) {
-              throw new Error('Failed to complete free order')
+            console.log('🔍 Free order analysis:', {
+              hasCustomizableProducts,
+              hasActualCustomizations,
+              finalTotal,
+            })
+
+            if (hasCustomizableProducts && !hasActualCustomizations) {
+              // Products CAN be customized but NO customization data provided - mark as missing customization
+              console.log('⚠️ Free order has customizable products but missing customization data')
+
+              await fetch('/api/orders/update-status', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  status: 'awaiting_customization',
+                  paymentStatus: 'free',
+                  note: 'طلب مجاني يحتوي على منتجات قابلة للتخصيص ولكن بيانات التخصيص مفقودة',
+                }),
+              })
+
+              // Send customer notification email
+              await fetch('/api/orders/send-customer-email', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  orderNumber: orderData.orderNumber,
+                  isFreeOrder: true,
+                  missingCustomization: true,
+                }),
+              })
+
+              // Send admin notification
+              try {
+                console.log('🔔 Sending admin notification for free order with missing customizations...')
+                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    orderId: orderData.orderId,
+                    orderNumber: orderData.orderNumber,
+                    isFreeOrder: true,
+                    hasCustomizations: true,
+                    missingCustomization: true,
+                    autoCompleted: false,
+                  }),
+                })
+
+                const adminNotifyResult = await adminNotifyResponse.json()
+                if (adminNotifyResponse.ok) {
+                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
+                } else {
+                  console.error('❌ Admin notification failed:', adminNotifyResult)
+                }
+              } catch (adminError) {
+                console.error('❌ Error sending admin notification:', adminError)
+              }
+
+              showSuccess(
+                'تم إرسال طلبك المجاني!',
+                'طلبك يحتوي على منتجات قابلة للتخصيص. يرجى إضافة تفاصيل التخصيص أو سيتواصل معك فريقنا.'
+              )
+
+              clearCart()
+              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
+              return
+            } else if (hasCustomizableProducts && hasActualCustomizations) {
+              // Products have customization data provided - needs admin review
+              console.log('📋 Free order has customizable products with data - needs admin review')
+
+              await fetch('/api/orders/update-status', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  status: 'pending',
+                  paymentStatus: 'free',
+                  note: 'طلب مجاني يحتوي على تخصيصات ويحتاج لمراجعة الإدارة',
+                }),
+              })
+
+              // Send customer notification email
+              await fetch('/api/orders/send-customer-email', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  orderNumber: orderData.orderNumber,
+                  isFreeOrder: true,
+                }),
+              })
+
+              // Send admin notification about new free order with customizations
+              try {
+                console.log('🔔 Sending admin notification for free order with customizations...')
+                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    orderId: orderData.orderId,
+                    orderNumber: orderData.orderNumber,
+                    isFreeOrder: true,
+                    hasCustomizations: true,
+                    autoCompleted: false,
+                  }),
+                })
+
+                const adminNotifyResult = await adminNotifyResponse.json()
+                if (adminNotifyResponse.ok) {
+                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
+                } else {
+                  console.error('❌ Admin notification failed:', adminNotifyResult)
+                }
+              } catch (adminError) {
+                console.error('❌ Error sending admin notification:', adminError)
+              }
+
+              showSuccess(
+                'تم إرسال طلبك المجاني!',
+                'تم إرسال طلبك المجاني! سيقوم فريقنا بمراجعة التخصيصات المطلوبة والتواصل معك قريباً.'
+              )
+
+              clearCart()
+              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
+              return
+            } else {
+              // No customizable products - auto-complete free order
+              console.log('✅ Free order has no customizable products - auto-completing')
+
+              await fetch('/api/orders/complete-free-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                }),
+              })
+
+              // Send customer notification email
+              await fetch('/api/orders/send-customer-email', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                  orderNumber: orderData.orderNumber,
+                  isFreeOrder: true,
+                }),
+              })
+
+              // Send admin notification about completed free order
+              try {
+                console.log('🔔 Sending admin notification for completed free order...')
+                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify({
+                    orderId: orderData.orderId,
+                    orderNumber: orderData.orderNumber,
+                    isFreeOrder: true,
+                    hasCustomizations: false,
+                    autoCompleted: true,
+                  }),
+                })
+
+                const adminNotifyResult = await adminNotifyResponse.json()
+                if (adminNotifyResponse.ok) {
+                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
+                } else {
+                  console.error('❌ Admin notification failed:', adminNotifyResult)
+                }
+              } catch (adminError) {
+                console.error('❌ Error sending admin notification:', adminError)
+              }
+
+              showSuccess(
+                'تم إكمال طلبك المجاني!',
+                'تم إكمال طلبك المجاني وإرسال الملفات! يمكنك تحميلها من رسالة البريد الإلكتروني.'
+              )
+
+              clearCart()
+              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&completed=true`)
+              return
             }
-
-            console.log('✅ Free order completed successfully')
-
-            // Clear cart and redirect to success page
-            clearCart()
-            router.push(`/checkout/success?order=${orderData.orderNumber}&free=true`)
-            return
           } catch (error) {
-            console.error('Error completing free order:', error)
+            console.error('Error processing free order:', error)
             showError('خطأ في الطلب المجاني', 'حدث خطأ في معالجة الطلب المجاني. يرجى المحاولة مرة أخرى.')
             return
           }
@@ -609,7 +778,6 @@ export default function CheckoutPage() {
         setCurrentOrderId(orderData.orderId)
 
         // PayPal buttons will be initialized by the useEffect hook
-        console.log('Order created, PayPal buttons will be initialized automatically')
       } catch (error) {
         console.error('Error creating order:', error)
         const errorMessage = error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى'
@@ -656,10 +824,9 @@ export default function CheckoutPage() {
               <FontAwesomeIcon icon={faShoppingCart} />
             </div>
             <h2>السلة فارغة</h2>
-            <p>لا توجد منتجات في السلة لإتمام الطلب</p>
-            <a href="/" className="btn btn-primary">
+            <Link href="/" className="btn btn-primary">
               العودة للتسوق
-            </a>
+            </Link>
           </div>
         </div>
       )
@@ -695,10 +862,17 @@ export default function CheckoutPage() {
             </div>
 
             <div className="order-items">
-              {state.items.map((item) => (
-                <div key={item.cartItemId} className="order-item">
+              {state.items.map((item, index) => (
+                <div className="order-item" key={item.cartItemId}>
                   <div className="item-image">
-                    <img src={item.image} alt={item.name} />
+                    <Image
+                      src={item.image}
+                      alt={item.name}
+                      width={100}
+                      height={100}
+                      style={{ objectFit: 'contain' }}
+                      priority={index === 0}
+                    />
                   </div>
                   <div className="item-details">
                     <h4>
@@ -793,9 +967,12 @@ export default function CheckoutPage() {
                   <span>خصم الكوبون:</span>
                   <span>
                     -$
-                    {appliedPromoCode.type === 'percentage'
-                      ? (((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100).toFixed(2)
-                      : (appliedPromoCode.discountAmount || appliedPromoCode.discount || 0).toFixed(2)}
+                    {Math.min(
+                      appliedPromoCode.type === 'percentage'
+                        ? ((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100
+                        : appliedPromoCode.discountAmount || appliedPromoCode.discount || 0,
+                      state.totalPrice || 0
+                    ).toFixed(2)}
                   </span>
                 </div>
               )}
@@ -803,13 +980,17 @@ export default function CheckoutPage() {
                 <span>المجموع النهائي:</span>
                 <span>
                   $
-                  {(
+                  {Math.max(
+                    0,
                     (state.totalPrice || 0) -
-                    (appliedPromoCode
-                      ? appliedPromoCode.type === 'percentage'
-                        ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
-                        : appliedPromoCode.discount
-                      : 0)
+                      Math.min(
+                        appliedPromoCode
+                          ? appliedPromoCode.type === 'percentage'
+                            ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
+                            : appliedPromoCode.discount
+                          : 0,
+                        state.totalPrice || 0
+                      )
                   ).toFixed(2)}
                 </span>
               </div>
@@ -838,7 +1019,7 @@ export default function CheckoutPage() {
                   <div className="form-group">
                     <label>
                       <FontAwesomeIcon icon={faUser} />
-                      اسم العائلة
+                      الاسم الأخير
                     </label>
                     <input
                       type="text"
@@ -861,7 +1042,7 @@ export default function CheckoutPage() {
                   <div className="form-group">
                     <label>
                       <FontAwesomeIcon icon={faPhone} />
-                      رقم الهاتف
+                      رقم الهاتف مع مقدمة الدولة
                     </label>
                     <input type="tel" name="phone" value={formData.phone} onChange={handleInputChange} required />
                   </div>
@@ -964,9 +1145,9 @@ export default function CheckoutPage() {
                   const promoDiscountAmount = appliedPromoCode
                     ? appliedPromoCode.type === 'percentage'
                       ? (currentTotal * appliedPromoCode.discount) / 100
-                      : Math.min(appliedPromoCode.discount, currentTotal)
+                      : appliedPromoCode.discount
                     : 0
-                  const finalTotal = Math.max(0, currentTotal - promoDiscountAmount)
+                  const finalTotal = Math.max(0, currentTotal - Math.min(promoDiscountAmount, currentTotal))
                   const isFreeOrder = finalTotal === 0
 
                   return (

@@ -1,15 +1,15 @@
 /* CSS Variables */
 :root {
-  --input-bg: var(--bg-secondary);
-  --primary-color: #8261c6;
-  --primary-color-alpha: rgba(130, 97, 198, 0.1);
-  --border-radius: 8px;
-  --card-bg: var(--bg-secondary);
-  --card-bg-secondary: var(--bg-primary);
-  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  --card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
-  --error-bg: rgba(245, 101, 101, 0.1);
-  --error-color: #f56565;
+  --admin-input-bg: var(--admin-bg-secondary);
+  --admin-primary-color: #8261c6;
+  --admin-primary-color-alpha: rgba(130, 97, 198, 0.1);
+  --admin-border-radius: 8px;
+  --admin-card-bg: var(--admin-bg-secondary);
+  --admin-card-bg-secondary: var(--admin-bg-primary);
+  --admin-card-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  --admin-card-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
+  --admin-error-bg: rgba(245, 101, 101, 0.1);
+  --admin-error-color: #f56565;
   --error-border: rgba(245, 101, 101, 0.3);
   --success-bg: rgba(72, 187, 120, 0.1);
   --success-color: #48bb78;
@@ -65,18 +65,18 @@
 
 .upload-section,
 .files-section {
-  background: var(--card-bg);
-  border-radius: var(--border-radius);
-  border: 1px solid var(--border-color);
+  background: var(--admin-card-bg);
+  border-radius: var(--admin-border-radius);
+  border: 1px solid var(--admin-border-color);
   padding: 2rem;
-  box-shadow: var(--card-shadow);
+  box-shadow: var(--admin-card-shadow);
   width: 100%;
   max-width: none;
 }
 
 .upload-section h2,
 .files-section h2 {
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   margin-bottom: 1.5rem;
   display: flex;
   align-items: center;
@@ -113,7 +113,7 @@
 }
 
 .form-group label {
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   font-weight: 500;
   font-size: 0.9rem;
 }
@@ -122,10 +122,10 @@
 .form-input,
 .form-textarea {
   padding: 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
-  background: var(--input-bg);
-  color: var(--text-primary);
+  border: 1px solid var(--admin-border-color);
+  border-radius: var(--admin-border-radius);
+  background: var(--admin-input-bg);
+  color: var(--admin-text-primary);
   font-size: 0.9rem;
   transition: all 0.3s ease;
   position: relative;
@@ -137,8 +137,8 @@
 .form-input:focus,
 .form-textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 2px var(--primary-color-alpha);
+  border-color: var(--admin-primary-color);
+  box-shadow: 0 0 0 2px var(--admin-primary-color-alpha);
 }
 
 .form-textarea {
@@ -147,14 +147,14 @@
 }
 
 .form-group small {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.8rem;
   margin-top: 0.5rem;
   display: block;
   padding: 0.5rem 0.75rem;
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   border-radius: 0.25rem;
-  border-left: 3px solid var(--primary-color);
+  border-left: 3px solid var(--admin-primary-color);
 }
 
 /* Form Actions */
@@ -163,7 +163,7 @@
   gap: 1rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--admin-border-color);
   position: relative;
   z-index: 10;
 }
@@ -181,14 +181,14 @@
   align-items: center;
   gap: 0.75rem;
   padding: 1rem;
-  border-radius: var(--border-radius);
+  border-radius: var(--admin-border-radius);
   margin-bottom: 1rem;
   font-size: 0.9rem;
 }
 
 .alert-error {
-  background: var(--error-bg);
-  color: var(--error-color);
+  background: var(--admin-error-bg);
+  color: var(--admin-error-color);
   border: 1px solid var(--error-border);
 }
 
@@ -222,8 +222,8 @@
 
 /* File Card - Completely redesigned for better visual hierarchy */
 .file-card {
-  background: var(--card-bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--admin-card-bg-secondary);
+  border: 1px solid var(--admin-border-color);
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
@@ -233,15 +233,15 @@
 }
 
 .file-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: var(--card-shadow-hover);
+  border-color: var(--admin-primary-color);
+  box-shadow: var(--admin-card-shadow-hover);
   transform: translateY(-2px);
 }
 
 /* File Card - Column Layout */
 .file-card {
-  background: var(--card-bg-secondary);
-  border: 1px solid var(--border-color);
+  background: var(--admin-card-bg-secondary);
+  border: 1px solid var(--admin-border-color);
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
@@ -255,9 +255,9 @@
 
 /* File Icon - Centered at top */
 .file-icon {
-  color: var(--primary-color);
+  color: var(--admin-primary-color);
   font-size: 3rem;
-  background: var(--primary-color-alpha);
+  background: var(--admin-primary-color-alpha);
   padding: 1rem;
   border-radius: 12px;
   width: 80px;
@@ -283,7 +283,7 @@
   margin: 0 auto 0.5rem auto;
   border-radius: 12px;
   overflow: hidden;
-  background: var(--primary-color-alpha);
+  background: var(--admin-primary-color-alpha);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -309,8 +309,8 @@
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 2.5rem;
-  color: var(--primary-color);
-  background: var(--primary-color-alpha);
+  color: var(--admin-primary-color);
+  background: var(--admin-primary-color-alpha);
   padding: 0.75rem;
   border-radius: 8px;
 }
@@ -330,7 +330,7 @@
 }
 
 .file-info h4 {
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
@@ -348,7 +348,7 @@
 }
 
 .file-info p {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.85rem;
   margin: 0 0 0.5rem 0;
   display: flex;
@@ -367,11 +367,11 @@
 
 .file-size,
 .file-type {
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.85rem;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-weight: 500;
   min-width: 80px;
   text-align: center;
@@ -382,8 +382,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: var(--primary-color-alpha);
-  color: var(--primary-color);
+  background: var(--admin-primary-color-alpha);
+  color: var(--admin-primary-color);
   padding: 0.5rem 1rem;
   border-radius: 6px;
   font-size: 0.85rem;
@@ -394,14 +394,14 @@
 
 /* File description - Centered styling */
 .file-description {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.9rem;
   margin: 0;
   line-height: 1.5;
   padding: 0.75rem;
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   border-radius: 6px;
-  border-left: 3px solid var(--primary-color);
+  border-left: 3px solid var(--admin-primary-color);
   text-align: center;
 }
 
@@ -411,7 +411,7 @@
   gap: 1rem;
   margin-top: 1rem;
   padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--admin-border-color);
   position: relative;
   z-index: 100; /* Ensure buttons are above other elements */
   justify-content: center;
@@ -463,7 +463,7 @@
 }
 
 .btn-primary {
-  background: var(--primary-color);
+  background: var(--admin-primary-color);
   color: white;
   border: none;
 }
@@ -473,7 +473,7 @@
 }
 
 .btn-danger {
-  background: var(--error-color);
+  background: var(--admin-error-color);
   color: white;
   border: none;
 }
@@ -506,11 +506,11 @@
 .file-preview-section {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--admin-border-color);
 }
 
 .file-preview-section h4 {
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   font-size: 1rem;
   font-weight: 600;
   margin: 0 0 1rem 0;
@@ -523,7 +523,7 @@
   content: '';
   width: 4px;
   height: 16px;
-  background: var(--primary-color);
+  background: var(--admin-primary-color);
   border-radius: 2px;
 }
 
@@ -533,9 +533,9 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.25rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--admin-bg-primary);
+  border: 1px solid var(--admin-border-color);
+  border-radius: var(--admin-border-radius);
   margin-bottom: 0.75rem;
   transition: all 0.3s ease;
   flex-direction: row;
@@ -544,12 +544,12 @@
 }
 
 .preview-item-file:hover {
-  border-color: var(--primary-color);
+  border-color: var(--admin-primary-color);
   box-shadow: 0 2px 8px rgba(130, 97, 198, 0.1);
 }
 
 .preview-item-file.uploading {
-  border-color: var(--accent-primary);
+  border-color: var(--admin-accent-primary);
   background: rgba(130, 97, 198, 0.05);
 }
 
@@ -569,7 +569,7 @@
 
 .preview-item-file .file-name {
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   font-size: 0.9rem;
   white-space: normal;
   overflow: visible;
@@ -589,9 +589,9 @@
 }
 
 .preview-item-file .file-type {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.8rem;
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   padding: 0.4rem 0.75rem;
   border-radius: 0.25rem;
   white-space: nowrap;
@@ -602,9 +602,9 @@
 }
 
 .preview-item-file .file-size {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.8rem;
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   padding: 0.4rem 0.75rem;
   border-radius: 0.25rem;
   white-space: nowrap;
@@ -627,7 +627,7 @@
 }
 
 .preview-item-file .file-status.uploading {
-  color: var(--accent-primary);
+  color: var(--admin-accent-primary);
   background: rgba(130, 97, 198, 0.1);
 }
 
@@ -641,7 +641,7 @@
 .preview-remove-btn {
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   padding: 0.5rem;
   border-radius: 0.25rem;
   cursor: pointer;
@@ -656,21 +656,21 @@
 
 .preview-remove-btn {
   background: rgba(245, 101, 101, 0.1);
-  color: var(--error-color);
+  color: var(--admin-error-color);
   border: none;
   box-shadow: none;
 }
 
 .preview-remove-btn:hover {
-  background: var(--error-color);
+  background: var(--admin-error-color);
   color: white;
   border: none;
   box-shadow: none;
 }
 
 .preview-refresh-btn:hover {
-  background: var(--primary-color-alpha);
-  color: var(--primary-color);
+  background: var(--admin-primary-color-alpha);
+  color: var(--admin-primary-color);
 }
 
 .file-item {
@@ -678,20 +678,20 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.75rem 1rem;
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--border-radius);
+  background: var(--admin-bg-primary);
+  border: 1px solid var(--admin-border-color);
+  border-radius: var(--admin-border-radius);
   margin-bottom: 0.5rem;
   transition: all 0.3s ease;
 }
 
 .file-item:hover {
-  border-color: var(--primary-color);
+  border-color: var(--admin-primary-color);
   box-shadow: 0 2px 8px rgba(130, 97, 198, 0.1);
 }
 
 .file-item.uploading {
-  border-color: var(--accent-primary);
+  border-color: var(--admin-accent-primary);
   background: rgba(130, 97, 198, 0.05);
 }
 
@@ -709,20 +709,20 @@
 
 .file-name {
   font-weight: 500;
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   font-size: 0.9rem;
 }
 
 .file-type {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.8rem;
-  background: var(--bg-secondary);
+  background: var(--admin-bg-secondary);
   padding: 0.2rem 0.5rem;
   border-radius: 0.25rem;
 }
 
 .file-size {
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   font-size: 0.8rem;
 }
 
@@ -734,7 +734,7 @@
 }
 
 .file-status.uploading {
-  color: var(--accent-primary);
+  color: var(--admin-accent-primary);
   background: rgba(130, 97, 198, 0.1);
 }
 
@@ -753,7 +753,7 @@
 .refresh-file-btn {
   background: none;
   border: none;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
   padding: 0.5rem;
   border-radius: 0.25rem;
   cursor: pointer;
@@ -767,21 +767,21 @@
 
 .remove-file-btn {
   background: rgba(245, 101, 101, 0.1);
-  color: var(--error-color);
+  color: var(--admin-error-color);
   border: none;
   box-shadow: none;
 }
 
 .remove-file-btn:hover {
-  background: var(--error-color);
+  background: var(--admin-error-color);
   color: white;
   border: none;
   box-shadow: none;
 }
 
 .refresh-file-btn:hover {
-  background: var(--primary-color-alpha);
-  color: var(--primary-color);
+  background: var(--admin-primary-color-alpha);
+  color: var(--admin-primary-color);
 }
 
 .refresh-file-btn .fa-spin {
@@ -801,11 +801,11 @@
 .empty-state {
   text-align: center;
   padding: 3rem 2rem;
-  color: var(--text-secondary);
+  color: var(--admin-text-secondary);
 }
 
 .empty-state h3 {
-  color: var(--text-primary);
+  color: var(--admin-text-primary);
   margin: 1rem 0 0.5rem 0;
   font-size: 1.1rem;
 }

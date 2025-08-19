@@ -53,8 +53,25 @@ export default function CategoriesSection() {
     return null
   }
 
-  // Take first 6 categories for the grid layout
-  const displayCategories = categories.slice(0, 6)
+  // Filter out categories without images and sort to prioritize discount categories
+  const categoriesWithImages = categories
+    .filter(
+      (category) => category.image && category.image !== '/placeholder-product.jpg' && category.image.trim() !== ''
+    )
+    .sort((a, b) => {
+      // Check if category name contains discount keywords
+      const isDiscountA = a.name.includes('عروض توفيرية') || a.name.includes('توفيرية')
+      const isDiscountB = b.name.includes('عروض توفيرية') || b.name.includes('توفيرية')
+
+      // Discount categories come first
+      if (isDiscountA && !isDiscountB) return -1
+      if (!isDiscountA && isDiscountB) return 1
+
+      // If both or neither are discount categories, maintain original order
+      return 0
+    })
+
+  const displayCategories = categoriesWithImages.slice(0, 6)
   const categoryCount = displayCategories.length
 
   // Determine grid class based on number of categories

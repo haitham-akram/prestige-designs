@@ -66,7 +66,21 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
         const data = await response.json()
 
         if (data.success) {
-          setCategories(data.data)
+          // Sort categories to prioritize discount categories
+          const sortedCategories = data.data.sort((a: NavCategory, b: NavCategory) => {
+            // Check if category name contains discount keywords
+            const isDiscountA = a.name.includes('عروض توفيرية') || a.name.includes('توفيرية')
+            const isDiscountB = b.name.includes('عروض توفيرية') || b.name.includes('توفيرية')
+
+            // Discount categories come first
+            if (isDiscountA && !isDiscountB) return -1
+            if (!isDiscountA && isDiscountB) return 1
+
+            // If both or neither are discount categories, maintain original order
+            return 0
+          })
+
+          setCategories(sortedCategories)
         }
       } catch (error) {
         console.error('Error fetching categories:', error)
@@ -129,296 +143,298 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
   return (
     <CartProvider>
-      <div className="customer-layout">
-        {/* Header */}
-        <header className="customer-header">
-          <div className="container">
-            <div className="nav-container">
-              {/* Left Side - User Actions */}
-              <div className="nav-left">
-                <div className="nav-actions">
-                  <div className="action-item cart-action">
-                    <CartDropdown />
-                  </div>
-
-                  {/* Orders Icon - Only show if logged in */}
-                  {session?.user && (
-                    <div className="action-item">
-                      <Link href="/customer/orders" className="action-link">
-                        <FontAwesomeIcon icon={faBox} className="action-icon" />
-                      </Link>
+      <div className="customer-layout-container">
+        <div className="customer-layout">
+          {/* Header */}
+          <header className="customer-header">
+            <div className="container">
+              <div className="nav-container">
+                {/* Left Side - User Actions */}
+                <div className="nav-left">
+                  <div className="nav-actions">
+                    <div className="action-item cart-action">
+                      <CartDropdown />
                     </div>
-                  )}
 
-                  {/* User Dropdown */}
-                  <div className="action-item user-dropdown-container">
-                    {session?.user ? (
-                      // Logged in user - show profile image
-                      <div className="user-profile" onClick={toggleUserDropdown}>
-                        {session.user.image ? (
-                          <Image
-                            src={session.user.image}
-                            alt={session.user.name || 'User'}
-                            width={32}
-                            height={32}
-                            className="user-avatar"
-                          />
-                        ) : (
-                          <div className="user-avatar-placeholder">
-                            <FontAwesomeIcon icon={faUser} />
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      // Not logged in - show user icon
-                      <div className="user-icon" onClick={toggleUserDropdown}>
-                        <FontAwesomeIcon icon={faUser} className="action-icon" />
+                    {/* Orders Icon - Only show if logged in */}
+                    {session?.user && (
+                      <div className="action-item">
+                        <Link href="/customer/orders" className="action-link">
+                          <FontAwesomeIcon icon={faBox} className="action-icon" />
+                        </Link>
                       </div>
                     )}
 
-                    {/* User Dropdown Menu */}
-                    <div className={`user-dropdown ${isUserDropdownOpen ? 'open' : ''}`}>
+                    {/* User Dropdown */}
+                    <div className="action-item user-dropdown-container">
                       {session?.user ? (
-                        // Logged in user menu
-                        <>
-                          <div className="dropdown-header">
-                            <span className="user-name">{session.user.name}</span>
-                            <span className="user-email">{session.user.email}</span>
-                          </div>
-                          <div className="dropdown-divider"></div>
-                          {session?.user.role === 'admin' && (
-                            <Link href="/admin/dashboard" className="dropdown-item" onClick={closeUserDropdown}>
+                        // Logged in user - show profile image
+                        <div className="user-profile" onClick={toggleUserDropdown}>
+                          {session.user.image ? (
+                            <Image
+                              src={session.user.image}
+                              alt={session.user.name || 'User'}
+                              width={32}
+                              height={32}
+                              className="user-avatar"
+                            />
+                          ) : (
+                            <div className="user-avatar-placeholder">
                               <FontAwesomeIcon icon={faUser} />
-                              لوحة التحكم
-                            </Link>
-                          )}
-                          <button className="dropdown-item logout-btn" onClick={handleLogout}>
-                            <FontAwesomeIcon icon={faSignOutAlt} />
-                            تسجيل الخروج
-                          </button>
-                        </>
-                      ) : (
-                        // Not logged in menu
-                        <Link href="/auth/signin" className="dropdown-item login-btn" onClick={closeUserDropdown}>
-                          <FontAwesomeIcon icon={faSignInAlt} />
-                          تسجيل الدخول
-                        </Link>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="action-item">
-                    <FontAwesomeIcon icon={faSearch} className="action-icon" />
-                  </div>
-                </div>
-              </div>
-
-              {/* Center - Navigation Links */}
-              <nav className="nav-center">
-                <ul className="nav-menu">
-                  {!isLoading && categories.length > 0 && (
-                    <>
-                      {/* Desktop: Show first 4 categories */}
-                      <div className="desktop-nav">
-                        {categories.slice(0, 4).map((category) => (
-                          <li key={category._id}>
-                            <Link
-                              href={`/categories/${category.slug}`}
-                              className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
-                              onClick={closeMenu}
-                            >
-                              {category.name}
-                            </Link>
-                          </li>
-                        ))}
-
-                        {/* Show "More" dropdown if more than 5 categories - Desktop Only */}
-                        {categories.length > 4 && (
-                          <li className="more-dropdown-container">
-                            <button
-                              className="nav-link more-button"
-                              onClick={(e) => {
-                                e.preventDefault()
-                                e.stopPropagation()
-                                toggleMoreDropdown()
-                              }}
-                            >
-                              المزيد
-                              <FontAwesomeIcon
-                                icon={faChevronDown}
-                                className={`more-icon ${isMoreDropdownOpen ? 'open' : ''}`}
-                              />
-                            </button>
-
-                            {/* More Dropdown Menu */}
-                            <div className={`more-dropdown ${isMoreDropdownOpen ? 'open' : ''}`}>
-                              {categories.slice(4).map((category) => (
-                                <Link
-                                  key={category._id}
-                                  href={`/categories/${category.slug}`}
-                                  className={`more-dropdown-item ${
-                                    pathname === `/category/${category.slug}` ? 'active' : ''
-                                  }`}
-                                  onClick={() => {
-                                    closeMoreDropdown()
-                                    closeMenu()
-                                  }}
-                                >
-                                  {category.name}
-                                </Link>
-                              ))}
                             </div>
-                          </li>
+                          )}
+                        </div>
+                      ) : (
+                        // Not logged in - show user icon
+                        <div className="user-icon" onClick={toggleUserDropdown}>
+                          <FontAwesomeIcon icon={faUser} className="action-icon" />
+                        </div>
+                      )}
+
+                      {/* User Dropdown Menu */}
+                      <div className={`user-dropdown ${isUserDropdownOpen ? 'open' : ''}`}>
+                        {session?.user ? (
+                          // Logged in user menu
+                          <>
+                            <div className="dropdown-header">
+                              <span className="user-name">{session.user.name}</span>
+                              <span className="user-email">{session.user.email}</span>
+                            </div>
+                            <div className="dropdown-divider"></div>
+                            {session?.user.role === 'admin' && (
+                              <Link href="/admin/dashboard" className="dropdown-item" onClick={closeUserDropdown}>
+                                <FontAwesomeIcon icon={faUser} />
+                                لوحة التحكم
+                              </Link>
+                            )}
+                            <button className="dropdown-item logout-btn" onClick={handleLogout}>
+                              <FontAwesomeIcon icon={faSignOutAlt} />
+                              تسجيل الخروج
+                            </button>
+                          </>
+                        ) : (
+                          // Not logged in menu
+                          <Link href="/auth/signin" className="dropdown-item login-btn" onClick={closeUserDropdown}>
+                            <FontAwesomeIcon icon={faSignInAlt} />
+                            تسجيل الدخول
+                          </Link>
                         )}
                       </div>
-                    </>
-                  )}
+                    </div>
+
+                    <div className="action-item">
+                      <FontAwesomeIcon icon={faSearch} className="action-icon" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Center - Navigation Links */}
+                <nav className="nav-center">
+                  <ul className="nav-menu">
+                    {!isLoading && categories.length > 0 && (
+                      <>
+                        {/* Desktop: Show first 4 categories */}
+                        <div className="desktop-nav">
+                          {categories.slice(0, 4).map((category) => (
+                            <li key={category._id}>
+                              <Link
+                                href={`/categories/${category.slug}`}
+                                className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
+                                onClick={closeMenu}
+                              >
+                                {category.name}
+                              </Link>
+                            </li>
+                          ))}
+
+                          {/* Show "More" dropdown if more than 5 categories - Desktop Only */}
+                          {categories.length > 4 && (
+                            <li className="more-dropdown-container">
+                              <button
+                                className="nav-link more-button"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  toggleMoreDropdown()
+                                }}
+                              >
+                                المزيد
+                                <FontAwesomeIcon
+                                  icon={faChevronDown}
+                                  className={`more-icon ${isMoreDropdownOpen ? 'open' : ''}`}
+                                />
+                              </button>
+
+                              {/* More Dropdown Menu */}
+                              <div className={`more-dropdown ${isMoreDropdownOpen ? 'open' : ''}`}>
+                                {categories.slice(4).map((category) => (
+                                  <Link
+                                    key={category._id}
+                                    href={`/categories/${category.slug}`}
+                                    className={`more-dropdown-item ${
+                                      pathname === `/category/${category.slug}` ? 'active' : ''
+                                    }`}
+                                    onClick={() => {
+                                      closeMoreDropdown()
+                                      closeMenu()
+                                    }}
+                                  >
+                                    {category.name}
+                                  </Link>
+                                ))}
+                              </div>
+                            </li>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </ul>
+                </nav>
+
+                {/* Right Side - Logo */}
+                <div className="nav-right">
+                  <Link href="/" className="logo-link">
+                    <Image
+                      src={branding?.logoUrl || '/site/logo.png'}
+                      alt="Prestige Designs Logo"
+                      width={120}
+                      height={40}
+                      className="logo-image"
+                      priority
+                      unoptimized
+                    />
+                  </Link>
+                </div>
+
+                {/* Mobile Menu Toggle */}
+                <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle menu">
+                  <FontAwesomeIcon icon={faBars} />
+                </button>
+              </div>
+
+              {/* Mobile Navigation */}
+              <nav className={`nav-mobile ${isMenuOpen ? 'open' : ''}`}>
+                <ul className="nav-menu">
+                  <li>
+                    <Link
+                      href="/packages"
+                      className={`nav-link ${pathname === '/packages' ? 'active' : ''}`}
+                      onClick={closeMenu}
+                    >
+                      باقات
+                    </Link>
+                  </li>
+                  {!isLoading &&
+                    categories.map((category) => (
+                      <li key={category._id}>
+                        <Link
+                          href={`/categories/${category.slug}`}
+                          className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
+                          onClick={closeMenu}
+                        >
+                          {category.name}
+                        </Link>
+                      </li>
+                    ))}
                 </ul>
               </nav>
-
-              {/* Right Side - Logo */}
-              <div className="nav-right">
-                <Link href="/" className="logo-link">
-                  <Image
-                    src={branding?.logoUrl || '/site/logo.png'}
-                    alt="Prestige Designs Logo"
-                    width={120}
-                    height={40}
-                    className="logo-image"
-                    priority
-                    unoptimized
-                  />
-                </Link>
-              </div>
-
-              {/* Mobile Menu Toggle */}
-              <button className="mobile-menu-toggle" onClick={toggleMenu} aria-label="Toggle menu">
-                <FontAwesomeIcon icon={faBars} />
-              </button>
             </div>
+          </header>
 
-            {/* Mobile Navigation */}
-            <nav className={`nav-mobile ${isMenuOpen ? 'open' : ''}`}>
-              <ul className="nav-menu">
-                <li>
-                  <Link
-                    href="/packages"
-                    className={`nav-link ${pathname === '/packages' ? 'active' : ''}`}
-                    onClick={closeMenu}
-                  >
-                    باقات
-                  </Link>
-                </li>
-                {!isLoading &&
-                  categories.map((category) => (
-                    <li key={category._id}>
-                      <Link
-                        href={`/categories/${category.slug}`}
-                        className={`nav-link ${pathname === `/category/${category.slug}` ? 'active' : ''}`}
-                        onClick={closeMenu}
+          {/* Main Content */}
+          <main className="main-content">{children}</main>
+
+          {/* Footer */}
+          <footer className="customer-footer">
+            <div className="container">
+              <div className="footer-content">
+                <div className="footer-section">
+                  <h3 className="text-neon-green">Prestige Designs</h3>
+                  <p>منصة تصميم متقدمة تقدم حلول إبداعية ومبتكرة</p>
+                </div>
+
+                <div className="footer-section">
+                  <h4>تواصل معنا</h4>
+                  {social.text && <p className="social-text">{social.text}</p>}
+                  <div className="social-links">
+                    {social.discord && (
+                      <a
+                        href={social.discord}
+                        className="social-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Discord"
                       >
-                        {category.name}
-                      </Link>
-                    </li>
-                  ))}
-              </ul>
-            </nav>
-          </div>
-        </header>
-
-        {/* Main Content */}
-        <main className="main-content">{children}</main>
-
-        {/* Footer */}
-        <footer className="customer-footer">
-          <div className="container">
-            <div className="footer-content">
-              <div className="footer-section">
-                <h3 className="text-neon-green">Prestige Designs</h3>
-                <p>منصة تصميم متقدمة تقدم حلول إبداعية ومبتكرة</p>
-              </div>
-
-              <div className="footer-section">
-                <h4>تواصل معنا</h4>
-                {social.text && <p className="social-text">{social.text}</p>}
-                <div className="social-links">
-                  {social.discord && (
-                    <a
-                      href={social.discord}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Discord"
-                    >
-                      <FontAwesomeIcon icon={faDiscord} />
-                    </a>
-                  )}
-                  {social.whatsapp && (
-                    <a
-                      href={social.whatsapp}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="WhatsApp"
-                    >
-                      <FontAwesomeIcon icon={faWhatsapp} />
-                    </a>
-                  )}
-                  {social.telegram && (
-                    <a
-                      href={social.telegram}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="Telegram"
-                    >
-                      <FontAwesomeIcon icon={faTelegram} />
-                    </a>
-                  )}
-                  {social.youtube && (
-                    <a
-                      href={social.youtube}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="YouTube"
-                    >
-                      <FontAwesomeIcon icon={faYoutube} />
-                    </a>
-                  )}
-                  {social.tiktok && (
-                    <a
-                      href={social.tiktok}
-                      className="social-link"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      aria-label="TikTok"
-                    >
-                      <FontAwesomeIcon icon={faTiktok} />
-                    </a>
-                  )}
+                        <FontAwesomeIcon icon={faDiscord} />
+                      </a>
+                    )}
+                    {social.whatsapp && (
+                      <a
+                        href={social.whatsapp}
+                        className="social-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="WhatsApp"
+                      >
+                        <FontAwesomeIcon icon={faWhatsapp} />
+                      </a>
+                    )}
+                    {social.telegram && (
+                      <a
+                        href={social.telegram}
+                        className="social-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="Telegram"
+                      >
+                        <FontAwesomeIcon icon={faTelegram} />
+                      </a>
+                    )}
+                    {social.youtube && (
+                      <a
+                        href={social.youtube}
+                        className="social-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="YouTube"
+                      >
+                        <FontAwesomeIcon icon={faYoutube} />
+                      </a>
+                    )}
+                    {social.tiktok && (
+                      <a
+                        href={social.tiktok}
+                        className="social-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label="TikTok"
+                      >
+                        <FontAwesomeIcon icon={faTiktok} />
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div className="footer-bottom">
-              <p>&copy; {new Date().getFullYear()} Prestige Designs. جميع الحقوق محفوظة</p>
+              <div className="footer-bottom">
+                <p>&copy; {new Date().getFullYear()} Prestige Designs. جميع الحقوق محفوظة</p>
+              </div>
             </div>
-          </div>
-        </footer>
+          </footer>
 
-        {/* Floating WhatsApp Button */}
-        {social.whatsapp && (
-          <a
-            href={social.whatsapp}
-            className="floating-whatsapp"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Contact us on WhatsApp"
-          >
-            <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
-          </a>
-        )}
+          {/* Floating WhatsApp Button */}
+          {social.whatsapp && (
+            <a
+              href={social.whatsapp}
+              className="floating-whatsapp"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Contact us on WhatsApp"
+            >
+              <FontAwesomeIcon icon={faWhatsapp} className="whatsapp-icon" />
+            </a>
+          )}
+        </div>
       </div>
     </CartProvider>
   )

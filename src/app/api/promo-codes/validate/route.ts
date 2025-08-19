@@ -1,7 +1,7 @@
 /**
  * Public Promo Code Validation API
  * 
- * Validates promo codes for customers during checkout
+ * Validates promo codes for customers during checkout with usage tracking
  * 
  * Route: POST /api/promo-codes/validate
  */
@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import connectDB from '@/lib/db/connection';
 import PromoCode from '@/lib/db/models/PromoCode';
+import PromoCodeUsage from '@/lib/db/models/PromoCodeUsage';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth/config';
 
@@ -54,54 +55,63 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Check if promo code is still valid (date range)
-        const now = new Date();
-        if (promoCode.validFrom && now < promoCode.validFrom) {
-            return NextResponse.json(
-                { error: 'كود الخصم لم يصبح ساري المفعول بعد' },
-                { status: 400 }
-            );
+        // Check if promo code is currently valid using model method
+        if (!promoCode.isCurrentlyValid()) {
+            if (promoCode.startDate && new Date() < promoCode.startDate) {
+                return NextResponse.json(
+                    { error: 'كود الخصم لم يصبح ساري المفعول بعد' },
+                    { status: 400 }
+                );
+            }
+            if (promoCode.endDate && new Date() > promoCode.endDate) {
+                return NextResponse.json(
+                    { error: 'انتهت صلاحية كود الخصم' },
+                    { status: 400 }
+                );
+            }
+            if (promoCode.usageLimit && promoCode.usageCount >= promoCode.usageLimit) {
+                return NextResponse.json(
+                    { error: 'تم استنفاد عدد مرات الاستخدام لهذا الكود' },
+                    { status: 400 }
+                );
+            }
         }
 
-        if (promoCode.validUntil && now > promoCode.validUntil) {
-            return NextResponse.json(
-                { error: 'انتهت صلاحية كود الخصم' },
-                { status: 400 }
-            );
+        // Check user-specific usage limits
+        const userUsageCount = await PromoCodeUsage.countDocuments({
+            userId: session.user.id,
+            promoCodeId: promoCode._id.toString(),
+            isActive: true
+        });
+
+        if (!promoCode.canUserUse(userUsageCount)) {
+            if (promoCode.userUsageLimit && userUsageCount >= promoCode.userUsageLimit) {
+                return NextResponse.json(
+                    { error: `لقد استخدمت هذا الكود بالفعل. الحد الأقصى ${promoCode.userUsageLimit} مرة لكل عميل` },
+                    { status: 400 }
+                );
+            }
         }
 
         // Check minimum order amount
-        if (promoCode.minimumOrderAmount && orderValue < promoCode.minimumOrderAmount) {
+        if (promoCode.minimumOrderAmount && calculationBase < promoCode.minimumOrderAmount) {
             return NextResponse.json(
                 { error: `الحد الأدنى لقيمة الطلب هو $${promoCode.minimumOrderAmount}` },
                 { status: 400 }
             );
         }
 
-        // Check usage limits
-        if (promoCode.maxUses && promoCode.usedCount >= promoCode.maxUses) {
-            return NextResponse.json(
-                { error: 'تم استنفاد عدد مرات الاستخدام لهذا الكود' },
-                { status: 400 }
-            );
-        }
-
-        // Calculate discount
-        let discountAmount = 0;
-        if (promoCode.discountType === 'percentage') {
-            discountAmount = (calculationBase * promoCode.discountValue) / 100;
-        } else if (promoCode.discountType === 'fixed_amount') {
-            discountAmount = promoCode.discountValue;
-        }
-
-        // Ensure discount doesn't exceed calculation base (current total)
-        discountAmount = Math.min(discountAmount, calculationBase);
+        // Calculate discount using the promo code's built-in method
+        // This ensures proper calculation based on the current total (after existing discounts)
+        const discountAmount = promoCode.calculateDiscount(calculationBase);
 
         console.log('✅ Promo code validated successfully:', {
             code: promoCode.code,
             discountType: promoCode.discountType,
             discountValue: promoCode.discountValue,
-            calculatedDiscount: discountAmount
+            calculatedDiscount: discountAmount,
+            userUsageCount: userUsageCount,
+            userUsageLimit: promoCode.userUsageLimit
         });
 
         return NextResponse.json({

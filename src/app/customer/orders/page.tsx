@@ -15,6 +15,7 @@ import {
   faClock,
   faExclamationCircle,
   faFileDownload,
+  faGift,
 } from '@fortawesome/free-solid-svg-icons'
 import CustomerLayout from '@/app/customer-layout'
 import './customer-orders.css'
@@ -170,6 +171,11 @@ export default function CustomerOrdersPage() {
     })
   }
 
+  // Format price to 2 decimal places
+  const formatPrice = (price) => {
+    return parseFloat(price).toFixed(2)
+  }
+
   if (status === 'loading' || loading) {
     return (
       <CustomerLayout>
@@ -237,7 +243,7 @@ export default function CustomerOrdersPage() {
                         </span>
                         <span className="oc-total">
                           <FontAwesomeIcon icon={faDollarSign} />
-                          {order.totalPrice === 0 ? 'مجاني' : `$${order.totalPrice}`}
+                          {order.totalPrice === 0 ? 'مجاني' : `$${formatPrice(order.totalPrice)}`}
                         </span>
                       </div>
                     </div>
@@ -263,54 +269,80 @@ export default function CustomerOrdersPage() {
                     </div>
                   </div>
 
-                  {/* Order Details Section */}
-                  <div className="oc-order-details">
-                    <div className="oc-payment-info">
-                      <h4>معلومات الدفع</h4>
-                      <div className="oc-payment-grid">
-                        <div className="oc-payment-item">
-                          <span className="oc-label">طريقة الدفع:</span>
-                          <span className="oc-value">
-                            {order.paymentMethod === 'paypal' ? 'باي بال' : order.paymentMethod || 'مجاني'}
-                          </span>
+                  {/* Order Details Section - Hide payment info for free orders */}
+                  {order.totalPrice > 0 && order.paymentStatus !== 'free' && (
+                    <div className="oc-order-details">
+                      <div className="oc-payment-info">
+                        <h4>معلومات الدفع</h4>
+                        <div className="oc-payment-grid">
+                          <div className="oc-payment-item">
+                            <span className="oc-label">طريقة الدفع:</span>
+                            <span className="oc-value">
+                              {order.paymentMethod === 'paypal' ? 'باي بال' : order.paymentMethod || 'مجاني'}
+                            </span>
+                          </div>
+                          <div className="oc-payment-item">
+                            <span className="oc-label">حالة الدفع:</span>
+                            <span className={`oc-value oc-payment-${order.paymentStatus}`}>
+                              {order.paymentStatus === 'paid'
+                                ? 'مدفوع'
+                                : order.paymentStatus === 'pending'
+                                ? 'في الانتظار'
+                                : order.paymentStatus === 'failed'
+                                ? 'فشل'
+                                : order.paymentStatus === 'refunded'
+                                ? 'مسترد'
+                                : order.paymentStatus === 'free'
+                                ? 'مجاني'
+                                : order.paymentStatus || 'مجاني'}
+                            </span>
+                          </div>
+                          {order.subtotal ? (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">المجموع الفرعي:</span>
+                              <span className="oc-value">${formatPrice(order.subtotal)}</span>
+                            </div>
+                          ) : null}
+                          {order.totalPromoDiscount && order.totalPromoDiscount > 0 ? (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">الخصم:</span>
+                              <span className="oc-value oc-discount">-${formatPrice(order.totalPromoDiscount)}</span>
+                            </div>
+                          ) : null}
+                          {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 ? (
+                            <div className="oc-payment-item">
+                              <span className="oc-label">كوبونات الخصم:</span>
+                              <span className="oc-value oc-promo-codes">{order.appliedPromoCodes.join(', ')}</span>
+                            </div>
+                          ) : null}
                         </div>
-                        <div className="oc-payment-item">
-                          <span className="oc-label">حالة الدفع:</span>
-                          <span className={`oc-value oc-payment-${order.paymentStatus}`}>
-                            {order.paymentStatus === 'paid'
-                              ? 'مدفوع'
-                              : order.paymentStatus === 'pending'
-                              ? 'في الانتظار'
-                              : order.paymentStatus === 'failed'
-                              ? 'فشل'
-                              : order.paymentStatus === 'refunded'
-                              ? 'مسترد'
-                              : order.paymentStatus === 'free'
-                              ? 'مجاني'
-                              : order.paymentStatus || 'مجاني'}
-                          </span>
-                        </div>
-                        {order.subtotal && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">المجموع الفرعي:</span>
-                            <span className="oc-value">${order.subtotal}</span>
-                          </div>
-                        )}
-                        {order.totalPromoDiscount && order.totalPromoDiscount > 0 && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">الخصم:</span>
-                            <span className="oc-value oc-discount">-${order.totalPromoDiscount}</span>
-                          </div>
-                        )}
-                        {order.appliedPromoCodes && order.appliedPromoCodes.length > 0 && (
-                          <div className="oc-payment-item">
-                            <span className="oc-label">كوبونات الخصم:</span>
-                            <span className="oc-value oc-promo-codes">{order.appliedPromoCodes.join(', ')}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
-                  </div>
+                  )}
+
+                  {/* Free Order Notice */}
+                  {(order.totalPrice === 0 || order.paymentStatus === 'free') && (
+                    <div className="oc-order-details">
+                      <div
+                        className="oc-payment-info"
+                        style={{
+                          background: 'rgba(34, 197, 94, 0.1)',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                        }}
+                      >
+                        <h4 style={{ color: '#22c55e' }}>
+                          <FontAwesomeIcon icon={faGift} style={{ marginLeft: '0.5rem' }} />
+                          طلب مجاني
+                        </h4>
+                        <div className="oc-payment-item" style={{ background: 'transparent', border: 'none' }}>
+                          <span className="oc-label">نوع الطلب:</span>
+                          <span className="oc-value" style={{ color: '#22c55e', fontWeight: 'bold', direction: 'rtl' }}>
+                            مجاني - $0.00
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="oc-items">
                     <h4>المنتجات المطلوبة</h4>
@@ -320,9 +352,9 @@ export default function CustomerOrdersPage() {
                           <h5>{item.productName || item.productId.name}</h5>
                           <div className="oc-item-details">
                             <span>الكمية: {item.quantity}</span>
-                            <span>السعر: ${item.totalPrice}</span>
+                            <span>السعر: ${formatPrice(item.totalPrice)}</span>
                             {item.hasCustomizations && <span className="oc-customizable">قابل للتخصيص</span>}
-                            {item.customizations?.colors && item.customizations.colors.length > 0 && (
+                            {item.customizations?.colors && item.customizations.colors.length > 0 ? (
                               <div className="oc-colors">
                                 <span>الألوان المختارة:</span>
                                 <div className="oc-color-list">
@@ -338,52 +370,18 @@ export default function CustomerOrdersPage() {
                                   ))}
                                 </div>
                               </div>
-                            )}
-                            {item.customizations?.customizationNotes && (
+                            ) : null}
+                            {item.customizations?.customizationNotes ? (
                               <div className="oc-notes">
                                 <span>ملاحظات التخصيص:</span>
                                 <p>{item.customizations.customizationNotes}</p>
                               </div>
-                            )}
+                            ) : null}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-
-                  {/* Order History Section */}
-                  {order.orderHistory && order.orderHistory.length > 0 && (
-                    <div className="oc-history">
-                      <h4>تاريخ الطلب</h4>
-                      <div className="oc-timeline">
-                        {order.orderHistory
-                          .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                          .map((history, index) => (
-                            <div key={index} className="oc-timeline-item">
-                              <div className="oc-timeline-marker"></div>
-                              <div className="oc-timeline-content">
-                                <div className="oc-timeline-status">
-                                  {history.status === 'completed'
-                                    ? 'مكتمل'
-                                    : history.status === 'pending'
-                                    ? 'في الانتظار'
-                                    : history.status === 'processing'
-                                    ? 'جاري المعالجة'
-                                    : history.status === 'awaiting_customization'
-                                    ? 'في انتظار التخصيص'
-                                    : history.status === 'under_customization'
-                                    ? 'تحت التخصيص'
-                                    : history.status}
-                                </div>
-                                <div className="oc-timeline-date">{formatDate(history.timestamp)}</div>
-                                {history.note && <div className="oc-timeline-note">{history.note}</div>}
-                                {history.changedBy && <div className="oc-timeline-by">بواسطة: {history.changedBy}</div>}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
 
                   {order.designFiles && order.designFiles.length > 0 && (
                     <div className="oc-downloads">
@@ -411,6 +409,15 @@ export default function CustomerOrdersPage() {
                       <FontAwesomeIcon icon={faEye} />
                       عرض التفاصيل
                     </button>
+                    {order.orderStatus === 'completed' && (
+                      <button
+                        onClick={() => router.push(`/customer/reviews/add?orderId=${order._id}`)}
+                        className="oc-add-review-btn"
+                      >
+                        <FontAwesomeIcon icon={faCheckCircle} />
+                        إضافة تقييم
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

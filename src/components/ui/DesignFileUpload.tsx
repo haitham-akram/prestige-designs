@@ -37,7 +37,7 @@ export default function DesignFileUpload({
   onFileSelect,
   onFileRemove,
   accept = '*/*',
-  maxSize = 100, // 100MB default
+  maxSize = 500, // 500MB default for large files
   label = 'رفع الملف',
   placeholder = 'اختر ملف أو اسحب الملف هنا',
   className = '',

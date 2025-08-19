@@ -39,13 +39,11 @@ const uploadSchema = z.object({
         .min(1, 'Order number is required')
         .regex(/^[A-Z0-9-]+$/, 'Order number can only contain uppercase letters, numbers, and hyphens'),
     productSlug: z.string()
-        .min(1, 'Product slug is required')
-        .regex(/^[a-z0-9-]+$/, 'Product slug can only contain lowercase letters, numbers, and hyphens'),
+        .min(1, 'Product slug is required'), // Remove regex validation - allow any string
     colorName: z.string()
-        .regex(/^[a-z0-9]+$/, 'Color name can only contain lowercase letters and numbers')
         .nullable()
         .optional()
-        .transform(val => val === null ? undefined : val)
+        .transform(val => val === null || val === '' ? undefined : val) // Remove regex validation - allow any string
 });
 
 // Allowed file types and their MIME types
@@ -265,4 +263,4 @@ export const POST = withAdmin(uploadOrderFile);
 
 // Configure route segment to handle large files (videos can be large)
 export const runtime = 'nodejs'
-export const maxDuration = 30 // 30 seconds timeout for uploads 
+export const maxDuration = 300 // 5 minutes timeout for large file uploads 
