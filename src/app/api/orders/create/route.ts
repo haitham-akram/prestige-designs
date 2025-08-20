@@ -48,6 +48,7 @@ const orderItemSchema = z.object({
     promoCode: z.string().optional(),
     promoDiscount: z.number().min(0, 'Promo discount must be non-negative').optional(),
     hasCustomizations: z.boolean(),
+    EnableCustomizations: z.boolean().optional(), // Add EnableCustomizations field
     customizations: customizationSchema.optional(),
 });
 
@@ -138,36 +139,27 @@ export async function POST(request: NextRequest) {
         const productIds = orderData.items.map(item => item.productId);
         const products = await Product.find({ _id: { $in: productIds } });
 
-        const hasCustomizableProducts = orderData.items.some(item => {
-            // Find the corresponding product from database
+        // Enrich order items with EnableCustomizations field from cart or database FIRST
+        const enrichedItems = orderData.items.map(item => {
             const product = products.find(p => p._id.toString() === item.productId);
-            return product && product.EnableCustomizations === true;
+            return {
+                ...item,
+                EnableCustomizations: item.EnableCustomizations ?? product?.EnableCustomizations ?? false
+            };
         });
 
-        // Also check if any items actually have customizations applied
-        const hasCustomizations = orderData.items.some(item => {
-            return item.hasCustomizations ||
-                (item.customizations && (
-                    (item.customizations.colors && item.customizations.colors.length > 0) ||
-                    (item.customizations.textChanges && item.customizations.textChanges.length > 0) ||
-                    (item.customizations.uploadedImages && item.customizations.uploadedImages.length > 0) ||
-                    (item.customizations.uploadedLogo) ||
-                    (item.customizations.customizationNotes && item.customizations.customizationNotes.trim().length > 0)
-                ));
+        // Then check hasCustomizableProducts based on enriched items
+        const hasCustomizableProducts = enrichedItems.some(item => {
+            return item.EnableCustomizations === true;
         });
 
         console.log('🔍 Customization analysis:', {
             hasCustomizableProducts,
-            hasCustomizations,
-            productAnalysis: orderData.items.map(item => {
-                const product = products.find(p => p._id.toString() === item.productId);
-                return {
-                    productName: item.productName,
-                    EnableCustomizations: product?.EnableCustomizations || false,
-                    hasCustomizations: item.hasCustomizations,
-                    customizations: item.customizations
-                };
-            })
+            itemAnalysis: enrichedItems.map(item => ({
+                productName: item.productName,
+                EnableCustomizations: item.EnableCustomizations,
+                hasCustomizations: item.hasCustomizations,
+            }))
         });
 
         // Check for existing pending orders to avoid duplicates
@@ -188,13 +180,14 @@ export async function POST(request: NextRequest) {
             // Update existing order instead of creating a new one
             console.log('🔄 Updating existing pending order:', existingOrder.orderNumber);
 
-            existingOrder.items = orderData.items;
+            existingOrder.items = enrichedItems;
             existingOrder.subtotal = orderData.subtotal;
             existingOrder.totalPromoDiscount = orderData.totalPromoDiscount;
             existingOrder.totalPrice = orderData.totalPrice;
             existingOrder.appliedPromoCodes = orderData.appliedPromoCodes;
             existingOrder.customerNotes = orderData.customerNotes;
             existingOrder.hasCustomizableProducts = hasCustomizableProducts;
+            existingOrder.requiresCustomWork = hasCustomizableProducts; // Fix: set requiresCustomWork
             existingOrder.customizationStatus = existingOrder.hasCustomizableProducts ? 'pending' : 'none';
             existingOrder.updatedAt = new Date();
 
@@ -282,7 +275,7 @@ export async function POST(request: NextRequest) {
                 customerEmail: orderData.customerEmail,
                 customerName: orderData.customerName,
                 customerPhone: orderData.customerPhone,
-                items: orderData.items,
+                items: enrichedItems,
                 subtotal: orderData.subtotal,
                 totalPromoDiscount: orderData.totalPromoDiscount,
                 totalPrice: orderData.totalPrice,
@@ -292,6 +285,7 @@ export async function POST(request: NextRequest) {
                 orderStatus: 'pending',
                 deliveryMethod: 'digital_download',
                 hasCustomizableProducts,
+                requiresCustomWork: hasCustomizableProducts, // This should be true if any product is customizable
                 customizationStatus: hasCustomizableProducts ? 'pending' : 'none',
                 emailSent: false,
                 customerNotes: orderData.customerNotes,

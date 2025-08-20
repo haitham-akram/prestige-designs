@@ -20,6 +20,7 @@ export interface CartItem {
   quantity: number
   category?: string
   customizations?: CartItemCustomization
+  EnableCustomizations?: boolean // Track if product supports customizations
 }
 
 interface CartState {
@@ -92,6 +93,12 @@ function cartReducer(state: CartState, action: CartAction): CartState {
         return calculateTotals({ ...state, items: updatedItems })
       } else {
         const newItem: CartItem = { ...action.payload, cartItemId, quantity: 1 }
+        console.log('🛒 Creating new cart item:', {
+          productName: newItem.name,
+          EnableCustomizations: newItem.EnableCustomizations,
+          cartItemId: newItem.cartItemId,
+          fullItem: newItem,
+        })
         const updatedItems = [...state.items, newItem]
         return calculateTotals({ ...state, items: updatedItems })
       }
@@ -137,6 +144,14 @@ const CART_STORAGE_KEY = 'prestige_cart'
 
 function saveCartToStorage(items: CartItem[]): void {
   try {
+    console.log(
+      '💾 Saving cart to localStorage:',
+      items.map((item) => ({
+        name: item.name,
+        EnableCustomizations: item.EnableCustomizations,
+        hasCustomizations: !!(item.customizations && Object.keys(item.customizations || {}).length > 0),
+      }))
+    )
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items))
   } catch (error) {
     console.error('Failed to save cart to localStorage:', error)
@@ -149,6 +164,14 @@ function loadCartFromStorage(): CartItem[] {
     if (!cartData) return []
 
     const items = JSON.parse(cartData)
+    console.log(
+      '📥 Loading cart from localStorage:',
+      items.map((item: CartItem) => ({
+        name: item.name,
+        EnableCustomizations: item.EnableCustomizations,
+        hasCustomizations: !!(item.customizations && Object.keys(item.customizations || {}).length > 0),
+      }))
+    )
 
     // Migrate existing cart items to include cartItemId
     const migratedItems = items.map((item: Partial<CartItem> & { id: string }) => {
@@ -204,6 +227,12 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, [state.items])
 
   const addItem = (item: Omit<CartItem, 'quantity' | 'cartItemId'>) => {
+    console.log('🛒 CartContext addItem called with:', {
+      productName: item.name,
+      EnableCustomizations: item.EnableCustomizations,
+      hasCustomizations: !!(item.customizations && Object.keys(item.customizations || {}).length > 0),
+      fullItem: item,
+    })
     dispatch({ type: 'ADD_ITEM', payload: item })
   }
 

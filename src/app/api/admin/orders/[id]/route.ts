@@ -158,9 +158,11 @@ export async function DELETE(
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
 
-        // Check if order needs refund processing
+        // Check if order needs refund processing (skip free orders and orders without PayPal transaction)
         let refundResult = null;
-        if (order.paymentStatus === 'paid' && order.paypalTransactionId) {
+        if (order.paymentStatus === 'free' || order.totalPrice === 0) {
+            console.log('🆓 Free order cancellation - skipping PayPal refund:', order.orderNumber);
+        } else if (order.paymentStatus === 'paid' && order.paypalTransactionId) {
             console.log('💳 Processing refund for paid order:', order.orderNumber);
 
             try {
@@ -203,6 +205,8 @@ export async function DELETE(
                 console.error('❌ Error processing refund:', refundError);
                 // Continue with cancellation even if refund fails
             }
+        } else if (order.paymentStatus === 'paid' && !order.paypalTransactionId) {
+            console.log('⚠️ Paid order without PayPal transaction ID - skipping refund:', order.orderNumber);
         }
 
         // Soft delete - mark as cancelled instead of actually deleting

@@ -35,16 +35,6 @@ export async function GET(request: NextRequest) {
         const isActive = searchParams.get('isActive')
         const isFeatured = searchParams.get('isFeatured')
 
-        // Debug logging
-        console.log('API Request Parameters:', {
-            category,
-            limit,
-            page,
-            sortBy,
-            sortOrder,
-            isActive,
-            isFeatured
-        })
 
         // Build filter object
         const filter: any = {}
@@ -55,7 +45,6 @@ export async function GET(request: NextRequest) {
             const categoryDoc = await Category.findOne({ slug: category })
             if (categoryDoc) {
                 filter.categoryId = categoryDoc._id
-                console.log('Found category:', categoryDoc.name, 'ID:', categoryDoc._id)
             } else {
                 console.log('Category not found for slug:', category)
             }
@@ -83,9 +72,6 @@ export async function GET(request: NextRequest) {
         }
 
         sortObject[sortField] = sortDirection
-
-        console.log('Sort Object:', sortObject)
-        console.log('Filter Object:', filter)
 
         // Execute query
         const [products, total] = await Promise.all([

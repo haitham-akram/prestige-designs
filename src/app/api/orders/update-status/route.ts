@@ -18,6 +18,7 @@ const updateStatusSchema = z.object({
     orderId: z.string().min(1, 'Order ID is required'),
     status: z.enum(['pending', 'processing', 'completed', 'cancelled', 'refunded', 'awaiting_customization', 'under_customization']),
     paymentStatus: z.enum(['pending', 'paid', 'failed', 'refunded', 'free']).optional(),
+    deliveryType: z.enum(['auto_delivery', 'custom_work']).optional(),
     note: z.string().optional(),
 });
 
@@ -36,9 +37,9 @@ export async function POST(request: NextRequest) {
 
         // Parse request body
         const body = await request.json();
-        const { orderId, status, paymentStatus, note } = updateStatusSchema.parse(body);
+        const { orderId, status, paymentStatus, deliveryType, note } = updateStatusSchema.parse(body);
 
-        console.log('🔄 Updating order status:', { orderId, status, paymentStatus });
+        console.log('🔄 Updating order status:', { orderId, status, paymentStatus, deliveryType });
 
         // Find the order
         const order = await Order.findById(orderId);
@@ -54,6 +55,12 @@ export async function POST(request: NextRequest) {
 
         if (paymentStatus) {
             order.paymentStatus = paymentStatus;
+        }
+
+        if (deliveryType) {
+            order.deliveryType = deliveryType;
+            // Also update requiresCustomWork based on deliveryType
+            order.requiresCustomWork = deliveryType === 'custom_work';
         }
 
         // Add to order history

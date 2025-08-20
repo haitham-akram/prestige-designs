@@ -50,6 +50,7 @@ export interface IOrderItem {
 
     // Customization data
     hasCustomizations: boolean;      // Does this item have customizations
+    EnableCustomizations?: boolean;  // Can this item be customized (from product definition)
     customizations?: {
         colors?: { name: string; hex: string; }[]; // Selected color themes
         textChanges?: { field: string; value: string; }[]; // Text modifications
@@ -228,6 +229,10 @@ const OrderItemSchema = new Schema<IOrderItem>({
         default: 0
     },
     hasCustomizations: {
+        type: Boolean,
+        default: false
+    },
+    EnableCustomizations: {
         type: Boolean,
         default: false
     },
@@ -553,8 +558,12 @@ OrderSchema.pre('save', function (this: IOrder, next) {
 
 // Pre-save middleware to check customization status
 OrderSchema.pre('save', function (this: IOrder, next) {
+    // Check if any items support customization (EnableCustomizations)
+    const hasCustomizableProducts = this.items.some(item => item.EnableCustomizations === true);
+    this.hasCustomizableProducts = hasCustomizableProducts;
+
+    // Check if any items actually have customizations applied
     const hasCustomizations = this.items.some(item => item.hasCustomizations);
-    this.hasCustomizableProducts = hasCustomizations;
 
     if (hasCustomizations && this.customizationStatus === 'none') {
         this.customizationStatus = 'pending';

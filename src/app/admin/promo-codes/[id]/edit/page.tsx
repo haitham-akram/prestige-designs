@@ -26,7 +26,7 @@ interface PromoCode {
   discountValue: number
   maxDiscountAmount?: number
   usageLimit?: number
-  usageCount: number
+  usageCount?: number
   userUsageLimit?: number
   minimumOrderAmount?: number
   startDate?: string

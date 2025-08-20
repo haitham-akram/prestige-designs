@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useCart } from '@/contexts/CartContext'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -73,94 +73,375 @@ export default function CheckoutPage() {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal')
     const [paypalButtonsRendered, setPaypalButtonsRendered] = useState(false)
 
-    // Load PayPal SDK
+    // Load PayPal SDK with enhanced error handling and validation
     useEffect(() => {
-      const loadPayPalSDK = () => {
+      let mounted = true
+      let loadTimeout
+
+      const loadPayPalSDK = async () => {
         if (typeof window === 'undefined') return
+
+        console.log('🔄 Starting PayPal SDK loading process...')
 
         // Reset error state
         setPaypalSdkError(false)
 
-        // Check if PayPal is already loaded
-        if (window.paypal) {
-          console.log('PayPal SDK already loaded')
-          setPaypalLoaded(true)
+        // Check if PayPal SDK is already fully loaded and functional
+        if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
+          console.log('✅ PayPal SDK already fully loaded and functional')
+          if (mounted) setPaypalLoaded(true)
           return
         }
 
-        // Check if script tag already exists
-        const existingScript = document.querySelector('script[src*="paypal.com/sdk"]')
-        if (existingScript) {
-          console.log('PayPal script already exists, waiting for load')
-          return
+        // Remove any existing broken scripts
+        const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk"]')
+        existingScripts.forEach((script) => {
+          console.log('🗑️ Removing existing PayPal script')
+          script.remove()
+        })
+
+        // Clear any existing PayPal objects
+        if (window.paypal) {
+          console.log('🗑️ Clearing existing PayPal object')
+          delete window.paypal
         }
+
+        console.log('📥 Loading fresh PayPal SDK...')
 
         const script = document.createElement('script')
-        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG`
+        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
+        script.async = true
+        script.defer = true
+
+        // Set a timeout for loading
+        loadTimeout = setTimeout(() => {
+          console.error('⏰ PayPal SDK loading timeout')
+          if (mounted) {
+            setPaypalSdkError(true)
+            setPaypalLoaded(false)
+          }
+        }, 15000) // 15 second timeout
 
         script.onload = () => {
-          console.log('PayPal SDK loaded successfully')
-          setPaypalLoaded(true)
-          setPaypalSdkError(false)
+          clearTimeout(loadTimeout)
+          console.log('📦 PayPal script loaded, waiting for SDK initialization...')
+
+          // Wait for PayPal SDK to be fully initialized
+          const checkPayPalReady = (attempts = 0) => {
+            if (!mounted) return
+
+            if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
+              console.log('✅ PayPal SDK fully initialized and ready')
+              setPaypalLoaded(true)
+              setPaypalSdkError(false)
+            } else if (attempts < 30) {
+              // 30 attempts = 15 seconds max wait
+              console.log(`⏳ Waiting for PayPal SDK initialization... (attempt ${attempts + 1}/30)`)
+              setTimeout(() => checkPayPalReady(attempts + 1), 500)
+            } else {
+              console.error('❌ PayPal SDK failed to initialize after loading')
+              setPaypalSdkError(true)
+              setPaypalLoaded(false)
+            }
+          }
+
+          checkPayPalReady()
         }
 
-        script.onerror = () => {
-          console.error('Failed to load PayPal SDK')
-          setPaypalSdkError(true)
-          setPaypalLoaded(false)
+        script.onerror = (error) => {
+          clearTimeout(loadTimeout)
+          console.error('❌ Failed to load PayPal SDK script:', error)
+          if (mounted) {
+            setPaypalSdkError(true)
+            setPaypalLoaded(false)
+          }
         }
 
         document.head.appendChild(script)
       }
 
       loadPayPalSDK()
+
+      return () => {
+        mounted = false
+        if (loadTimeout) clearTimeout(loadTimeout)
+      }
     }, [])
 
-    // Retry PayPal SDK loading
+    // Enhanced PayPal button initialization with robust error handling
+    const initializePayPalButtons = useCallback(() => {
+      console.log('🔄 Attempting PayPal button initialization...', {
+        paypalLoaded,
+        currentOrderId,
+        windowPaypal: !!window.paypal,
+        paypalButtons: !!window.paypal?.Buttons,
+        paypalButtonsRendered,
+        isProcessingOrder,
+      })
+
+      // Pre-flight checks
+      if (!window.paypal) {
+        console.error('❌ PayPal SDK not available')
+        setPaypalSdkError(true)
+        return
+      }
+
+      if (!window.paypal.Buttons || typeof window.paypal.Buttons !== 'function') {
+        console.log('⚠️ PayPal Buttons not ready yet, will retry...')
+        const retryCount = (window.paypalRetryCount || 0) + 1
+        window.paypalRetryCount = retryCount
+
+        if (retryCount <= 10) {
+          // Increased retry limit
+          console.log(`🔄 Retry attempt ${retryCount}/10 in 1 second...`)
+          setTimeout(() => {
+            if (!paypalButtonsRendered) {
+              // Only retry if buttons still not rendered
+              initializePayPalButtons()
+            }
+          }, 1000)
+        } else {
+          console.error('❌ Max PayPal retry attempts reached')
+          setPaypalSdkError(true)
+        }
+        return
+      }
+
+      if (!currentOrderId) {
+        console.log('⚠️ No current order ID available')
+        return
+      }
+
+      if (paypalButtonsRendered) {
+        console.log('⚠️ PayPal buttons already rendered')
+        return
+      }
+
+      if (isProcessingOrder) {
+        console.log('⚠️ Order currently being processed, skipping button initialization')
+        return
+      }
+
+      // Clear retry counter on successful validation
+      window.paypalRetryCount = 0
+
+      // Prepare container
+      const paypalContainer = document.getElementById('paypal-button-container')
+      if (!paypalContainer) {
+        console.error('❌ PayPal button container not found')
+        setTimeout(() => initializePayPalButtons(), 500) // Retry if container not ready
+        return
+      }
+
+      // Clear existing content
+      paypalContainer.innerHTML = ''
+
+      console.log('✅ All conditions met, rendering PayPal buttons for order:', currentOrderId)
+
+      try {
+        const buttonsInstance = window.paypal.Buttons({
+          createOrder: async () => {
+            try {
+              console.log('🔄 Creating PayPal order for order ID:', currentOrderId)
+
+              const response = await fetch('/api/paypal/create-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ orderId: currentOrderId }),
+              })
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(`Server error: ${response.status} - ${errorData.error || 'Unknown error'}`)
+              }
+
+              const data = await response.json()
+
+              if (!data.paypalOrderId) {
+                throw new Error('No PayPal order ID returned from server')
+              }
+
+              console.log('✅ PayPal order created successfully:', data.paypalOrderId)
+              return data.paypalOrderId
+            } catch (error) {
+              console.error('❌ Error creating PayPal order:', error)
+              showError('خطأ في الدفع', 'فشل في إنشاء طلب الدفع. يرجى المحاولة مرة أخرى.')
+              throw error
+            }
+          },
+          onApprove: async (data) => {
+            try {
+              console.log('🔄 Processing PayPal payment approval...', data.orderID)
+              setIsProcessingOrder(true)
+
+              const response = await fetch('/api/paypal/capture-payment', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  paypalOrderId: data.orderID,
+                  orderId: currentOrderId,
+                }),
+              })
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(`Payment capture failed: ${response.status} - ${errorData.error || 'Unknown error'}`)
+              }
+
+              const result = await response.json()
+              console.log('✅ Payment captured successfully:', result)
+
+              // Clear cart and redirect
+              clearCart()
+              router.push(`/checkout/success?orderId=${currentOrderId}`)
+            } catch (error) {
+              console.error('❌ Error capturing payment:', error)
+              showError('خطأ في المعاملة', 'حدث خطأ أثناء معالجة الدفع. يرجى المحاولة مرة أخرى.')
+              setIsProcessingOrder(false)
+            }
+          },
+          onError: (err) => {
+            console.error('❌ PayPal payment error:', err)
+            showError('خطأ في الدفع', 'حدث خطأ في الدفع. يرجى إعادة تحميل الصفحة والمحاولة مرة أخرى.')
+            setIsProcessingOrder(false)
+            setPaypalSdkError(true)
+            setPaypalButtonsRendered(false)
+          },
+          onCancel: (data) => {
+            console.log('ℹ️ Payment cancelled by user:', data)
+            showInfo('تم الإلغاء', 'تم إلغاء عملية الدفع')
+            setIsProcessingOrder(false)
+          },
+          style: {
+            layout: 'vertical',
+            color: 'gold',
+            shape: 'rect',
+            label: 'paypal',
+            height: 40,
+          },
+        })
+
+        // Render buttons with error handling
+        buttonsInstance
+          .render('#paypal-button-container')
+          .then(() => {
+            console.log('✅ PayPal buttons rendered successfully')
+            setPaypalButtonsRendered(true)
+            setPaypalSdkError(false)
+          })
+          .catch((error) => {
+            console.error('❌ Failed to render PayPal buttons:', error)
+            setPaypalSdkError(true)
+            setPaypalButtonsRendered(false)
+
+            // Clear container and show retry option
+            if (paypalContainer) {
+              paypalContainer.innerHTML = ''
+            }
+          })
+      } catch (error) {
+        console.error('❌ Error initializing PayPal buttons:', error)
+        setPaypalSdkError(true)
+        setPaypalButtonsRendered(false)
+      }
+    }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder, showError, showInfo, clearCart, router])
+
+    // Enhanced PayPal SDK retry with better error handling
     const retryPayPalSDK = () => {
-      console.log('Retrying PayPal SDK loading...')
+      console.log('🔄 Retrying PayPal SDK loading...')
       setPaypalSdkError(false)
       setPaypalLoaded(false)
       setPaypalButtonsRendered(false)
 
-      // Remove any existing PayPal scripts
+      // Remove all existing PayPal scripts and objects
       const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk"]')
       existingScripts.forEach((script) => script.remove())
+
+      if (window.paypal) {
+        delete window.paypal
+      }
 
       // Reset retry counter
       window.paypalRetryCount = 0
 
-      // Create new script element
-      const script = document.createElement('script')
-      script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG`
+      // Trigger fresh SDK loading
+      setTimeout(() => {
+        const script = document.createElement('script')
+        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
+        script.async = true
 
-      script.onload = () => {
-        console.log('PayPal SDK loaded successfully on retry')
-        setPaypalLoaded(true)
-        setPaypalSdkError(false)
-      }
+        script.onload = () => {
+          console.log('📦 PayPal SDK retry - script loaded, checking initialization...')
 
-      script.onerror = () => {
-        console.error('Failed to load PayPal SDK on retry')
-        setPaypalSdkError(true)
-        setPaypalLoaded(false)
-      }
+          const checkRetryReady = (attempts = 0) => {
+            if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
+              console.log('✅ PayPal SDK retry successful')
+              setPaypalLoaded(true)
+              setPaypalSdkError(false)
+            } else if (attempts < 20) {
+              setTimeout(() => checkRetryReady(attempts + 1), 500)
+            } else {
+              console.error('❌ PayPal SDK retry failed to initialize')
+              setPaypalSdkError(true)
+            }
+          }
 
-      document.head.appendChild(script)
+          checkRetryReady()
+        }
+
+        script.onerror = () => {
+          console.error('❌ PayPal SDK retry - script failed to load')
+          setPaypalSdkError(true)
+          setPaypalLoaded(false)
+        }
+
+        document.head.appendChild(script)
+      }, 1000) // Wait 1 second before retry
     }
 
-    // Initialize PayPal buttons when conditions are met
+    // Enhanced PayPal button initialization trigger with better timing
     useEffect(() => {
-      if (paypalLoaded && currentOrderId && !paypalButtonsRendered && !isProcessingOrder) {
-        console.log('Initializing PayPal buttons...')
-        const timer = setTimeout(() => {
-          initializePayPalButtons()
-        }, 200) // Small delay to ensure DOM is ready
+      // Only initialize if all conditions are perfectly met
+      const shouldInitialize =
+        paypalLoaded &&
+        currentOrderId &&
+        !paypalButtonsRendered &&
+        !isProcessingOrder &&
+        window.paypal &&
+        window.paypal.Buttons &&
+        typeof window.paypal.Buttons === 'function'
 
-        return () => clearTimeout(timer)
+      if (shouldInitialize) {
+        console.log('🎯 All conditions met, initializing PayPal buttons...')
+
+        // Wait a bit to ensure DOM is fully ready and any previous operations completed
+        const timer = setTimeout(() => {
+          // Double-check conditions before proceeding (race condition safety)
+          if (paypalLoaded && currentOrderId && !paypalButtonsRendered && !isProcessingOrder) {
+            initializePayPalButtons()
+          } else {
+            console.log('⚠️ Conditions changed during timeout, skipping initialization')
+          }
+        }, 300) // Reduced delay but still enough for DOM readiness
+
+        return () => {
+          clearTimeout(timer)
+        }
+      } else {
+        console.log('⏳ PayPal button initialization conditions not met:', {
+          paypalLoaded,
+          currentOrderId: !!currentOrderId,
+          paypalButtonsRendered,
+          isProcessingOrder,
+          windowPaypal: !!window.paypal,
+          paypalButtons: !!(window.paypal && window.paypal.Buttons),
+        })
       }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder])
+    }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder, initializePayPalButtons])
 
     // Reset PayPal buttons when order changes
     useEffect(() => {
@@ -250,6 +531,7 @@ export default function CheckoutPage() {
             code: promoCode.trim(),
             orderValue: state.subtotal || 0, // Original subtotal for minimum order checks
             currentTotal: state.totalPrice || 0, // Current total after existing discounts for promo calculation
+            cartItems: state.items || [], // Send cart items for product-specific promo codes
           }),
         })
 
@@ -289,148 +571,7 @@ export default function CheckoutPage() {
       setPromoCodeSuccess('')
     }
 
-    // Initialize PayPal buttons
-    const initializePayPalButtons = () => {
-      console.log('Attempting to initialize PayPal buttons...', {
-        paypalLoaded,
-        currentOrderId,
-        windowPaypal: !!window.paypal,
-        paypalButtons: !!window.paypal?.Buttons,
-      })
-
-      if (!window.paypal) {
-        console.log('PayPal SDK not loaded yet')
-        setPaypalSdkError(true)
-        return
-      }
-
-      if (!window.paypal.Buttons || typeof window.paypal.Buttons !== 'function') {
-        console.log('PayPal Buttons not available yet, retrying in 1 second...')
-        // Retry with longer delay and limit retries
-        const retryCount = window.paypalRetryCount || 0
-        if (retryCount < 5) {
-          window.paypalRetryCount = retryCount + 1
-          setTimeout(() => {
-            initializePayPalButtons()
-          }, 1000)
-        } else {
-          console.error('Max PayPal retry attempts reached')
-          setPaypalSdkError(true)
-        }
-        return
-      }
-
-      if (!currentOrderId) {
-        console.log('No current order ID')
-        return
-      }
-
-      // Clear retry counter on successful initialization attempt
-      window.paypalRetryCount = 0
-
-      // Clear any existing PayPal buttons
-      const paypalContainer = document.getElementById('paypal-button-container')
-      if (paypalContainer) {
-        paypalContainer.innerHTML = ''
-      }
-
-      console.log('Rendering PayPal buttons for order:', currentOrderId)
-
-      try {
-        window.paypal
-          .Buttons({
-            createOrder: async () => {
-              try {
-                console.log('Creating PayPal order for order ID:', currentOrderId)
-                const response = await fetch('/api/paypal/create-order', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({ orderId: currentOrderId }),
-                })
-
-                if (!response.ok) {
-                  throw new Error('Failed to create PayPal order')
-                }
-
-                const data = await response.json()
-                console.log('PayPal order created:', data.paypalOrderId)
-                return data.paypalOrderId
-              } catch (error) {
-                console.error('Error creating PayPal order:', error)
-                showError('خطأ في الدفع', 'فشل في إنشاء طلب الدفع')
-                throw error
-              }
-            },
-            onApprove: async (data: { orderID: string }) => {
-              try {
-                setIsProcessingOrder(true)
-
-                const response = await fetch('/api/paypal/capture-payment', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                  },
-                  body: JSON.stringify({
-                    paypalOrderId: data.orderID,
-                    orderId: currentOrderId,
-                  }),
-                })
-
-                if (!response.ok) {
-                  throw new Error('Failed to capture payment')
-                }
-
-                const result = await response.json()
-                console.log('Payment captured successfully:', result)
-
-                // Clear cart and redirect to success page
-                clearCart()
-                router.push(`/checkout/success?orderId=${currentOrderId}`)
-              } catch (error) {
-                console.error('Error capturing payment:', error)
-                showError('خطأ في المعاملة', 'حدث خطأ أثناء معالجة الدفع')
-              } finally {
-                setIsProcessingOrder(false)
-              }
-            },
-            onError: (err: unknown) => {
-              console.error('PayPal payment error:', err)
-              showError('خطأ في الدفع', 'حدث خطأ في الدفع، يرجى المحاولة مرة أخرى')
-              setIsProcessingOrder(false)
-            },
-            onCancel: (data: { orderID: string }) => {
-              console.log('Payment cancelled by user:', data)
-              showInfo('تم الإلغاء', 'تم إلغاء عملية الدفع')
-              setIsProcessingOrder(false)
-            },
-            style: {
-              layout: 'vertical',
-              color: 'gold',
-              shape: 'rect',
-              label: 'paypal',
-            },
-          })
-          .render('#paypal-button-container')
-          .then(() => {
-            console.log('PayPal buttons rendered successfully')
-            setPaypalButtonsRendered(true)
-            setPaypalSdkError(false) // Clear any previous errors
-          })
-          .catch((error: unknown) => {
-            console.error('Failed to render PayPal buttons:', error)
-            setPaypalSdkError(true)
-            setPaypalButtonsRendered(false)
-          })
-      } catch (error) {
-        console.error('Error initializing PayPal buttons:', error)
-        setPaypalSdkError(true)
-        setPaypalButtonsRendered(false)
-      }
-    }
-
-    const handleSubmit = async (e: React.FormEvent) => {
+    const handleSubmit = async (e) => {
       e.preventDefault()
 
       // Prevent multiple submissions
@@ -455,13 +596,14 @@ export default function CheckoutPage() {
         console.log('🔄 Starting order creation process...')
 
         // Calculate final total and actual discount amount
-        // Use current total (after product discounts) as the base for promo code calculation
+        // Use the discount amount calculated by the API for product-specific promo codes
         const subtotalAmount = state.subtotal || 0 // Original subtotal for proportional distribution
         const currentTotal = state.totalPrice || 0 // Current total after existing discounts
         const promoDiscountAmount = appliedPromoCode
-          ? appliedPromoCode.type === 'percentage'
-            ? (currentTotal * appliedPromoCode.discount) / 100 // Apply promo to current total
-            : Math.min(appliedPromoCode.discount, currentTotal) // Fixed amount can't exceed current total
+          ? appliedPromoCode.discountAmount ?? // Use API-calculated discount amount if available
+            (appliedPromoCode.type === 'percentage'
+              ? (currentTotal * appliedPromoCode.discount) / 100 // Fallback to percentage calculation
+              : Math.min(appliedPromoCode.discount, currentTotal)) // Fixed amount can't exceed current total
           : 0
 
         // Final total = current cart total (after product discounts) - promo discount
@@ -514,6 +656,7 @@ export default function CheckoutPage() {
                 totalPrice: Math.max(0, item.price * item.quantity - itemPromoDiscount), // Ensure never negative
                 promoCode: appliedPromoCode?.code || '',
                 promoDiscount: itemPromoDiscount,
+                EnableCustomizations: item.EnableCustomizations || false, // Add EnableCustomizations flag
                 hasCustomizations: !!(
                   (
                     item.customizations &&
@@ -571,7 +714,7 @@ export default function CheckoutPage() {
             })
 
             if (hasCustomizableProducts && !hasActualCustomizations) {
-              // Products CAN be customized but NO customization data provided - mark as missing customization
+              // Products CAN be customized but NO customization data provided - mark as processing with custom work
               console.log('⚠️ Free order has customizable products but missing customization data')
 
               await fetch('/api/orders/update-status', {
@@ -581,8 +724,9 @@ export default function CheckoutPage() {
                 },
                 body: JSON.stringify({
                   orderId: orderData.orderId,
-                  status: 'awaiting_customization',
+                  status: 'processing',
                   paymentStatus: 'free',
+                  deliveryType: 'custom_work',
                   note: 'طلب مجاني يحتوي على منتجات قابلة للتخصيص ولكن بيانات التخصيص مفقودة',
                 }),
               })
@@ -967,11 +1111,15 @@ export default function CheckoutPage() {
                   <span>خصم الكوبون:</span>
                   <span>
                     -$
-                    {Math.min(
-                      appliedPromoCode.type === 'percentage'
-                        ? ((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100
-                        : appliedPromoCode.discountAmount || appliedPromoCode.discount || 0,
-                      state.totalPrice || 0
+                    {(
+                      appliedPromoCode.discountAmount ||
+                      // Fallback calculation if discountAmount is not provided
+                      Math.min(
+                        appliedPromoCode.type === 'percentage'
+                          ? ((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100
+                          : appliedPromoCode.discount || 0,
+                        state.totalPrice || 0
+                      )
                     ).toFixed(2)}
                   </span>
                 </div>
@@ -983,14 +1131,16 @@ export default function CheckoutPage() {
                   {Math.max(
                     0,
                     (state.totalPrice || 0) -
-                      Math.min(
-                        appliedPromoCode
-                          ? appliedPromoCode.type === 'percentage'
-                            ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
-                            : appliedPromoCode.discount
-                          : 0,
-                        state.totalPrice || 0
-                      )
+                      (appliedPromoCode?.discountAmount ||
+                        // Fallback calculation if discountAmount is not provided
+                        Math.min(
+                          appliedPromoCode
+                            ? appliedPromoCode.type === 'percentage'
+                              ? ((state.totalPrice || 0) * appliedPromoCode.discount) / 100
+                              : appliedPromoCode.discount
+                            : 0,
+                          state.totalPrice || 0
+                        ))
                   ).toFixed(2)}
                 </span>
               </div>
@@ -1105,10 +1255,11 @@ export default function CheckoutPage() {
                         <div id="paypal-button-container"></div>
 
                         {/* Loading overlay - positioned absolutely over the container */}
-                        {!paypalButtonsRendered && !isProcessingOrder && (
+                        {!paypalButtonsRendered && !isProcessingOrder && !paypalSdkError && (
                           <div className="paypal-loading-overlay">
                             <div className="loading-spinner"></div>
                             <p>جاري تحميل أزرار الدفع...</p>
+                            <small>إذا استمر التحميل، يرجى إعادة تحميل الصفحة</small>
                           </div>
                         )}
 
@@ -1117,20 +1268,48 @@ export default function CheckoutPage() {
                           <div className="paypal-processing-overlay">
                             <div className="loading-spinner"></div>
                             <p>جاري معالجة الدفع...</p>
+                            <small>لا تغلق هذه الصفحة حتى اكتمال العملية</small>
+                          </div>
+                        )}
+
+                        {/* Button rendering error */}
+                        {paypalSdkError && paypalLoaded && (
+                          <div className="paypal-error">
+                            <p>⚠️ مشكلة في تحميل أزرار الدفع</p>
+                            <button
+                              onClick={() => {
+                                setPaypalSdkError(false)
+                                setPaypalButtonsRendered(false)
+                                setTimeout(() => initializePayPalButtons(), 100)
+                              }}
+                              className="retry-btn"
+                              type="button"
+                            >
+                              إعادة تحميل أزرار الدفع
+                            </button>
                           </div>
                         )}
                       </div>
                     ) : paypalSdkError ? (
                       <div className="paypal-error">
-                        <p>فشل في تحميل PayPal. يرجى المحاولة مرة أخرى.</p>
-                        <button onClick={retryPayPalSDK} className="retry-btn">
-                          إعادة المحاولة
-                        </button>
+                        <p>❌ فشل في تحميل PayPal</p>
+                        <p>يرجى التحقق من الاتصال بالإنترنت والمحاولة مرة أخرى</p>
+                        <div className="error-actions">
+                          <button onClick={retryPayPalSDK} className="retry-btn" type="button">
+                            إعادة تحميل PayPal
+                          </button>
+                          <button onClick={() => window.location.reload()} className="reload-btn" type="button">
+                            إعادة تحميل الصفحة
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <div className="loading-paypal">
                         <div className="loading-spinner"></div>
                         <p>جاري تحميل PayPal...</p>
+                        <div className="loading-progress">
+                          <small>قد يستغرق هذا بضع ثوانِ...</small>
+                        </div>
                       </div>
                     )}
                   </div>

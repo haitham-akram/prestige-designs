@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
@@ -18,7 +18,7 @@ import {
 import './add-review.css'
 import './add-review.css'
 
-export default function AddReviewPage() {
+function AddReviewForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -286,5 +286,25 @@ export default function AddReviewPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+// Loading component for Suspense fallback
+function ReviewsLoading() {
+  return (
+    <div className="addRev-loading">
+      <FontAwesomeIcon icon={faSpinner} spin className="addRev-loading-icon" />
+      <h2>جاري تحميل صفحة التقييم...</h2>
+      <p>يرجى الانتظار لحظة...</p>
+    </div>
+  )
+}
+
+// Main component wrapped with Suspense
+export default function AddReviewPage() {
+  return (
+    <Suspense fallback={<ReviewsLoading />}>
+      <AddReviewForm />
+    </Suspense>
   )
 }

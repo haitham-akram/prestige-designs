@@ -175,12 +175,6 @@ async function getDesignFiles(req: NextRequest) {
 
         const totalPages = Math.ceil(total / limit);
 
-        console.log('Design Files Query Results:', {
-            total,
-            designFilesWithProduct,
-            filter
-        });
-
         return NextResponse.json({
             success: true,
             data: designFilesWithProduct,

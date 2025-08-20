@@ -32,6 +32,7 @@ interface Order {
     productName: string
     quantity: number
     hasCustomizations: boolean
+    EnableCustomizations?: boolean
     customizations?: {
       colors?: { name: string; hex: string }[]
     }
@@ -447,9 +448,9 @@ export default function OrderUploadPage() {
     )
   }
 
-  // Check if any items have customizations
+  // Check if any items have customizations capabilities
   const hasCustomizableItems =
-    order.items && order.items.length > 0 ? order.items.some((item) => item.hasCustomizations) : false
+    order.items && order.items.length > 0 ? order.items.some((item) => item.EnableCustomizations === true) : false
 
   if (!order.hasCustomizableProducts && !hasCustomizableItems) {
     return (
@@ -474,6 +475,7 @@ export default function OrderUploadPage() {
               <p>• hasCustomizableProducts: {String(order.hasCustomizableProducts)}</p>
               <p>• عدد المنتجات: {order.items?.length || 0}</p>
               <p>• المنتج الأول hasCustomizations: {String(order.items?.[0]?.hasCustomizations)}</p>
+              <p>• المنتج الأول EnableCustomizations: {String(order.items?.[0]?.EnableCustomizations)}</p>
               <p>• تأكد من إضافة بيانات الاختبار إلى قاعدة البيانات</p>
             </div>
             <button onClick={() => router.push(`/admin/orders/${orderId}`)} className="btn btn-primary">
@@ -552,7 +554,7 @@ export default function OrderUploadPage() {
                   <option value="">اختر المنتج</option>
                   {order.items && order.items.length > 0
                     ? order.items
-                        .filter((item) => item.hasCustomizations)
+                        .filter((item) => item.EnableCustomizations === true)
                         .map((item, index) => (
                           <option key={index} value={item.productId}>
                             {item.productName} (الكمية: {item.quantity})
