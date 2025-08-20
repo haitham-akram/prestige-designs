@@ -61,35 +61,58 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
   const [loading, setLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [selectedProducts, setSelectedProducts] = useState<Product[]>([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalProducts, setTotalProducts] = useState(0)
+  const PRODUCTS_PER_PAGE = 12
 
   useEffect(() => {
-    fetchProducts()
+    fetchProducts(currentPage)
     if (promoCode) {
-      setFormData({
+      const formDataUpdate = {
         code: promoCode.code,
         productIds: promoCode.productIds || [],
         applyToAllProducts: promoCode.applyToAllProducts || false,
         discountType: promoCode.discountType,
         discountValue: promoCode.discountValue,
-        maxDiscountAmount: promoCode.maxDiscountAmount,
-        usageLimit: promoCode.usageLimit,
-        userUsageLimit: promoCode.userUsageLimit,
-        minimumOrderAmount: promoCode.minimumOrderAmount,
+        maxDiscountAmount:
+          promoCode.maxDiscountAmount && promoCode.maxDiscountAmount > 0 ? promoCode.maxDiscountAmount : undefined,
+        usageLimit: promoCode.usageLimit && promoCode.usageLimit > 0 ? promoCode.usageLimit : undefined,
+        userUsageLimit: promoCode.userUsageLimit && promoCode.userUsageLimit > 0 ? promoCode.userUsageLimit : undefined,
+        minimumOrderAmount:
+          promoCode.minimumOrderAmount && promoCode.minimumOrderAmount > 0 ? promoCode.minimumOrderAmount : undefined,
         startDate: promoCode.startDate ? new Date(promoCode.startDate).toISOString().slice(0, 16) : '',
         endDate: promoCode.endDate ? new Date(promoCode.endDate).toISOString().slice(0, 16) : '',
         isActive: promoCode.isActive,
         description: promoCode.description || '',
+      }
+
+      console.log('🔧 Initializing PromoCodeForm with data:', {
+        original: {
+          maxDiscountAmount: promoCode.maxDiscountAmount,
+          usageLimit: promoCode.usageLimit,
+          userUsageLimit: promoCode.userUsageLimit,
+          minimumOrderAmount: promoCode.minimumOrderAmount,
+        },
+        processed: {
+          maxDiscountAmount: formDataUpdate.maxDiscountAmount,
+          usageLimit: formDataUpdate.usageLimit,
+          userUsageLimit: formDataUpdate.userUsageLimit,
+          minimumOrderAmount: formDataUpdate.minimumOrderAmount,
+        },
       })
+
+      setFormData(formDataUpdate)
       setSelectedProducts(promoCode.products || [])
     }
-  }, [promoCode])
+  }, [promoCode, currentPage])
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (page = 1) => {
     try {
-      const response = await fetch('/api/admin/products')
+      const response = await fetch(`/api/admin/products?page=${page}&limit=${PRODUCTS_PER_PAGE}`)
       const data = await response.json()
       if (response.ok) {
         setProducts(data.data || [])
+        setTotalProducts(data.pagination?.total || 0)
       }
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -128,19 +151,25 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
       newErrors.discountValue = 'نسبة الخصم لا يمكن أن تتجاوز 100%'
     }
 
-    if (formData.maxDiscountAmount !== undefined && formData.maxDiscountAmount <= 0) {
+    if (
+      formData.maxDiscountAmount !== undefined &&
+      (isNaN(formData.maxDiscountAmount) || formData.maxDiscountAmount <= 0)
+    ) {
       newErrors.maxDiscountAmount = 'الحد الأقصى للخصم يجب أن يكون أكبر من صفر'
     }
 
-    if (formData.usageLimit !== undefined && formData.usageLimit <= 0) {
+    if (formData.usageLimit !== undefined && (isNaN(formData.usageLimit) || formData.usageLimit <= 0)) {
       newErrors.usageLimit = 'حد الاستخدام يجب أن يكون أكبر من صفر'
     }
 
-    if (formData.userUsageLimit !== undefined && formData.userUsageLimit <= 0) {
+    if (formData.userUsageLimit !== undefined && (isNaN(formData.userUsageLimit) || formData.userUsageLimit <= 0)) {
       newErrors.userUsageLimit = 'حد الاستخدام لكل مستخدم يجب أن يكون أكبر من صفر'
     }
 
-    if (formData.minimumOrderAmount !== undefined && formData.minimumOrderAmount < 0) {
+    if (
+      formData.minimumOrderAmount !== undefined &&
+      (isNaN(formData.minimumOrderAmount) || formData.minimumOrderAmount < 0)
+    ) {
       newErrors.minimumOrderAmount = 'الحد الأدنى للطلب لا يمكن أن يكون سالب'
     }
 
@@ -363,6 +392,31 @@ export default function PromoCodeForm({ promoCode, onSuccess, onCancel }: PromoC
                       </label>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {!formData.applyToAllProducts && totalProducts > PRODUCTS_PER_PAGE && (
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(currentPage - 1)}
+                  >
+                    السابق
+                  </button>
+                  <span className="pagination-info">
+                    صفحة {currentPage} من {Math.ceil(totalProducts / PRODUCTS_PER_PAGE)}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    disabled={currentPage >= Math.ceil(totalProducts / PRODUCTS_PER_PAGE)}
+                    onClick={() => setCurrentPage(currentPage + 1)}
+                  >
+                    التالي
+                  </button>
                 </div>
               )}
             </div>

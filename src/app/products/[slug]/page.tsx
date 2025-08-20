@@ -78,6 +78,16 @@ export default function ProductDetailsPage() {
   const [customizations, setCustomizations] = useState<CartItemCustomization>({})
   const customizationFormRef = useRef<CustomizationFormRef>(null)
 
+  // Add debug logging for customizations changes
+  const handleCustomizationsChange = (newCustomizations: CartItemCustomization) => {
+    console.log('📝 Product page - customizations updated:', {
+      newCustomizations,
+      hasLogo: !!newCustomizations.uploadedLogo,
+      logoData: newCustomizations.uploadedLogo,
+    })
+    setCustomizations(newCustomizations)
+  }
+
   // Function to convert YouTube URL to embed URL
   const getYouTubeEmbedUrl = (url: string): string => {
     if (!url) return ''
@@ -296,7 +306,7 @@ export default function ProductDetailsPage() {
                   allowTextEditing={product.allowTextEditing}
                   allowImageReplacement={product.allowImageReplacement}
                   allowLogoUpload={product.allowLogoUpload}
-                  onCustomizationChange={setCustomizations}
+                  onCustomizationChange={handleCustomizationsChange}
                   initialCustomizations={customizations}
                 />
               </div>
@@ -413,6 +423,18 @@ export default function ProductDetailsPage() {
 
             {/* Actions */}
             <div className="pd-product-actions">
+              {(() => {
+                console.log('🔍 Product data passed to AddToCartButton:', {
+                  productName: product.name,
+                  EnableCustomizations: product.EnableCustomizations,
+                  customizationsObjectKeysLength: Object.keys(customizations).length,
+                  customizations: customizations,
+                  hasLogo: !!customizations.uploadedLogo,
+                  logoData: customizations.uploadedLogo,
+                  willPassCustomizations: Object.keys(customizations).length > 0 ? customizations : undefined,
+                })
+                return null
+              })()}
               <AddToCartButton
                 product={{
                   id: product._id,
@@ -424,6 +446,8 @@ export default function ProductDetailsPage() {
                   image: product.images?.[0]?.url || '/placeholder-product.jpg',
                   category: product.category?.name,
                   customizations: Object.keys(customizations).length > 0 ? customizations : undefined,
+                  EnableCustomizations: product.EnableCustomizations,
+                  colors: product.colors || [],
                 }}
                 onAddToCart={handleAddToCart}
               />

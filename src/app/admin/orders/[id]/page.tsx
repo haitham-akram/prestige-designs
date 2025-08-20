@@ -55,6 +55,32 @@ const formatCurrency = (amount: number | string): string => {
   return `$${numAmount.toFixed(2)}`
 }
 
+// Helper function to check if customization information is missing or incomplete
+const isCustomizationInfoMissing = (item: OrderItem): boolean => {
+  // If product doesn't support customizations, info is not missing
+  if (!item.EnableCustomizations) {
+    return false
+  }
+
+  // If customizations object is undefined or null
+  if (!item.customizations) {
+    return true
+  }
+
+  const { colors, textChanges, uploadedImages, uploadedLogo, customizationNotes } = item.customizations
+
+  // Check if all customization fields are empty or null
+  const hasColors = colors && colors.length > 0
+  const hasTextChanges = textChanges && textChanges.length > 0
+  const hasUploadedImages = uploadedImages && uploadedImages.length > 0
+  const hasUploadedLogo =
+    uploadedLogo && typeof uploadedLogo === 'object' && uploadedLogo.url && uploadedLogo.url.trim().length > 0
+  const hasNotes = customizationNotes && customizationNotes.trim().length > 0
+
+  // If none of the customization fields have data, info is missing
+  return !hasColors && !hasTextChanges && !hasUploadedImages && !hasUploadedLogo && !hasNotes
+}
+
 // Types
 interface OrderItem {
   productId: string
@@ -68,6 +94,7 @@ interface OrderItem {
   promoCode?: string
   promoDiscount?: number
   hasCustomizations: boolean
+  EnableCustomizations?: boolean
   customizations?: {
     colors?: { name: string; hex: string }[]
     textChanges?: { field: string; value: string }[]
@@ -603,21 +630,124 @@ export default function OrderDetailPage() {
                             <span>الكمية:</span>
                             <span>{item.quantity}</span>
                           </div>
-                          {item.customizations?.colors && item.customizations.colors.length > 0 && (
-                            <div className="item-row">
-                              <span>الألوان:</span>
-                              <span>
-                                {item.customizations.colors.map((color, colorIndex) => (
-                                  <span key={colorIndex} className="color-badge">
-                                    {color.name}
-                                  </span>
-                                ))}
-                              </span>
+
+                          {/* Customization Status */}
+                          <div className="item-row">
+                            <span>قابل للتخصيص:</span>
+                            <span className={`status-badge ${item.EnableCustomizations ? 'enabled' : 'disabled'}`}>
+                              {item.EnableCustomizations ? 'نعم' : 'لا'}
+                            </span>
+                          </div>
+
+                          {/* Show customization details if product supports customization */}
+                          {item.EnableCustomizations && (
+                            <div className="customization-section">
+                              <div className="customization-header">
+                                <FontAwesomeIcon icon={faPalette} />
+                                <span>تفاصيل التخصيص:</span>
+                              </div>
+
+                              {isCustomizationInfoMissing(item) ? (
+                                <div className="missing-customization-warning">
+                                  <FontAwesomeIcon icon={faTimes} />
+                                  <span>معلومات التخصيص ناقصة يرجي التواصل مع صاحب الطلب</span>
+                                </div>
+                              ) : (
+                                <div className="customization-details">
+                                  {/* Colors */}
+                                  {item.customizations?.colors && item.customizations.colors.length > 0 ? (
+                                    <div className="customization-row">
+                                      <span>الألوان المختارة:</span>
+                                      <div className="colors-list">
+                                        {item.customizations.colors.map((color, colorIndex) => (
+                                          <span
+                                            key={colorIndex}
+                                            className="color-badge"
+                                            style={{ backgroundColor: color.hex }}
+                                          >
+                                            {color.name}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="customization-row empty">
+                                      <span>الألوان:</span>
+                                      <span className="empty-value">لم يتم اختيار ألوان</span>
+                                    </div>
+                                  )}
+
+                                  {/* Text Changes */}
+                                  {item.customizations?.textChanges && item.customizations.textChanges.length > 0 ? (
+                                    <div className="customization-row">
+                                      <span>تغييرات النصوص:</span>
+                                      <div className="text-changes-list">
+                                        {item.customizations.textChanges.map((textChange, textIndex) => (
+                                          <div key={textIndex} className="text-change-item">
+                                            <strong>{textChange.field}:</strong> {textChange.value}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="customization-row empty">
+                                      <span>تغييرات النصوص:</span>
+                                      <span className="empty-value">لم يتم إجراء تغييرات نصية</span>
+                                    </div>
+                                  )}
+
+                                  {/* Uploaded Images */}
+                                  {item.customizations?.uploadedImages &&
+                                  item.customizations.uploadedImages.length > 0 ? (
+                                    <div className="customization-row">
+                                      <span>الصور المرفوعة:</span>
+                                      <div className="uploaded-images-count">
+                                        {item.customizations.uploadedImages.length} صورة
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="customization-row empty">
+                                      <span>الصور المرفوعة:</span>
+                                      <span className="empty-value">لم يتم رفع صور</span>
+                                    </div>
+                                  )}
+
+                                  {/* Uploaded Logo */}
+                                  {item.customizations?.uploadedLogo ? (
+                                    <div className="customization-row">
+                                      <span>الشعار المرفوع:</span>
+                                      <span className="has-logo">تم رفع شعار</span>
+                                    </div>
+                                  ) : (
+                                    <div className="customization-row empty">
+                                      <span>الشعار:</span>
+                                      <span className="empty-value">لم يتم رفع شعار</span>
+                                    </div>
+                                  )}
+
+                                  {/* Customization Notes */}
+                                  {item.customizations?.customizationNotes &&
+                                  item.customizations.customizationNotes.trim() ? (
+                                    <div className="customization-row">
+                                      <span>ملاحظات التخصيص:</span>
+                                      <div className="customization-notes">
+                                        {item.customizations.customizationNotes}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="customization-row empty">
+                                      <span>ملاحظات التخصيص:</span>
+                                      <span className="empty-value">لا توجد ملاحظات</span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           )}
+
                           {item.hasCustomizations && (
                             <div className="item-row">
-                              <span>التخصيص:</span>
+                              <span>حالة التخصيص:</span>
                               <span className="status-badge">
                                 {order.customizationStatus === 'none'
                                   ? 'بدون تخصيص'

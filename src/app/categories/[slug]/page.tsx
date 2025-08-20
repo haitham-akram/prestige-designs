@@ -40,6 +40,7 @@ interface Product {
   rating: number
   reviewCount: number
   purchaseCount: number
+  EnableCustomizations?: boolean
   categoryId?: {
     _id: string
     name: string
@@ -308,6 +309,8 @@ export default function CategoryPage() {
                             originalPrice: product.price,
                             image: product.images[0]?.url || '/placeholder-product.jpg',
                             category: product.categoryId?.name || 'غير محدد',
+                            EnableCustomizations: product.EnableCustomizations,
+                            colors: (product as any).colors || [],
                           }}
                         />
                         <div className="cp-action-buttons">

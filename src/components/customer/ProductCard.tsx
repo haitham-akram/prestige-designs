@@ -16,10 +16,11 @@ interface Product {
   rating: number
   image: string
   category: string
+  EnableCustomizations?: boolean
 }
 
 interface ProductCardProps {
-  product: Product
+  product: Product & { colors?: { name: string; hex: string }[] }
 }
 
 export default function ProductCard({ product }: ProductCardProps) {

@@ -406,8 +406,8 @@ export class PayPalService {
             } else {
                 // All items require custom work - send customization email only
                 await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
+                emailSent = true; // Mark as sent to avoid duplicate customer email
                 console.log('📧 Customization email sent for all items');
-                // No customer email sent yet, will be sent below
             }
 
             // Send customer notification email after payment (only if not already sent)

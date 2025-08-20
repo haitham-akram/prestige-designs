@@ -113,13 +113,24 @@ const CustomizationForm = forwardRef<CustomizationFormRef, CustomizationFormProp
     }
 
     // Update parent component whenever customizations change
-    const updateCustomizations = () => {
+    const updateCustomizations = (overrideLogo?: UploadedLogo | null, overrideImages?: UploadedImage[]) => {
+      const logoToUse = overrideLogo !== undefined ? overrideLogo : uploadedLogo
+      const imagesToUse = overrideImages !== undefined ? overrideImages : uploadedImages
       const customizations: CartItemCustomization = {
         textChanges: textChanges.trim() ? [{ field: 'customText', value: textChanges.trim() }] : [],
-        uploadedImages,
-        uploadedLogo: uploadedLogo || undefined,
+        uploadedImages: imagesToUse,
+        uploadedLogo: logoToUse || undefined,
         customizationNotes,
       }
+      console.log('🔄 CustomizationForm - updateCustomizations called:', {
+        uploadedLogo,
+        uploadedImages,
+        logoToUse,
+        imagesToUse,
+        customizations,
+        hasLogo: !!logoToUse,
+        hasImages: imagesToUse.length > 0,
+      })
       onCustomizationChange(customizations)
     }
 
@@ -163,8 +174,10 @@ const CustomizationForm = forwardRef<CustomizationFormRef, CustomizationFormProp
             url: result.url,
             publicId: result.publicId,
           }
-          setUploadedImages([...uploadedImages, newImage])
-          setTimeout(updateCustomizations, 0)
+          const newImages = [...uploadedImages, newImage]
+          setUploadedImages(newImages)
+          // Pass the new images array directly to avoid state timing issues
+          setTimeout(() => updateCustomizations(undefined, newImages), 0)
         } else {
           throw new Error(result.error || 'فشل في رفع الصورة')
         }
@@ -206,7 +219,8 @@ const CustomizationForm = forwardRef<CustomizationFormRef, CustomizationFormProp
             publicId: result.publicId,
           }
           setUploadedLogo(newLogo)
-          setTimeout(updateCustomizations, 0)
+          // Pass the new logo directly to avoid state timing issues
+          setTimeout(() => updateCustomizations(newLogo), 0)
         } else {
           throw new Error(result.error || 'فشل في رفع الشعار')
         }
@@ -234,7 +248,8 @@ const CustomizationForm = forwardRef<CustomizationFormRef, CustomizationFormProp
         if (response.ok) {
           const newImages = uploadedImages.filter((_, i) => i !== index)
           setUploadedImages(newImages)
-          setTimeout(updateCustomizations, 0)
+          // Pass the new images array directly to avoid state timing issues
+          setTimeout(() => updateCustomizations(undefined, newImages), 0)
         }
       } catch (error) {
         console.error('Failed to delete image:', error)
@@ -254,7 +269,8 @@ const CustomizationForm = forwardRef<CustomizationFormRef, CustomizationFormProp
 
         if (response.ok) {
           setUploadedLogo(null)
-          setTimeout(updateCustomizations, 0)
+          // Pass null directly to avoid state timing issues
+          setTimeout(() => updateCustomizations(null), 0)
         }
       } catch (error) {
         console.error('Failed to delete logo:', error)

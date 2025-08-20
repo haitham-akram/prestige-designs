@@ -103,22 +103,24 @@ export async function POST(request: NextRequest) {
                     messageId: result.messageId
                 });
 
-            } else if (order.orderStatus === 'completed') {
-                // Free order completed - use existing emailService method
-                // For completed orders, downloadLinks are just URLs, so we need to create proper objects
+
+            } else if (order.orderStatus === 'completed' || order.orderStatus === 'outdelivered') {
+                // Free order auto-delivered - use the same email as paid completed orders
                 const downloadLinks = order.downloadLinks?.map((url: string, index: number) => ({
                     fileName: `Design_File_${index + 1}`,
                     fileUrl: url,
-                    fileSize: 0, // Size not available in simple string format
+                    fileSize: 0,
                     fileType: 'download'
                 })) || [];
 
-                const result = await EmailService.sendFreeOrderCompletedEmail(
+                const result = await EmailService.sendOrderCompletedEmail(
                     order.customerEmail,
                     {
                         orderNumber: order.orderNumber,
                         customerName: order.customerName,
-                        downloadLinks: downloadLinks.length > 0 ? downloadLinks : undefined,
+                        downloadLinks,
+                        downloadExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiry
+                        totalPrice: 0
                     }
                 );
 
@@ -133,14 +135,14 @@ export async function POST(request: NextRequest) {
                 order.orderHistory.push({
                     status: 'email_sent',
                     timestamp: new Date(),
-                    note: `تم إرسال بريد إلكتروني للعميل: طلبك المجاني مكتمل`,
+                    note: `تم إرسال بريد إلكتروني للعميل: طلبك المجاني مكتمل (نفس قالب المدفوع)`,
                     changedBy: 'system'
                 });
                 await order.save();
 
                 return NextResponse.json({
                     success: true,
-                    message: 'Free order completed email sent successfully',
+                    message: 'Free order completed email sent successfully (paid template)',
                     messageId: result.messageId
                 });
 

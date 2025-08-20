@@ -298,6 +298,31 @@ export async function POST(request: NextRequest) {
         });
         await order.save();
 
+        // Discord webhook for free orders (paid handled in PayPal service)
+        try {
+            if (notificationData.isFreeOrder) {
+                const { DiscordWebhookService } = await import('@/lib/services/discordWebhookService');
+                await DiscordWebhookService.sendPaidOrderNotification({
+                    orderNumber: order.orderNumber,
+                    customerName: order.customerName,
+                    customerEmail: order.customerEmail,
+                    totalPrice: 0,
+                    currency: 'USD',
+                    items: order.items.map(item => ({
+                        productName: item.productName || 'Unknown Product',
+                        quantity: item.quantity || 1,
+                        price: item.unitPrice || item.totalPrice || 0
+                    })),
+                    paymentMethod: 'Free',
+                    orderStatus: order.orderStatus,
+                    hasCustomizations: notificationData.hasCustomizations,
+                    paidAt: order.createdAt || new Date()
+                });
+            }
+        } catch (discordError) {
+            console.error('❌ Error sending Discord webhook for free order:', discordError);
+        }
+
         return NextResponse.json({
             message: emailsSent > 0 ? 'Admin notifications sent successfully' : 'Failed to send admin notifications',
             emailsSent,

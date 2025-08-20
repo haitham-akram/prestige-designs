@@ -17,6 +17,8 @@ interface AddToCartButtonProps {
     image: string
     category?: string
     customizations?: CartItemCustomization
+    EnableCustomizations?: boolean
+    colors?: { name: string; hex: string }[]
   }
   className?: string
   onAddToCart?: () => void
@@ -38,7 +40,40 @@ export default function AddToCartButton({ product, className = '', onAddToCart }
     // Simulate a brief loading state
     await new Promise((resolve) => setTimeout(resolve, 300))
 
-    addItem(product)
+    // Prepare customizations, auto-select first color if needed
+    const customizations = product.customizations ? { ...product.customizations } : {}
+    const isAutoDeliver = !product.EnableCustomizations
+    const hasPredefinedColors = Array.isArray(product.colors) && product.colors.length > 0
+    const hasColorSelected =
+      customizations.colors && Array.isArray(customizations.colors) && customizations.colors.length > 0
+
+    if (isAutoDeliver && hasPredefinedColors && !hasColorSelected && product.colors) {
+      // Auto-select the first color
+      customizations.colors = [product.colors[0]]
+    }
+
+    const cartItem = {
+      id: product.id || product._id || '',
+      name: product.name,
+      price: product.price,
+      originalPrice: product.originalPrice,
+      image: product.image,
+      category: product.category,
+      customizations,
+      EnableCustomizations: product.EnableCustomizations,
+    }
+
+    console.log('🛒 Adding item to cart:', {
+      productName: cartItem.name,
+      productIdFromProps: product.id,
+      productIdFromDB: product._id,
+      finalCartItemId: cartItem.id,
+      EnableCustomizations: cartItem.EnableCustomizations,
+      hasCustomizations: !!(cartItem.customizations && Object.keys(cartItem.customizations || {}).length > 0),
+      customizations: cartItem.customizations,
+    })
+
+    addItem(cartItem)
     setShowSuccess(true)
     setIsAdding(false)
 

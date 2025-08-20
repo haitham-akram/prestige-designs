@@ -26,6 +26,8 @@ interface Product {
   reviewCount: number
   isActive: boolean
   isFeatured: boolean
+  EnableCustomizations?: boolean
+  colors?: { name: string; hex: string }[]
 }
 
 interface Category {
@@ -120,7 +122,7 @@ export default function CategoriesWithProducts() {
       }
 
       const activeCategories = categoriesData.data
-     
+
       if (activeCategories.length === 0) {
         console.log('⚠️ No active categories found')
         setCategories([])
@@ -213,6 +215,8 @@ export default function CategoriesWithProducts() {
                 product.images[0]?.url ||
                 '/placeholder-product.jpg',
               category: category.name,
+              EnableCustomizations: product.EnableCustomizations,
+              colors: product.colors || [],
             }))}
           />
           <div className="category-footer">
@@ -298,6 +302,8 @@ function CategoryProductsCarousel({
     rating: number
     image: string
     category: string
+    EnableCustomizations?: boolean
+    colors?: { name: string; hex: string }[]
   }>
 }) {
   const [currentIndex, setCurrentIndex] = useState(0)

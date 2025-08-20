@@ -601,11 +601,11 @@
   }
   
   .checkout-summary {
-    order: 2;
+    order: 1;
   }
   
   .checkout-form {
-    order: 1;
+    order: 2;
   }
 }
 
@@ -930,4 +930,114 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.paypal-loading-overlay small,
+.paypal-processing-overlay small {
+  margin-top: 0.5rem;
+  color: var(--customer-text-secondary);
+  font-size: 12px;
+  text-align: center;
+  opacity: 0.8;
+}
+
+/* Enhanced PayPal Error Handling */
+.paypal-error {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.05));
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-align: center;
+  margin: 1rem 0;
+}
+
+.paypal-error p {
+  color: #ef4444;
+  margin: 0.5rem 0;
+  font-weight: 500;
+}
+
+.error-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+.retry-btn, .reload-btn {
+  background: linear-gradient(135deg, #8261c6, #6366f1);
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 14px;
+  box-shadow: 0 2px 10px rgba(130, 97, 198, 0.3);
+}
+
+.retry-btn:hover, .reload-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(130, 97, 198, 0.4);
+  background: linear-gradient(135deg, #7c3aed, #5b21b6);
+}
+
+.reload-btn {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.3);
+}
+
+.reload-btn:hover {
+  background: linear-gradient(135deg, #d97706, #b45309);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+}
+
+/* Loading Progress Indicator */
+.loading-progress {
+  margin-top: 1rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background: rgba(130, 97, 198, 0.1);
+}
+
+.loading-progress small {
+  color: var(--customer-text-secondary);
+  font-style: italic;
+}
+
+/* PayPal Container Improvements */
+.paypal-container-wrapper {
+  position: relative;
+  min-height: 120px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#paypal-button-container {
+  position: relative;
+  z-index: 1;
+}
+
+/* PayPal Button Customization */
+.paypal-container-wrapper .paypal-buttons {
+  border-radius: 8px !important;
+}
+
+/* Responsive Improvements */
+@media (max-width: 768px) {
+  .error-actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .retry-btn, .reload-btn {
+    width: 100%;
+    max-width: 280px;
+  }
+  
+  .paypal-container-wrapper {
+    min-height: 100px;
+  }
 }
