@@ -205,7 +205,8 @@ export default function CartDropdown() {
                 setIsOpen(false)
                 if (session?.user) {
                   console.log('User is logged in, navigating to checkout')
-                  router.push('/checkout')
+                  // router.push('/checkout')
+                  window.location.href = '/checkout'
                 } else {
                   console.log('User is not logged in, showing login alert')
                   setShowLoginAlert(true)

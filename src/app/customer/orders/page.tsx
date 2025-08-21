@@ -391,14 +391,23 @@ export default function CustomerOrdersPage() {
                       </h4>
                       <div className="oc-download-files">
                         {order.designFiles.map((file, index) => (
-                          <button
+                          // <button
+                          //   key={index}
+                          //   onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
+                          //   className="oc-download-btn"
+                          // >
+                          //   <FontAwesomeIcon icon={faDownload} />
+                          //   {file.fileName}
+                          // </button>
+                          <a
                             key={index}
-                            onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
-                            className="oc-download-btn"
+                            href={file.fileUrl}
+                            download={file.fileName}
+                            className='oc-download-btn'
                           >
                             <FontAwesomeIcon icon={faDownload} />
                             {file.fileName}
-                          </button>
+                          </a>
                         ))}
                       </div>
                     </div>

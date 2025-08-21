@@ -118,8 +118,8 @@ export default function CheckoutPage() {
           return
         }
         const script = document.createElement('script')
-        // Use minimal SDK URL for debugging
-        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`
+        // Always use the full SDK URL with components=buttons and all required params
+        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
         console.log('PayPal SDK script URL:', script.src)
         script.async = true
         script.defer = true
