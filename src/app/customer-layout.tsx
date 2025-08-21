@@ -315,15 +315,6 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
               {/* Mobile Navigation */}
               <nav className={`nav-mobile ${isMenuOpen ? 'open' : ''}`}>
                 <ul className="nav-menu">
-                  <li>
-                    <Link
-                      href="/packages"
-                      className={`nav-link ${pathname === '/packages' ? 'active' : ''}`}
-                      onClick={closeMenu}
-                    >
-                      باقات
-                    </Link>
-                  </li>
                   {!isLoading &&
                     categories.map((category) => (
                       <li key={category._id}>

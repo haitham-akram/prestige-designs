@@ -22,6 +22,8 @@ export default function ReviewsSection() {
   const [isAnimating, setIsAnimating] = useState(false)
   const [direction, setDirection] = useState<'forward' | 'reverse'>('forward')
   const [itemsPerView, setItemsPerView] = useState(3)
+  // Track expanded state for each review (must be before any conditional return)
+  const [expanded, setExpanded] = useState<{ [id: string]: boolean }>({})
 
   useEffect(() => {
     fetch('/api/reviews')
@@ -87,6 +89,7 @@ export default function ReviewsSection() {
     }
     return visible
   }
+
   const visible = getVisible()
 
   const shouldShowControls = () => reviews.length > itemsPerView
@@ -100,50 +103,73 @@ export default function ReviewsSection() {
 
         <div className="reviews-carousel">
           <div className="carousel-track">
-            {visible.map((review, i) => (
-              <div
-                key={`${review._id}-${currentIndex}-${i}`}
-                className={`carousel-item ${
-                  isAnimating && review.isNew ? `animating ${direction === 'reverse' ? 'reverse' : ''}` : ''
-                }`}
-              >
-                <div className="review-card">
-                  <div className="review-header">
-                    <div className="review-avatar">
-                      <Image
-                        src={review.avatar.trim()}
-                        alt={review.name}
-                        height={50}
-                        width={50}
-                        className="review-avatar-img"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement
-                          target.style.display = 'none'
-                          target.nextElementSibling?.classList.remove('fallback-hidden')
-                        }}
-                      />
-                      <span className="avatar-fallback fallback-hidden">
-                        <FontAwesomeIcon icon={faUser} />
-                      </span>
-                    </div>
-                    <div className="review-info">
-                      <h3 className="review-name">{review.name}</h3>
-                      <div className="review-stars">
-                        {[...Array(5)].map((_, i) => (
-                          <span key={i} className={i < review.rating ? 'star filled' : 'star'}>
-                            <FontAwesomeIcon icon={i < review.rating ? faStar : faStarRegular} />
-                          </span>
-                        ))}
+            {visible.map((review, i) => {
+              // Check if review text is long (more than 3 lines ~ 180 chars as a rough estimate)
+              const isLong = review.text.length > 180
+              const isExpanded = expanded[review._id]
+              return (
+                <div
+                  key={`${review._id}-${currentIndex}-${i}`}
+                  className={`carousel-item ${
+                    isAnimating && review.isNew ? `animating ${direction === 'reverse' ? 'reverse' : ''}` : ''
+                  }`}
+                >
+                  <div className="review-card">
+                    <div className="review-header">
+                      <div className="review-avatar">
+                        <Image
+                          src={review.avatar.trim()}
+                          alt={review.name}
+                          height={50}
+                          width={50}
+                          className="review-avatar-img"
+                          onError={(e) => {
+                            const target = e.target as HTMLImageElement
+                            target.style.display = 'none'
+                            target.nextElementSibling?.classList.remove('fallback-hidden')
+                          }}
+                        />
+                        <span className="avatar-fallback fallback-hidden">
+                          <FontAwesomeIcon icon={faUser} />
+                        </span>
+                      </div>
+                      <div className="review-info">
+                        <h3 className="review-name">{review.name}</h3>
+                        <div className="review-stars">
+                          {[...Array(5)].map((_, i) => (
+                            <span key={i} className={i < review.rating ? 'star filled' : 'star'}>
+                              <FontAwesomeIcon icon={i < review.rating ? faStar : faStarRegular} />
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <p className="review-text">{review.text}</p>
-                  <div className="review-heart">
-                    <FontAwesomeIcon icon={faHeart} />
+                    <p className={`review-text${isExpanded ? ' expanded' : ''}`}>{review.text}</p>
+                    {isLong && !isExpanded && (
+                      <button
+                        className="show-more"
+                        onClick={() => setExpanded((prev) => ({ ...prev, [review._id]: true }))}
+                        type="button"
+                      >
+                        عرض المزيد
+                      </button>
+                    )}
+                    {isLong && isExpanded && (
+                      <button
+                        className="show-more"
+                        onClick={() => setExpanded((prev) => ({ ...prev, [review._id]: false }))}
+                        type="button"
+                      >
+                        إخفاء
+                      </button>
+                    )}
+                    <div className="review-heart">
+                      <FontAwesomeIcon icon={faHeart} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {shouldShowControls() && (

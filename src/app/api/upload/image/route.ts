@@ -17,7 +17,13 @@ const uploadSchema = z.object({
         gravity: z.string().optional()
     }).optional()
 });
-
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};
 /**
  * POST /api/upload/image
  * Upload image to Cloudinary

@@ -11,12 +11,6 @@ export async function GET() {
     try {
         const session = await getServerSession(authOptions)
 
-        console.log('🔍 Session details:', {
-            user: session?.user,
-            userId: session?.user?.id,
-            email: session?.user?.email
-        })
-
         if (!session?.user) {
             console.log('❌ No session found')
             return NextResponse.json(
@@ -44,14 +38,6 @@ export async function GET() {
             .populate('items.productId', 'name image')
             .sort({ createdAt: -1 }) // Most recent first
 
-        console.log('📦 Found orders:', orders.length)
-        console.log('📦 Order details:', orders.map(o => ({
-            id: o._id,
-            orderNumber: o.orderNumber,
-            customerId: o.customerId,
-            customerEmail: o.customerEmail,
-            orderStatus: o.orderStatus
-        })))
 
         // For each order, fetch associated design files through OrderDesignFile junction
         const ordersWithFiles = await Promise.all(

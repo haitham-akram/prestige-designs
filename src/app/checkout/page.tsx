@@ -108,8 +108,19 @@ export default function CheckoutPage() {
 
         console.log('📥 Loading fresh PayPal SDK...')
 
+        // Get PayPal client ID from meta tag
+        const clientIdMeta = document.querySelector('meta[name="paypal-client-id"]')
+        const paypalClientId = clientIdMeta?.getAttribute('content')
+        console.log('PayPal Client ID from meta tag:', paypalClientId)
+        if (!paypalClientId) {
+          console.error('PayPal Client ID not found in meta tag')
+          setPaypalSdkError(true)
+          return
+        }
         const script = document.createElement('script')
-        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
+        // Use minimal SDK URL for debugging
+        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`
+        console.log('PayPal SDK script URL:', script.src)
         script.async = true
         script.defer = true
 
@@ -370,8 +381,16 @@ export default function CheckoutPage() {
 
       // Trigger fresh SDK loading
       setTimeout(() => {
+        // Get PayPal client ID from meta tag
+        const clientIdMeta = document.querySelector('meta[name="paypal-client-id"]')
+        const paypalClientId = clientIdMeta?.getAttribute('content')
+        if (!paypalClientId) {
+          console.error('PayPal Client ID not found in meta tag')
+          setPaypalSdkError(true)
+          return
+        }
         const script = document.createElement('script')
-        script.src = `https://www.paypal.com/sdk/js?client-id=${process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
+        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
         script.async = true
 
         script.onload = () => {
