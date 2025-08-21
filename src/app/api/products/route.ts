@@ -84,16 +84,6 @@ export async function GET(request: NextRequest) {
             Product.countDocuments(filter)
         ])
 
-        console.log('Query Results:', {
-            productsFound: products.length,
-            totalProducts: total,
-            firstProduct: products[0] ? {
-                name: products[0].name,
-                category: products[0].categoryId,
-                price: products[0].price
-            } : null
-        })
-
         const totalPages = Math.ceil(total / limit)
 
         return NextResponse.json({
