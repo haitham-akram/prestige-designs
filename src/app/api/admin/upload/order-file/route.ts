@@ -22,6 +22,13 @@ import { join } from 'path';
 import { existsSync } from 'fs';
 import { z } from 'zod';
 
+export const config = {
+    api: {
+        bodyParser: {
+            sizeLimit: '500mb',
+        },
+    },
+};
 // File upload validation schema
 const uploadSchema = z.object({
     fileName: z.string()

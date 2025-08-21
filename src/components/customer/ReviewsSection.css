@@ -211,6 +211,7 @@
     0 0 20px rgba(255, 215, 0, 0.4);
 }
 
+
 .reviews-carousel .review-text {
   color: var(--text-secondary);
   line-height: 1.6;
@@ -218,6 +219,34 @@
   font-size: 0.95rem;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0.5rem 0.75rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  position: relative;
+  min-height: 4.5em;
+}
+
+.reviews-carousel .review-text.expanded {
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  max-height: none;
+  overflow: visible;
+}
+
+.reviews-carousel .show-more {
+  display: inline-block;
+  color: var(--color-purple-primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.95rem;
+  margin-top: 0.25rem;
+  padding: 0;
+  text-decoration: underline;
+  direction: rtl;
 }
 
 .reviews-carousel .review-card:hover .review-text {

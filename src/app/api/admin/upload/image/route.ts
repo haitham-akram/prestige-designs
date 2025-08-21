@@ -18,6 +18,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withAdmin } from '@/lib/auth/middleware';
 import cloudinary, { categoryImageOptions } from '@/lib/cloudinary/config';
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '100mb',
+    },
+  },
+};
+
 /**
  * POST /api/admin/upload/image
  * Upload multiple images via FormData

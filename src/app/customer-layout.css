@@ -2479,9 +2479,6 @@
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3);
   }
 
-  .nav-mobile.open {
-    max-height: 60vh; /* Adjust for bottom positioning */
-  }
 
   /* Custom scrollbar for mobile menu */
   .nav-mobile::-webkit-scrollbar {
@@ -2559,6 +2556,7 @@
   .user-dropdown {
     right: -50px;
     min-width: 180px;
+    top: -13rem;
   }
 
   .dropdown-header {

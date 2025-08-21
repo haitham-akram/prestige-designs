@@ -53,6 +53,9 @@ function RootLayout({ children }: { children: React.ReactNode }) {
   const locale = 'ar' // Default to Arabic for now
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} className={`${geistSans.variable} ${geistMono.variable}`}>
+      <head>
+        <meta name="paypal-client-id" content={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''} />
+      </head>
       <body suppressHydrationWarning={true}>
         <SessionProvider>
           <HydrationWrapper>{children}</HydrationWrapper>
