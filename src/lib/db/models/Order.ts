@@ -58,6 +58,11 @@ export interface IOrderItem {
         uploadedLogo?: { url: string; publicId: string; }; // Uploaded logo with Cloudinary info
         customizationNotes?: string;   // Customer notes for this item
     };
+
+    // Item-level delivery state
+    deliveryStatus: 'pending' | 'auto_delivered' | 'custom_delivered' | 'awaiting_customization';
+    deliveredAt?: Date;              // When this item was delivered
+    deliveryNotes?: string;          // Notes about delivery (e.g., "Auto-delivered", "Custom work completed")
 }
 
 // Interface for PayPal Address (received from PayPal after payment)
@@ -254,6 +259,23 @@ const OrderItemSchema = new Schema<IOrderItem>({
             publicId: { type: String, trim: true }
         },
         customizationNotes: { type: String, trim: true }
+    },
+    deliveryStatus: {
+        type: String,
+        enum: {
+            values: ['pending', 'auto_delivered', 'custom_delivered', 'awaiting_customization'],
+            message: 'Invalid delivery status'
+        },
+        default: 'pending'
+    },
+    deliveredAt: {
+        type: Date,
+        default: null
+    },
+    deliveryNotes: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Delivery notes cannot exceed 500 characters']
     }
 }, { _id: false });
 
@@ -556,17 +578,19 @@ OrderSchema.pre('save', function (this: IOrder, next) {
     next();
 });
 
-// Pre-save middleware to check customization status
+// Pre-save middleware to check customization status (simplified to avoid conflicts)
 OrderSchema.pre('save', function (this: IOrder, next) {
     // Check if any items support customization (EnableCustomizations)
     const hasCustomizableProducts = this.items.some(item => item.EnableCustomizations === true);
     this.hasCustomizableProducts = hasCustomizableProducts;
 
-    // Check if any items actually have customizations applied
-    const hasCustomizations = this.items.some(item => item.hasCustomizations);
-
-    if (hasCustomizations && this.customizationStatus === 'none') {
-        this.customizationStatus = 'pending';
+    // Only set customization status if it's not already set by the delivery service
+    if (this.customizationStatus === 'none') {
+        // Check if any items actually have customizations applied
+        const hasCustomizations = this.items.some(item => item.hasCustomizations);
+        if (hasCustomizations) {
+            this.customizationStatus = 'pending';
+        }
     }
 
     next();
@@ -742,6 +766,78 @@ OrderSchema.methods.markEmailSent = async function (this: IOrder) {
     this.emailSent = true;
     this.emailSentAt = new Date();
     return this.save();
+};
+
+// Instance method to check if all items are delivered and update order status
+OrderSchema.methods.checkAndUpdateOrderStatus = async function (this: IOrder) {
+    const allItemsDelivered = this.items.every(item =>
+        item.deliveryStatus === 'auto_delivered' || item.deliveryStatus === 'custom_delivered'
+    );
+
+    const hasPendingItems = this.items.some(item => item.deliveryStatus === 'pending');
+    const hasAwaitingCustomization = this.items.some(item => item.deliveryStatus === 'awaiting_customization');
+
+    if (allItemsDelivered) {
+        this.orderStatus = 'completed';
+        this.actualDelivery = new Date();
+        this.orderHistory.push({
+            status: 'completed',
+            timestamp: new Date(),
+            note: 'تم إكمال جميع المنتجات في الطلب',
+            changedBy: 'system'
+        });
+    } else if (hasAwaitingCustomization) {
+        this.orderStatus = 'awaiting_customization';
+        this.customizationStatus = 'pending';
+    } else if (hasPendingItems) {
+        this.orderStatus = 'processing';
+    }
+
+    return this.save();
+};
+
+// Instance method to mark item as auto-delivered
+OrderSchema.methods.markItemAsAutoDelivered = async function (this: IOrder, itemIndex: number, notes?: string) {
+    if (itemIndex < 0 || itemIndex >= this.items.length) {
+        throw new Error('Invalid item index');
+    }
+
+    const item = this.items[itemIndex];
+    item.deliveryStatus = 'auto_delivered';
+    item.deliveredAt = new Date();
+    item.deliveryNotes = notes || 'تم التوصيل التلقائي';
+
+    await this.checkAndUpdateOrderStatus();
+    return this;
+};
+
+// Instance method to mark item as awaiting customization
+OrderSchema.methods.markItemAsAwaitingCustomization = async function (this: IOrder, itemIndex: number, notes?: string) {
+    if (itemIndex < 0 || itemIndex >= this.items.length) {
+        throw new Error('Invalid item index');
+    }
+
+    const item = this.items[itemIndex];
+    item.deliveryStatus = 'awaiting_customization';
+    item.deliveryNotes = notes || 'في انتظار التخصيص';
+
+    await this.checkAndUpdateOrderStatus();
+    return this;
+};
+
+// Instance method to mark item as custom delivered
+OrderSchema.methods.markItemAsCustomDelivered = async function (this: IOrder, itemIndex: number, notes?: string) {
+    if (itemIndex < 0 || itemIndex >= this.items.length) {
+        throw new Error('Invalid item index');
+    }
+
+    const item = this.items[itemIndex];
+    item.deliveryStatus = 'custom_delivered';
+    item.deliveredAt = new Date();
+    item.deliveryNotes = notes || 'تم التوصيل بعد التخصيص';
+
+    await this.checkAndUpdateOrderStatus();
+    return this;
 };
 
 // Instance method to add admin note

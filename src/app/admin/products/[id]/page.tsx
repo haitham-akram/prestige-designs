@@ -58,6 +58,7 @@ interface ProductFormData {
     }[]
   }[]
   designFiles: {
+    isForOrder:boolean
     fileName: string
     fileType: string
     description: string
@@ -75,6 +76,7 @@ interface ProductFormData {
 
 interface DesignFile {
   _id: string
+  isForOrder: boolean
   fileName: string
   fileUrl: string
   fileType: string
@@ -83,6 +85,7 @@ interface DesignFile {
   isActive: boolean
   isPublic: boolean
   productId: string
+  orderId?: string
   createdAt: string
   updatedAt: string
   isTemp?: boolean
@@ -1103,6 +1106,7 @@ export default function EditProduct() {
         ...prev.designFiles,
         {
           fileName: '',
+          isForOrder: false,
           fileType: 'psd',
           description: '',
           isActive: true,
@@ -2007,7 +2011,7 @@ export default function EditProduct() {
                 <h3>ملفات التصميم العامة</h3>
                 <p className="section-description">ملفات التصميم المشتركة لجميع الألوان</p>
 
-                {formData.designFiles.map((file, index) => {
+                { formData.designFiles.filter(file => file.isForOrder).map((file, index) => {
                   return (
                     <div key={index} className="design-file-item">
                       <div className="form-row">

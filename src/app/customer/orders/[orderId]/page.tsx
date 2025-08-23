@@ -53,6 +53,7 @@ interface OrderItem {
     colors?: { name: string; hex: string }[]
     uploadedImages?: string[]
   }
+  designFiles?: DesignFile[] // Add designFiles to OrderItem interface
 }
 
 interface DesignFile {
@@ -362,6 +363,29 @@ export default function OrderDetailsPage() {
                       <p>تم رفع {item.customizations.uploadedImages.length} صورة مخصصة</p>
                     </div>
                   )}
+
+                  {/* Show files for this specific item */}
+                  {item.designFiles && item.designFiles.length > 0 && (
+                    <div className="item-files-section">
+                      <h5>
+                        <FontAwesomeIcon icon={faFileDownload} />
+                        ملفات {item.productName || item.productId?.name || 'المنتج'}
+                      </h5>
+                      <div className="item-files-grid">
+                        {item.designFiles.map((file, fileIndex) => (
+                          <button
+                            key={fileIndex}
+                            onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
+                            className="download-file-btn"
+                          >
+                            <FontAwesomeIcon icon={faDownload} />
+                            <span className="file-name">{file.fileName}</span>
+                            <span className="file-type">{file.fileType}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))
             ) : (
@@ -370,12 +394,12 @@ export default function OrderDetailsPage() {
           </div>
         </div>
 
-        {/* Download Files */}
+        {/* Keep the old designFiles section for backward compatibility */}
         {order.designFiles && order.designFiles.length > 0 && (
           <div className="download-files-card">
             <h3>
               <FontAwesomeIcon icon={faFileDownload} />
-              الملفات المتاحة للتحميل
+              جميع الملفات المتاحة للتحميل
             </h3>
             <div className="download-files-grid">
               {order.designFiles.map((file, index) => (

@@ -56,11 +56,38 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Get design files for this order
+        // Get design files for this order and organize them by items
         const orderDesignFiles = await OrderDesignFile.find({
             orderId: order._id
-        }).populate('designFileId', 'fileName fileUrl fileType')
+        }).populate('designFileId', 'fileName fileUrl fileType productId')
 
+        // Group files by productId (item)
+        const filesByItem = new Map()
+
+        orderDesignFiles.forEach(odf => {
+            if (odf.designFileId) {
+                const designFile = odf.designFileId as any
+                const productId = designFile.productId?.toString()
+                if (productId) {
+                    if (!filesByItem.has(productId)) {
+                        filesByItem.set(productId, [])
+                    }
+                    filesByItem.get(productId).push({
+                        fileName: designFile.fileName,
+                        fileUrl: designFile.fileUrl,
+                        fileType: designFile.fileType
+                    })
+                }
+            }
+        })
+
+        // Add files to each item in the order
+        const itemsWithFiles = order.items.map(item => ({
+            ...item.toObject(),
+            designFiles: filesByItem.get(item.productId) || []
+        }))
+
+        // Keep the old designFiles format for backward compatibility
         const designFiles = orderDesignFiles.map(odf => {
             // Type assertion to handle populated designFile
             const designFile = odf.designFileId as unknown as { fileName: string; fileUrl: string; fileType: string }
@@ -83,7 +110,7 @@ export async function GET(request: NextRequest) {
                 orderStatus: order.orderStatus,
                 createdAt: order.createdAt,
                 updatedAt: order.updatedAt,
-                items: order.items,
+                items: itemsWithFiles,
                 designFiles: designFiles,
                 customerInfo: {
                     name: order.customerName,

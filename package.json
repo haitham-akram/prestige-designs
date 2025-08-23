@@ -15,7 +15,8 @@
     "build:analyze": "cross-env ANALYZE=true next build",
     "build:production": "NODE_ENV=production next build",
     "deploy:vercel": "vercel --prod",
-    "deploy:preview": "vercel"
+    "deploy:preview": "vercel",
+    "update-files": "ts-node scripts/updateDesignFiles.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",

@@ -25,15 +25,18 @@ interface AddToCartButtonProps {
 }
 
 export default function AddToCartButton({ product, className = '', onAddToCart }: AddToCartButtonProps) {
-  const { addItem, isInCart, getItemQuantity } = useCart()
+  const { addItem, isInCart } = useCart()
   const [isAdding, setIsAdding] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+
+  const productId = product.id || product._id || ''
+  const isInCartState = isInCart(productId)
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
-    if (isAdding) return
+    // Prevent adding if already in cart or in the process of adding
+    if (isAdding || isInCartState) return
 
     setIsAdding(true)
 
@@ -53,7 +56,7 @@ export default function AddToCartButton({ product, className = '', onAddToCart }
     }
 
     const cartItem = {
-      id: product.id || product._id || '',
+      id: productId,
       name: product.name,
       price: product.price,
       originalPrice: product.originalPrice,
@@ -74,42 +77,30 @@ export default function AddToCartButton({ product, className = '', onAddToCart }
     })
 
     addItem(cartItem)
-    setShowSuccess(true)
     setIsAdding(false)
 
     // Call the onAddToCart callback if provided
     if (onAddToCart) {
       onAddToCart()
     }
-
-    // Hide success state after 2 seconds
-    setTimeout(() => {
-      setShowSuccess(false)
-    }, 2000)
   }
-
-  const productId = product.id || product._id || ''
-  const currentQuantity = getItemQuantity(productId)
-  const isInCartState = isInCart(productId)
 
   return (
     <button
-      className={`add-to-cart-btn ${className} ${isInCartState ? 'in-cart' : ''} ${isAdding ? 'adding' : ''} ${
-        showSuccess ? 'success' : ''
-      }`}
+      className={`add-to-cart-btn ${className} ${isInCartState ? 'in-cart' : ''} ${isAdding ? 'adding' : ''}`}
       onClick={handleAddToCart}
-      disabled={isAdding}
+      disabled={isAdding || isInCartState}
     >
       <div className="btn-content">
-        {showSuccess ? (
+        {isInCartState ? (
           <>
             <FontAwesomeIcon icon={faCheck} className="btn-icon success-icon" />
-            <span className="btn-text">تم الإضافة!</span>
+            <span className="btn-text">تم الاضافة لسلة</span>
           </>
         ) : (
           <>
             <FontAwesomeIcon icon={faShoppingCart} className="btn-icon" />
-            <span className="btn-text">{isInCartState ? `أضيف للمرة ${currentQuantity}` : 'أضف للسلة'}</span>
+            <span className="btn-text">أضف للسلة</span>
           </>
         )}
       </div>

@@ -132,8 +132,18 @@ export default function CategoriesWithProducts() {
       // Sort categories: discount categories first, then those with images, then by order
       const sortedCategories = activeCategories.sort((a: Category, b: Category) => {
         // Check if category name contains discount keywords
-        const isDiscountA = a.name.includes('عروض توفيرية') || a.name.includes('توفيرية')
-        const isDiscountB = b.name.includes('عروض توفيرية') || b.name.includes('توفيرية')
+        const isDiscountA =
+          a.name.includes('عروض توفيرية') ||
+          a.name.includes('بكجات التوفير') ||
+          a.name.includes('توفيرية') ||
+          a.name.includes('تخفيضات') ||
+          a.name.includes('التوفير')
+        const isDiscountB =
+          b.name.includes('عروض توفيرية') ||
+          b.name.includes('بكجات التوفير') ||
+          b.name.includes('توفيرية') ||
+          b.name.includes('تخفيضات') ||
+          b.name.includes('التوفير')
 
         // Discount categories come first
         if (isDiscountA && !isDiscountB) return -1
@@ -146,7 +156,6 @@ export default function CategoriesWithProducts() {
       })
 
       // Fetch products for each category in parallel
-      console.log('🔄 Fetching products for all categories in parallel...')
       const categoriesWithProducts = await Promise.all(
         sortedCategories.map(async (category: Category) => {
           try {

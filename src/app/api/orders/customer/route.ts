@@ -38,24 +38,56 @@ export async function GET() {
             .populate('items.productId', 'name image')
             .sort({ createdAt: -1 }) // Most recent first
 
-
         // For each order, fetch associated design files through OrderDesignFile junction
+        // and organize them by items
         const ordersWithFiles = await Promise.all(
             orders.map(async (order) => {
                 const orderDesignFiles = await OrderDesignFile.find({
                     orderId: order._id
-                }).populate('designFileId', 'fileName fileUrl fileType')
+                }).populate('designFileId', 'fileName fileUrl fileType productId')
 
-                const designFiles = orderDesignFiles.map(odf => odf.designFileId).filter(file => file)
+                // Group files by productId (item)
+                const filesByItem = new Map()
+
+                orderDesignFiles.forEach(odf => {
+                    if (odf.designFileId) {
+                        const productId = odf.designFileId.productId?.toString()
+                        if (productId) {
+                            if (!filesByItem.has(productId)) {
+                                filesByItem.set(productId, [])
+                            }
+                            filesByItem.get(productId).push({
+                                _id: odf.designFileId._id,
+                                fileName: odf.designFileId.fileName,
+                                fileUrl: odf.designFileId.fileUrl,
+                                fileType: odf.designFileId.fileType,
+                                downloadCount: odf.downloadCount,
+                                lastDownloadedAt: odf.lastDownloadedAt
+                            })
+                        }
+                    }
+                })
+
+                // Add files to each item in the order
+                const itemsWithFiles = order.items.map(item => ({
+                    ...item.toObject(),
+                    designFiles: filesByItem.get(item.productId) || [],
+                    // Include delivery status information
+                    deliveryStatus: item.deliveryStatus,
+                    deliveredAt: item.deliveredAt,
+                    deliveryNotes: item.deliveryNotes
+                }))
 
                 return {
                     ...order.toObject(),
-                    designFiles
+                    items: itemsWithFiles,
+                    // Keep the old designFiles field for backward compatibility
+                    designFiles: orderDesignFiles.map(odf => odf.designFileId).filter(file => file)
                 }
             })
         )
 
-        console.log('✅ Orders with design files prepared')
+        console.log('✅ Orders with files organized by items')
 
         return NextResponse.json({
             success: true,

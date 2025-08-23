@@ -12,7 +12,7 @@ import LoginAlert from './LoginAlert'
 import './CartDropdown.css'
 
 export default function CartDropdown() {
-  const { state, removeItem, updateQuantity } = useCart()
+  const { state, removeItem } = useCart()
   const { data: session } = useSession()
   const [isOpen, setIsOpen] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
@@ -31,12 +31,6 @@ export default function CartDropdown() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const handleQuantityChange = (id: string, newQuantity: number) => {
-    if (newQuantity >= 1) {
-      updateQuantity(id, newQuantity)
-    }
-  }
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -157,22 +151,6 @@ export default function CartDropdown() {
                       <span className="cart-item-original-price">{formatPrice(item.originalPrice)}</span>
                     )}
                   </p>
-
-                  <div className="cart-item-quantity">
-                    <button
-                      className="quantity-btn"
-                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity - 1)}
-                    >
-                      -
-                    </button>
-                    <span className="quantity-value">{item.quantity}</span>
-                    <button
-                      className="quantity-btn"
-                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity + 1)}
-                    >
-                      +
-                    </button>
-                  </div>
                 </div>
 
                 <div className="cart-item-actions">

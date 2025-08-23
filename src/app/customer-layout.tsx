@@ -233,9 +233,9 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                   <ul className="nav-menu">
                     {!isLoading && categories.length > 0 && (
                       <>
-                        {/* Desktop: Show first 4 categories */}
+                        {/* Desktop: Show first 6 categories */}
                         <div className="desktop-nav">
-                          {categories.slice(0, 4).map((category) => (
+                          {categories.slice(0, 6).map((category) => (
                             <li key={category._id}>
                               <Link
                                 href={`/categories/${category.slug}`}
@@ -247,8 +247,8 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
                             </li>
                           ))}
 
-                          {/* Show "More" dropdown if more than 5 categories - Desktop Only */}
-                          {categories.length > 4 && (
+                          {/* Show "More" dropdown if more than 6 categories - Desktop Only */}
+                          {categories.length > 6 && (
                             <li className="more-dropdown-container">
                               <button
                                 className="nav-link more-button"
@@ -267,7 +267,7 @@ export default function CustomerLayout({ children }: CustomerLayoutProps) {
 
                               {/* More Dropdown Menu */}
                               <div className={`more-dropdown ${isMoreDropdownOpen ? 'open' : ''}`}>
-                                {categories.slice(4).map((category) => (
+                                {categories.slice(6).map((category) => (
                                   <Link
                                     key={category._id}
                                     href={`/categories/${category.slug}`}

@@ -33,6 +33,10 @@ interface OrderItem {
     colors?: { name: string; hex: string }[]
     customizationNotes?: string
   }
+  designFiles?: DesignFile[] // Add designFiles to OrderItem interface
+  deliveryStatus?: 'pending' | 'auto_delivered' | 'custom_delivered' | 'awaiting_customization'
+  deliveredAt?: string
+  deliveryNotes?: string
 }
 
 interface OrderHistory {
@@ -257,13 +261,13 @@ export default function CustomerOrdersPage() {
                         {order.orderStatus === 'completed'
                           ? 'مكتمل'
                           : order.orderStatus === 'pending'
-                          ? 'في الانتظار'
+                          ? 'في الانتظار '
                           : order.orderStatus === 'processing'
                           ? 'جاري المعالجة'
                           : order.orderStatus === 'awaiting_customization'
-                          ? 'في انتظار التخصيص'
+                          ? 'في انتظار المصمم'
                           : order.orderStatus === 'under_customization'
-                          ? 'تحت التخصيص'
+                          ? 'تحت التصميم'
                           : order.orderStatus}
                       </span>
                     </div>
@@ -354,6 +358,23 @@ export default function CustomerOrdersPage() {
                             <span>الكمية: {item.quantity}</span>
                             <span>السعر: ${formatPrice(item.totalPrice)}</span>
                             {item.hasCustomizations && <span className="oc-customizable">قابل للتخصيص</span>}
+
+                            {/* Delivery Status Indicator */}
+                            <div className="oc-item-delivery-status">
+                              {item.deliveryStatus === 'auto_delivered' && (
+                                <span className="status-badge status-delivered">✅ تم التوصيل تلقائيًا</span>
+                              )}
+                              {item.deliveryStatus === 'custom_delivered' && (
+                                <span className="status-badge status-delivered">✅ تم التوصيل من قبل المصمم</span>
+                              )}
+                              {item.deliveryStatus === 'awaiting_customization' && (
+                                <span className="status-badge status-pending">⏳ في انتظار التسليم</span>
+                              )}
+                              {item.deliveryStatus === 'pending' && (
+                                <span className="status-badge status-pending">⏳ في الانتظار التسليم</span>
+                              )}
+                              {item.deliveryNotes && <p className="delivery-notes">{item.deliveryNotes}</p>}
+                            </div>
                             {item.customizations?.colors && item.customizations.colors.length > 0 ? (
                               <div className="oc-colors">
                                 <span>الألوان المختارة:</span>
@@ -379,32 +400,43 @@ export default function CustomerOrdersPage() {
                             ) : null}
                           </div>
                         </div>
+
+                        {/* Show files for this specific item */}
+                        {item.designFiles && item.designFiles.length > 0 && (
+                          <div className="oc-item-files">
+                            <h6>
+                              <FontAwesomeIcon icon={faFileDownload} />
+                              ملفات {item.productName || item.productId.name}
+                            </h6>
+                            <div className="oc-download-files">
+                              {item.designFiles.map((file, fileIndex) => (
+                                <a
+                                  key={fileIndex}
+                                  href={file.fileUrl}
+                                  download={file.fileName}
+                                  className="oc-download-btn"
+                                >
+                                  <FontAwesomeIcon icon={faDownload} />
+                                  {file.fileName}
+                                </a>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
 
+                  {/* Keep the old designFiles section for backward compatibility */}
                   {order.designFiles && order.designFiles.length > 0 && (
                     <div className="oc-downloads">
                       <h4>
                         <FontAwesomeIcon icon={faFileDownload} />
-                        الملفات المتاحة للتحميل
+                        جميع الملفات المتاحة للتحميل
                       </h4>
                       <div className="oc-download-files">
                         {order.designFiles.map((file, index) => (
-                          // <button
-                          //   key={index}
-                          //   onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
-                          //   className="oc-download-btn"
-                          // >
-                          //   <FontAwesomeIcon icon={faDownload} />
-                          //   {file.fileName}
-                          // </button>
-                          <a
-                            key={index}
-                            href={file.fileUrl}
-                            download={file.fileName}
-                            className='oc-download-btn'
-                          >
+                          <a key={index} href={file.fileUrl} download={file.fileName} className="oc-download-btn">
                             <FontAwesomeIcon icon={faDownload} />
                             {file.fileName}
                           </a>

@@ -73,99 +73,119 @@ export default function CheckoutPage() {
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('paypal')
     const [paypalButtonsRendered, setPaypalButtonsRendered] = useState(false)
 
-    // Load PayPal SDK with enhanced error handling and validation
+    // **FIX**: Differentiate between a fresh visit and an auto-reload.
+    useEffect(() => {
+      const isAutoReload = sessionStorage.getItem('paypal_sdk_reloaded') === 'true'
+      const pendingOrderId = sessionStorage.getItem('pendingOrderId')
+
+      if (isAutoReload && pendingOrderId) {
+        // This is an auto-reload caused by an SDK failure. Restore the order ID to avoid duplicates.
+        console.log('Restoring pending order ID from sessionStorage after auto-reload:', pendingOrderId)
+        setCurrentOrderId(pendingOrderId)
+      } else {
+        // This is a fresh visit. Clear any stale pending order ID from a previous session.
+        console.log('Fresh visit to checkout page. Clearing any stale pending order ID.')
+        sessionStorage.removeItem('pendingOrderId')
+      }
+    }, [])
+
+    // Load PayPal SDK with auto-reload on first failure
     useEffect(() => {
       let mounted = true
-      let loadTimeout
+      let loadTimeout: NodeJS.Timeout | null = null
+
+      const handleSdkLoadError = () => {
+        if (!mounted) return
+
+        const hasReloaded = sessionStorage.getItem('paypal_sdk_reloaded')
+
+        if (!hasReloaded) {
+          console.warn('PayPal SDK failed to load on the first attempt. Reloading page...')
+          sessionStorage.setItem('paypal_sdk_reloaded', 'true')
+          window.location.reload()
+        } else {
+          console.error('❌ PayPal SDK failed to load after page refresh. Displaying error.')
+          if (mounted) {
+            setPaypalSdkError(true)
+            setPaypalLoaded(false)
+          }
+          sessionStorage.removeItem('paypal_sdk_reloaded')
+        }
+      }
 
       const loadPayPalSDK = async () => {
         if (typeof window === 'undefined') return
 
         console.log('🔄 Starting PayPal SDK loading process...')
-
-        // Reset error state
         setPaypalSdkError(false)
 
-        // Check if PayPal SDK is already fully loaded and functional
         if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
           console.log('✅ PayPal SDK already fully loaded and functional')
           if (mounted) setPaypalLoaded(true)
+          sessionStorage.removeItem('paypal_sdk_reloaded')
           return
         }
 
-        // Remove any existing broken scripts
         const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk"]')
         existingScripts.forEach((script) => {
           console.log('🗑️ Removing existing PayPal script')
           script.remove()
         })
 
-        // Clear any existing PayPal objects
         if (window.paypal) {
           console.log('🗑️ Clearing existing PayPal object')
           delete window.paypal
         }
 
         console.log('📥 Loading fresh PayPal SDK...')
-
-        // Get PayPal client ID from meta tag
         const clientIdMeta = document.querySelector('meta[name="paypal-client-id"]')
         const paypalClientId = clientIdMeta?.getAttribute('content')
-        console.log('PayPal Client ID from meta tag:', paypalClientId)
+
         if (!paypalClientId) {
           console.error('PayPal Client ID not found in meta tag')
-          setPaypalSdkError(true)
+          handleSdkLoadError()
           return
         }
+
         const script = document.createElement('script')
-        // Always use the full SDK URL with components=buttons and all required params
         script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
-        console.log('PayPal SDK script URL:', script.src)
         script.async = true
         script.defer = true
 
-        // Set a timeout for loading
         loadTimeout = setTimeout(() => {
           console.error('⏰ PayPal SDK loading timeout')
-          if (mounted) {
-            setPaypalSdkError(true)
-            setPaypalLoaded(false)
-          }
+          handleSdkLoadError()
         }, 15000) // 15 second timeout
 
         script.onload = () => {
-          clearTimeout(loadTimeout)
+          if (loadTimeout) clearTimeout(loadTimeout)
           console.log('📦 PayPal script loaded, waiting for SDK initialization...')
+          sessionStorage.removeItem('paypal_sdk_reloaded')
 
-          // Wait for PayPal SDK to be fully initialized
           const checkPayPalReady = (attempts = 0) => {
             if (!mounted) return
 
             if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
               console.log('✅ PayPal SDK fully initialized and ready')
-              setPaypalLoaded(true)
-              setPaypalSdkError(false)
+              if (mounted) {
+                setPaypalLoaded(true)
+                setPaypalSdkError(false)
+              }
             } else if (attempts < 30) {
-              // 30 attempts = 15 seconds max wait
               console.log(`⏳ Waiting for PayPal SDK initialization... (attempt ${attempts + 1}/30)`)
               setTimeout(() => checkPayPalReady(attempts + 1), 500)
             } else {
               console.error('❌ PayPal SDK failed to initialize after loading')
-              setPaypalSdkError(true)
-              setPaypalLoaded(false)
+              handleSdkLoadError()
             }
           }
-
           checkPayPalReady()
         }
 
         script.onerror = (error) => {
-          clearTimeout(loadTimeout)
+          if (loadTimeout) clearTimeout(loadTimeout)
           console.error('❌ Failed to load PayPal SDK script:', error)
-          if (mounted) {
-            setPaypalSdkError(true)
-            setPaypalLoaded(false)
-          }
+          handleSdkLoadError()
         }
 
         document.head.appendChild(script)
@@ -191,60 +211,25 @@ export default function CheckoutPage() {
       })
 
       // Pre-flight checks
-      if (!window.paypal) {
-        console.error('❌ PayPal SDK not available')
-        setPaypalSdkError(true)
+      if (
+        !window.paypal ||
+        !window.paypal.Buttons ||
+        typeof window.paypal.Buttons !== 'function' ||
+        !currentOrderId ||
+        paypalButtonsRendered ||
+        isProcessingOrder
+      ) {
         return
       }
 
-      if (!window.paypal.Buttons || typeof window.paypal.Buttons !== 'function') {
-        console.log('⚠️ PayPal Buttons not ready yet, will retry...')
-        const retryCount = (window.paypalRetryCount || 0) + 1
-        window.paypalRetryCount = retryCount
-
-        if (retryCount <= 10) {
-          // Increased retry limit
-          console.log(`🔄 Retry attempt ${retryCount}/10 in 1 second...`)
-          setTimeout(() => {
-            if (!paypalButtonsRendered) {
-              // Only retry if buttons still not rendered
-              initializePayPalButtons()
-            }
-          }, 1000)
-        } else {
-          console.error('❌ Max PayPal retry attempts reached')
-          setPaypalSdkError(true)
-        }
-        return
-      }
-
-      if (!currentOrderId) {
-        console.log('⚠️ No current order ID available')
-        return
-      }
-
-      if (paypalButtonsRendered) {
-        console.log('⚠️ PayPal buttons already rendered')
-        return
-      }
-
-      if (isProcessingOrder) {
-        console.log('⚠️ Order currently being processed, skipping button initialization')
-        return
-      }
-
-      // Clear retry counter on successful validation
-      window.paypalRetryCount = 0
-
-      // Prepare container
       const paypalContainer = document.getElementById('paypal-button-container')
       if (!paypalContainer) {
-        console.error('❌ PayPal button container not found')
-        setTimeout(() => initializePayPalButtons(), 500) // Retry if container not ready
+        console.error(
+          '❌ PayPal button container not found in initializePayPalButtons. This should not happen if the polling logic is working.'
+        )
         return
       }
 
-      // Clear existing content
       paypalContainer.innerHTML = ''
 
       console.log('✅ All conditions met, rendering PayPal buttons for order:', currentOrderId)
@@ -306,7 +291,7 @@ export default function CheckoutPage() {
               const result = await response.json()
               console.log('✅ Payment captured successfully:', result)
 
-              // Clear cart and redirect
+              sessionStorage.removeItem('pendingOrderId')
               clearCart()
               router.push(`/checkout/success?orderId=${currentOrderId}`)
             } catch (error) {
@@ -324,6 +309,7 @@ export default function CheckoutPage() {
           },
           onCancel: (data) => {
             console.log('ℹ️ Payment cancelled by user:', data)
+            sessionStorage.removeItem('pendingOrderId')
             showInfo('تم الإلغاء', 'تم إلغاء عملية الدفع')
             setIsProcessingOrder(false)
           },
@@ -336,7 +322,6 @@ export default function CheckoutPage() {
           },
         })
 
-        // Render buttons with error handling
         buttonsInstance
           .render('#paypal-button-container')
           .then(() => {
@@ -348,8 +333,6 @@ export default function CheckoutPage() {
             console.error('❌ Failed to render PayPal buttons:', error)
             setPaypalSdkError(true)
             setPaypalButtonsRendered(false)
-
-            // Clear container and show retry option
             if (paypalContainer) {
               paypalContainer.innerHTML = ''
             }
@@ -361,70 +344,14 @@ export default function CheckoutPage() {
       }
     }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder, showError, showInfo, clearCart, router])
 
-    // Enhanced PayPal SDK retry with better error handling
     const retryPayPalSDK = () => {
       console.log('🔄 Retrying PayPal SDK loading...')
-      setPaypalSdkError(false)
-      setPaypalLoaded(false)
-      setPaypalButtonsRendered(false)
-
-      // Remove all existing PayPal scripts and objects
-      const existingScripts = document.querySelectorAll('script[src*="paypal.com/sdk"]')
-      existingScripts.forEach((script) => script.remove())
-
-      if (window.paypal) {
-        delete window.paypal
-      }
-
-      // Reset retry counter
-      window.paypalRetryCount = 0
-
-      // Trigger fresh SDK loading
-      setTimeout(() => {
-        // Get PayPal client ID from meta tag
-        const clientIdMeta = document.querySelector('meta[name="paypal-client-id"]')
-        const paypalClientId = clientIdMeta?.getAttribute('content')
-        if (!paypalClientId) {
-          console.error('PayPal Client ID not found in meta tag')
-          setPaypalSdkError(true)
-          return
-        }
-        const script = document.createElement('script')
-        script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD&intent=capture&components=buttons&locale=ar_EG&debug=false`
-        script.async = true
-
-        script.onload = () => {
-          console.log('📦 PayPal SDK retry - script loaded, checking initialization...')
-
-          const checkRetryReady = (attempts = 0) => {
-            if (window.paypal && window.paypal.Buttons && typeof window.paypal.Buttons === 'function') {
-              console.log('✅ PayPal SDK retry successful')
-              setPaypalLoaded(true)
-              setPaypalSdkError(false)
-            } else if (attempts < 20) {
-              setTimeout(() => checkRetryReady(attempts + 1), 500)
-            } else {
-              console.error('❌ PayPal SDK retry failed to initialize')
-              setPaypalSdkError(true)
-            }
-          }
-
-          checkRetryReady()
-        }
-
-        script.onerror = () => {
-          console.error('❌ PayPal SDK retry - script failed to load')
-          setPaypalSdkError(true)
-          setPaypalLoaded(false)
-        }
-
-        document.head.appendChild(script)
-      }, 1000) // Wait 1 second before retry
+      sessionStorage.removeItem('paypal_sdk_reloaded')
+      window.location.reload()
     }
 
-    // Enhanced PayPal button initialization trigger with better timing
+    // More robust PayPal button initialization trigger
     useEffect(() => {
-      // Only initialize if all conditions are perfectly met
       const shouldInitialize =
         paypalLoaded &&
         currentOrderId &&
@@ -434,23 +361,7 @@ export default function CheckoutPage() {
         window.paypal.Buttons &&
         typeof window.paypal.Buttons === 'function'
 
-      if (shouldInitialize) {
-        console.log('🎯 All conditions met, initializing PayPal buttons...')
-
-        // Wait a bit to ensure DOM is fully ready and any previous operations completed
-        const timer = setTimeout(() => {
-          // Double-check conditions before proceeding (race condition safety)
-          if (paypalLoaded && currentOrderId && !paypalButtonsRendered && !isProcessingOrder) {
-            initializePayPalButtons()
-          } else {
-            console.log('⚠️ Conditions changed during timeout, skipping initialization')
-          }
-        }, 300) // Reduced delay but still enough for DOM readiness
-
-        return () => {
-          clearTimeout(timer)
-        }
-      } else {
+      if (!shouldInitialize) {
         console.log('⏳ PayPal button initialization conditions not met:', {
           paypalLoaded,
           currentOrderId: !!currentOrderId,
@@ -459,6 +370,35 @@ export default function CheckoutPage() {
           windowPaypal: !!window.paypal,
           paypalButtons: !!(window.paypal && window.paypal.Buttons),
         })
+        return
+      }
+
+      let attempts = 0
+      const maxAttempts = 20 // Try for 10 seconds (20 * 500ms)
+      let intervalId: NodeJS.Timeout | null = null
+
+      const tryToInitialize = () => {
+        const container = document.getElementById('paypal-button-container')
+
+        if (container) {
+          console.log(`✅ PayPal container found after ${attempts} attempts. Initializing...`)
+          if (intervalId) clearInterval(intervalId)
+          initializePayPalButtons()
+        } else {
+          attempts++
+          console.log(`⏳ Waiting for PayPal container to appear in DOM... Attempt ${attempts}/${maxAttempts}`)
+          if (attempts >= maxAttempts) {
+            if (intervalId) clearInterval(intervalId)
+            console.error('❌ PayPal container did not appear in DOM after multiple attempts.')
+            setPaypalSdkError(true) // Show an error if the container never appears
+          }
+        }
+      }
+
+      intervalId = setInterval(tryToInitialize, 500)
+
+      return () => {
+        if (intervalId) clearInterval(intervalId)
       }
     }, [paypalLoaded, currentOrderId, paypalButtonsRendered, isProcessingOrder, initializePayPalButtons])
 
@@ -475,7 +415,7 @@ export default function CheckoutPage() {
 
     // Redirect if not logged in
     useEffect(() => {
-      if (status === 'loading') return // Still loading
+      if (status === 'loading') return
 
       if (!session?.user) {
         router.push('/auth/signin?redirect=/checkout')
@@ -497,7 +437,6 @@ export default function CheckoutPage() {
       }
     }, [session])
 
-    // Show loading while checking authentication
     if (status === 'loading') {
       return (
         <div className="container">
@@ -509,7 +448,6 @@ export default function CheckoutPage() {
       )
     }
 
-    // Don't render if not authenticated
     if (!session?.user) {
       return null
     }
@@ -548,9 +486,9 @@ export default function CheckoutPage() {
           },
           body: JSON.stringify({
             code: promoCode.trim(),
-            orderValue: state.subtotal || 0, // Original subtotal for minimum order checks
-            currentTotal: state.totalPrice || 0, // Current total after existing discounts for promo calculation
-            cartItems: state.items || [], // Send cart items for product-specific promo codes
+            orderValue: state.subtotal || 0,
+            currentTotal: state.totalPrice || 0,
+            cartItems: state.items || [],
           }),
         })
 
@@ -559,12 +497,11 @@ export default function CheckoutPage() {
         if (response.ok) {
           setAppliedPromoCode({
             code: data.code,
-            discount: data.discount || 0, // Add fallback
+            discount: data.discount || 0,
             type: data.type,
-            discountAmount: data.discountAmount || 0, // Include the total discount amount
+            discountAmount: data.discountAmount || 0,
           })
 
-          // Create a more detailed success message
           const itemText = data.totalQualifyingItems > 1 ? `${data.totalQualifyingItems} عناصر` : 'عنصر واحد'
           const discountText = data.type === 'percentage' ? `${data.discount || 0}%` : `$${data.discount || 0} لكل عنصر`
 
@@ -593,13 +530,11 @@ export default function CheckoutPage() {
     const handleSubmit = async (e) => {
       e.preventDefault()
 
-      // Prevent multiple submissions
       if (isProcessingOrder) {
         console.log('⚠️ Already processing order, ignoring duplicate submission')
         return
       }
 
-      // Validate form
       if (!formData.firstName || !formData.lastName || !formData.email) {
         showError('بيانات مطلوبة', 'يرجى ملء جميع الحقول المطلوبة')
         return
@@ -614,19 +549,15 @@ export default function CheckoutPage() {
         setIsProcessingOrder(true)
         console.log('🔄 Starting order creation process...')
 
-        // Calculate final total and actual discount amount
-        // Use the discount amount calculated by the API for product-specific promo codes
-        const subtotalAmount = state.subtotal || 0 // Original subtotal for proportional distribution
-        const currentTotal = state.totalPrice || 0 // Current total after existing discounts
+        const subtotalAmount = state.subtotal || 0
+        const currentTotal = state.totalPrice || 0
         const promoDiscountAmount = appliedPromoCode
-          ? appliedPromoCode.discountAmount ?? // Use API-calculated discount amount if available
+          ? appliedPromoCode.discountAmount ??
             (appliedPromoCode.type === 'percentage'
-              ? (currentTotal * appliedPromoCode.discount) / 100 // Fallback to percentage calculation
-              : Math.min(appliedPromoCode.discount, currentTotal)) // Fixed amount can't exceed current total
+              ? (currentTotal * appliedPromoCode.discount) / 100
+              : Math.min(appliedPromoCode.discount, currentTotal))
           : 0
 
-        // Final total = current cart total (after product discounts) - promo discount
-        // Ensure final total is never negative (minimum 0)
         const finalTotal = Math.max(0, currentTotal - promoDiscountAmount)
 
         console.log('💰 Pricing calculation:', {
@@ -648,7 +579,6 @@ export default function CheckoutPage() {
           }),
         })
 
-        // Create order in database
         const orderResponse = await fetch('/api/orders/create', {
           method: 'POST',
           headers: {
@@ -659,7 +589,6 @@ export default function CheckoutPage() {
             customerEmail: formData.email,
             customerPhone: formData.phone,
             items: state.items.map((item) => {
-              // Calculate promo discount per item (proportional to item value)
               const itemSubtotal = (item.originalPrice || item.price) * item.quantity
               const itemPromoDiscount =
                 promoDiscountAmount > 0 ? (itemSubtotal / subtotalAmount) * promoDiscountAmount : 0
@@ -672,20 +601,16 @@ export default function CheckoutPage() {
                 originalPrice: item.originalPrice || item.price,
                 discountAmount: (item.originalPrice || item.price) - item.price,
                 unitPrice: item.price,
-                totalPrice: Math.max(0, item.price * item.quantity - itemPromoDiscount), // Ensure never negative
+                totalPrice: Math.max(0, item.price * item.quantity - itemPromoDiscount),
                 promoCode: appliedPromoCode?.code || '',
                 promoDiscount: itemPromoDiscount,
-                EnableCustomizations: item.EnableCustomizations || false, // Add EnableCustomizations flag
+                EnableCustomizations: item.EnableCustomizations || false,
                 hasCustomizations: !!(
-                  (
-                    item.customizations &&
-                    (item.customizations.textChanges?.length ||
-                      item.customizations.uploadedImages?.length ||
-                      item.customizations.uploadedLogo ||
-                      item.customizations.customizationNotes)
-                  )
-                  // NOTE: Predefined color selections are NOT customizations
-                  // They are product variants that can be auto-delivered if files exist
+                  item.customizations &&
+                  (item.customizations.textChanges?.length ||
+                    item.customizations.uploadedImages?.length ||
+                    item.customizations.uploadedLogo ||
+                    item.customizations.customizationNotes)
                 ),
                 customizations: item.customizations,
               }
@@ -695,6 +620,7 @@ export default function CheckoutPage() {
             totalPrice: finalTotal,
             appliedPromoCodes: appliedPromoCode ? [appliedPromoCode.code] : [],
             customerNotes: formData.notes,
+            orderStatus: finalTotal === 0 ? 'processing' : 'pending',
           }),
         })
 
@@ -706,15 +632,14 @@ export default function CheckoutPage() {
         const orderData = await orderResponse.json()
         console.log('Order created successfully:', orderData)
 
-        // Handle free orders (total <= 0) - check for customizable products
         if (finalTotal <= 0) {
           console.log('🎉 Processing free order - checking for customizable products')
 
           try {
-            // Check if any products have EnableCustomizations: true (not actual customization data)
-            const hasCustomizableProducts = orderData.hasCustomizableProducts
+            // **FIX**: Determine if products are customizable based on cart state, not API response.
+            // This prevents the "Cannot read properties of undefined" error if the API response for free orders is minimal.
+            const hasCustomizableProducts = state.items.some((item) => item.EnableCustomizations)
 
-            // Also check if any products have actual customization data provided
             const hasActualCustomizations = state.items.some((item) => {
               return (
                 item.customizations &&
@@ -733,7 +658,6 @@ export default function CheckoutPage() {
             })
 
             if (hasCustomizableProducts && !hasActualCustomizations) {
-              // Products CAN be customized but NO customization data provided - mark as processing with custom work
               console.log('⚠️ Free order has customizable products but missing customization data')
 
               await fetch('/api/orders/update-status', {
@@ -750,7 +674,6 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send customer notification email
               await fetch('/api/orders/send-customer-email', {
                 method: 'POST',
                 headers: {
@@ -764,10 +687,9 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send admin notification
               try {
                 console.log('🔔 Sending admin notification for free order with missing customizations...')
-                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                await fetch('/api/admin/notify-new-order', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -781,13 +703,6 @@ export default function CheckoutPage() {
                     autoCompleted: false,
                   }),
                 })
-
-                const adminNotifyResult = await adminNotifyResponse.json()
-                if (adminNotifyResponse.ok) {
-                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
-                } else {
-                  console.error('❌ Admin notification failed:', adminNotifyResult)
-                }
               } catch (adminError) {
                 console.error('❌ Error sending admin notification:', adminError)
               }
@@ -801,7 +716,6 @@ export default function CheckoutPage() {
               router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
               return
             } else if (hasCustomizableProducts && hasActualCustomizations) {
-              // Products have customization data provided - needs admin review
               console.log('📋 Free order has customizable products with data - needs admin review')
 
               await fetch('/api/orders/update-status', {
@@ -817,7 +731,6 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send customer notification email
               await fetch('/api/orders/send-customer-email', {
                 method: 'POST',
                 headers: {
@@ -830,10 +743,9 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send admin notification about new free order with customizations
               try {
                 console.log('🔔 Sending admin notification for free order with customizations...')
-                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                await fetch('/api/admin/notify-new-order', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -846,13 +758,6 @@ export default function CheckoutPage() {
                     autoCompleted: false,
                   }),
                 })
-
-                const adminNotifyResult = await adminNotifyResponse.json()
-                if (adminNotifyResponse.ok) {
-                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
-                } else {
-                  console.error('❌ Admin notification failed:', adminNotifyResult)
-                }
               } catch (adminError) {
                 console.error('❌ Error sending admin notification:', adminError)
               }
@@ -866,7 +771,6 @@ export default function CheckoutPage() {
               router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
               return
             } else {
-              // No customizable products - auto-complete free order
               console.log('✅ Free order has no customizable products - auto-completing')
 
               await fetch('/api/orders/complete-free-order', {
@@ -879,7 +783,6 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send customer notification email
               await fetch('/api/orders/send-customer-email', {
                 method: 'POST',
                 headers: {
@@ -892,10 +795,9 @@ export default function CheckoutPage() {
                 }),
               })
 
-              // Send admin notification about completed free order
               try {
                 console.log('🔔 Sending admin notification for completed free order...')
-                const adminNotifyResponse = await fetch('/api/admin/notify-new-order', {
+                await fetch('/api/admin/notify-new-order', {
                   method: 'POST',
                   headers: {
                     'Content-Type': 'application/json',
@@ -908,13 +810,6 @@ export default function CheckoutPage() {
                     autoCompleted: true,
                   }),
                 })
-
-                const adminNotifyResult = await adminNotifyResponse.json()
-                if (adminNotifyResponse.ok) {
-                  console.log('✅ Admin notification sent successfully:', adminNotifyResult)
-                } else {
-                  console.error('❌ Admin notification failed:', adminNotifyResult)
-                }
               } catch (adminError) {
                 console.error('❌ Error sending admin notification:', adminError)
               }
@@ -935,12 +830,10 @@ export default function CheckoutPage() {
           }
         }
 
-        // For paid orders, continue with PayPal flow
-        // Reset PayPal button state and set new order ID
+        sessionStorage.setItem('pendingOrderId', orderData.orderId)
+
         setPaypalButtonsRendered(false)
         setCurrentOrderId(orderData.orderId)
-
-        // PayPal buttons will be initialized by the useEffect hook
       } catch (error) {
         console.error('Error creating order:', error)
         const errorMessage = error instanceof Error ? error.message : 'يرجى المحاولة مرة أخرى'
@@ -950,13 +843,11 @@ export default function CheckoutPage() {
       }
     }
 
-    // Debug: Check for corrupted cart data
     const hasCorruptedData = state.items.some(
       (item) => item.price < 0 || (item.originalPrice && item.originalPrice < item.price) || item.quantity <= 0
     )
 
     if (hasCorruptedData) {
-      console.error('Corrupted cart data detected:', state.items)
       return (
         <div className="container">
           <div className="checkout-empty">
@@ -967,6 +858,7 @@ export default function CheckoutPage() {
             <p>تم اكتشاف بيانات غير صحيحة في السلة. سيتم مسح السلة وإعادة تحميل الصفحة.</p>
             <button
               onClick={() => {
+                sessionStorage.removeItem('pendingOrderId')
                 clearCart()
                 window.location.reload()
               }}
@@ -1058,21 +950,7 @@ export default function CheckoutPage() {
                       )}
                     </div>
                   </div>
-                  <div className="item-quantity">
-                    <button
-                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity - 1)}
-                      className="quantity-btn"
-                    >
-                      -
-                    </button>
-                    <span>{item.quantity}</span>
-                    <button
-                      onClick={() => handleQuantityChange(item.cartItemId, item.quantity + 1)}
-                      className="quantity-btn"
-                    >
-                      +
-                    </button>
-                  </div>
+                  {/* FIX: Removed the quantity adjustment buttons */}
                   <div className="item-total">${(item.price * item.quantity).toFixed(2)}</div>
                   <button onClick={() => removeItem(item.cartItemId)} className="remove-btn" title="إزالة">
                     <FontAwesomeIcon icon={faTrash} />
@@ -1132,7 +1010,6 @@ export default function CheckoutPage() {
                     -$
                     {(
                       appliedPromoCode.discountAmount ||
-                      // Fallback calculation if discountAmount is not provided
                       Math.min(
                         appliedPromoCode.type === 'percentage'
                           ? ((state.totalPrice || 0) * (appliedPromoCode.discount || 0)) / 100
@@ -1151,7 +1028,6 @@ export default function CheckoutPage() {
                     0,
                     (state.totalPrice || 0) -
                       (appliedPromoCode?.discountAmount ||
-                        // Fallback calculation if discountAmount is not provided
                         Math.min(
                           appliedPromoCode
                             ? appliedPromoCode.type === 'percentage'
@@ -1273,7 +1149,6 @@ export default function CheckoutPage() {
                       <div className="paypal-container-wrapper">
                         <div id="paypal-button-container"></div>
 
-                        {/* Loading overlay - positioned absolutely over the container */}
                         {!paypalButtonsRendered && !isProcessingOrder && !paypalSdkError && (
                           <div className="paypal-loading-overlay">
                             <div className="loading-spinner"></div>
@@ -1282,7 +1157,6 @@ export default function CheckoutPage() {
                           </div>
                         )}
 
-                        {/* Processing overlay */}
                         {isProcessingOrder && (
                           <div className="paypal-processing-overlay">
                             <div className="loading-spinner"></div>
@@ -1291,7 +1165,6 @@ export default function CheckoutPage() {
                           </div>
                         )}
 
-                        {/* Button rendering error */}
                         {paypalSdkError && paypalLoaded && (
                           <div className="paypal-error">
                             <p>⚠️ مشكلة في تحميل أزرار الدفع</p>
@@ -1335,10 +1208,8 @@ export default function CheckoutPage() {
                 )}
               </div>
 
-              {/* Show submit button only if no order is created yet */}
               {!currentOrderId &&
                 (() => {
-                  // Calculate final total for button display
                   const currentTotal = state.totalPrice || 0
                   const promoDiscountAmount = appliedPromoCode
                     ? appliedPromoCode.type === 'percentage'
