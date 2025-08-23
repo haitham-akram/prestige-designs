@@ -50,10 +50,12 @@ interface DesignFile {
   fileSize: number
   fileType: string
   productId: string
+  orderId?: string
   colorName?: string
   description: string
   uploadedAt: string
   downloadCount: number
+  isForOrder: boolean
 }
 
 interface UploadedFile {
@@ -95,7 +97,6 @@ export default function OrderUploadPage() {
     uploadedFiles: [],
     description: '',
   })
-
   // File upload hook
   const { uploadFile: uploadOrderFile, uploadProgress: fileUploadProgress } = useFileUpload({
     onSuccess: (result, fileInfo) => {
@@ -151,6 +152,8 @@ export default function OrderUploadPage() {
       const response = await fetch(`/api/admin/orders/${orderId}/upload-files`)
       if (!response.ok) throw new Error('Failed to fetch design files')
       const data = await response.json()
+      console.log('Design files data received:', data)
+
       setDesignFiles(data.files || [])
     } catch (err) {
       console.error('Error fetching design files:', err)
@@ -376,7 +379,7 @@ export default function OrderUploadPage() {
   const getFileDisplay = (file: DesignFile) => {
     const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
     const videoTypes = ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv']
-
+    console.log('Getting display for file:', file)
     if (imageTypes.includes(file.fileType.toLowerCase())) {
       return (
         <div className="file-image-container">
@@ -652,59 +655,61 @@ export default function OrderUploadPage() {
               </div>
             </form>
           </div>
-
           {/* Existing Files */}
           <div className="files-section">
             <h2>
-              <FontAwesomeIcon icon={faFile} /> الملفات المرفوعة
+              <FontAwesomeIcon icon={faFile} /> الملفات المرفوعة للطلب
             </h2>
 
-            {designFiles.length === 0 ? (
+            {/* FIX: The logic now checks for files that have both an orderId and a productId */}
+            {designFiles.filter((file) => file.orderId && file.productId).length === 0 ? (
               <div className="empty-state">
                 <FontAwesomeIcon icon={faFile} size="3x" />
-                <h3>لا توجد ملفات مرفوعة</h3>
+                <h3>لا توجد ملفات مخصصة لهذا الطلب</h3>
                 <p>قم برفع ملفات التصميم للبدء</p>
               </div>
             ) : (
               <div className="files-grid">
-                {designFiles.map((file) => (
-                  <div key={file.id} className="file-card">
-                    {getFileDisplay(file)}
+                {designFiles
+                  .filter((file) => file.isForOrder) // <-- THIS IS THE FIX
+                  .map((file) => (
+                    <div key={file.id} className="file-card">
+                      {getFileDisplay(file)}
 
-                    <div className="file-info">
-                      <h4 title={file.fileName}>{file.fileName}</h4>
-                      <div className="file-meta">
-                        <span className="file-size">{formatFileSize(file.fileSize)}</span>
-                        <span className="file-type">{file.fileType}</span>
+                      <div className="file-info">
+                        <h4 title={file.fileName}>{file.fileName}</h4>
+                        <div className="file-meta">
+                          <span className="file-size">{formatFileSize(file.fileSize)}</span>
+                          <span className="file-type">{file.fileType}</span>
+                        </div>
+                        {file.colorName && (
+                          <span className="color-badge">
+                            <FontAwesomeIcon icon={faPalette} /> {file.colorName}
+                          </span>
+                        )}
                       </div>
-                      {file.colorName && (
-                        <span className="color-badge">
-                          <FontAwesomeIcon icon={faPalette} /> {file.colorName}
-                        </span>
-                      )}
-                    </div>
 
-                    {file.description && <p className="file-description">{file.description}</p>}
+                      {file.description && <p className="file-description">{file.description}</p>}
 
-                    <div className="file-actions">
-                      <button
-                        onClick={() => window.open(file.fileUrl, '_blank')}
-                        className="btn btn-sm btn-primary"
-                        title="تحميل الملف"
-                      >
-                        <FontAwesomeIcon icon={faDownload} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteFile(file.id)}
-                        className="btn btn-sm btn-danger"
-                        title="حذف الملف"
-                        disabled={loading}
-                      >
-                        {loading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
-                      </button>
+                      <div className="file-actions">
+                        <button
+                          onClick={() => window.open(file.fileUrl, '_blank')}
+                          className="btn btn-sm btn-primary"
+                          title="تحميل الملف"
+                        >
+                          <FontAwesomeIcon icon={faDownload} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteFile(file.id)}
+                          className="btn btn-sm btn-danger"
+                          title="حذف الملف"
+                          disabled={loading}
+                        >
+                          {loading ? <FontAwesomeIcon icon={faSpinner} spin /> : <FontAwesomeIcon icon={faTrash} />}
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </div>

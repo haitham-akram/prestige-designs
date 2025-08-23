@@ -19,12 +19,181 @@
  * - File access control
  */
 
+// import mongoose, { Document, Schema, Model } from 'mongoose';
+
+// // Interface for Design File document
+// export interface IDesignFile extends Document {
+//     _id: string;
+//     productId: mongoose.Types.ObjectId;  // Reference to Product
+//     fileName: string;            // Original filename
+//     fileUrl: string;             // CDN/Storage URL
+//     fileType: string;            // File extension/type
+//     fileSize: number;            // File size in bytes
+//     mimeType: string;            // MIME type
+//     description?: string;        // File description
+//     isActive: boolean;           // For soft delete
+//     isPublic: boolean;           // Whether file is publicly accessible
+//     downloadCount: number;       // Track downloads
+//     maxDownloads?: number;       // Maximum allowed downloads
+//     expiresAt?: Date;            // Optional expiration date
+//     downloadUrl?: string;        // Temporary download URL
+//     downloadUrlExpiresAt?: Date; // When download URL expires
+//     createdBy: string;           // Admin who uploaded the file
+//     updatedBy?: string;          // Admin who last updated the file
+
+//     // Color variant support
+//     colorVariantName?: string;   // Arabic color name: "أحمر", "أزرق", null for general files
+//     colorVariantHex?: string;    // Hex color code: "#FF0000", "#0000FF", null for general files
+//     isColorVariant: boolean;     // true if file is for specific color variant
+
+//     createdAt: Date;
+//     updatedAt: Date;
+// }
+
+// // Design File Schema definition
+// const DesignFileSchema = new Schema<IDesignFile>({
+//     productId: {
+//         type: mongoose.Schema.Types.ObjectId,
+//         required: [true, 'Product ID is required'],
+//         ref: 'Product'
+//     },
+
+
+//     fileName: {
+//         type: String,
+//         required: [true, 'File name is required'],
+//         trim: true,
+//         maxlength: [255, 'File name cannot exceed 255 characters']
+//     },
+
+//     fileUrl: {
+//         type: String,
+//         required: [true, 'File URL is required'],
+//         trim: true
+//     },
+
+//     fileType: {
+//         type: String,
+//         required: [true, 'File type is required'],
+//         lowercase: true,
+//         trim: true,
+//         enum: {
+//             values: ['psd', 'ai', 'eps', 'pdf', 'svg', 'zip', 'rar', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'],
+//             message: 'Invalid file type. Allowed types: psd, ai, eps, pdf, svg, zip, rar, png, jpg, jpeg, gif, webp, mp4, avi, mov, wmv, flv, webm, mkv'
+//         }
+//     },
+
+//     fileSize: {
+//         type: Number,
+//         required: [true, 'File size is required'],
+//         min: [1, 'File size must be greater than 0']
+//     },
+
+//     mimeType: {
+//         type: String,
+//         required: [true, 'MIME type is required'],
+//         trim: true
+//     },
+
+//     description: {
+//         type: String,
+//         maxlength: [500, 'Description cannot exceed 500 characters'],
+//         trim: true
+//     },
+
+//     isActive: {
+//         type: Boolean,
+//         default: true
+//     },
+
+//     isPublic: {
+//         type: Boolean,
+//         default: false
+//     },
+
+//     downloadCount: {
+//         type: Number,
+//         default: 0,
+//         min: [0, 'Download count cannot be negative']
+//     },
+
+//     maxDownloads: {
+//         type: Number,
+//         min: [1, 'Maximum downloads must be at least 1'],
+//         default: null
+//     },
+
+//     expiresAt: {
+//         type: Date,
+//         default: null
+//     },
+
+//     downloadUrl: {
+//         type: String,
+//         default: null
+//     },
+
+//     downloadUrlExpiresAt: {
+//         type: Date,
+//         default: null
+//     },
+
+//     createdBy: {
+//         type: String,
+//         required: [true, 'Created by is required'],
+//         ref: 'User'
+//     },
+
+//     updatedBy: {
+//         type: String,
+//         ref: 'User',
+//         default: null
+//     },
+
+//     // Color variant fields
+//     colorVariantName: {
+//         type: String,
+//         trim: true,
+//         maxlength: [50, 'Color variant name cannot exceed 50 characters'],
+//         default: null
+//     },
+
+//     colorVariantHex: {
+//         type: String,
+//         trim: true,
+//         validate: {
+//             validator: function (v: string) {
+//                 if (!v) return true; // Allow null/empty
+//                 return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(v);
+//             },
+//             message: 'Please provide a valid hex color code'
+//         },
+//         default: null
+//     },
+
+//     isColorVariant: {
+//         type: Boolean,
+//         default: false
+//     }
+
+// }, {
+//     timestamps: true, // Automatically adds createdAt and updatedAt
+//     toJSON: {
+//         virtuals: true,
+//         transform: function (doc, ret: Record<string, unknown>) {
+//             delete ret.__v;
+//             return ret;
+//         }
+//     }
+// });
 import mongoose, { Document, Schema, Model } from 'mongoose';
 
 // Interface for Design File document
 export interface IDesignFile extends Document {
     _id: string;
     productId: mongoose.Types.ObjectId;  // Reference to Product
+    orderId?: mongoose.Types.ObjectId; // **NEW**: Reference to a specific Order if it's an order-specific file
+    isForOrder: boolean;         // **NEW**: Flag to distinguish between product files and order files
     fileName: string;            // Original filename
     fileUrl: string;             // CDN/Storage URL
     fileType: string;            // File extension/type
@@ -58,6 +227,20 @@ const DesignFileSchema = new Schema<IDesignFile>({
         ref: 'Product'
     },
 
+    // --- START OF FIX ---
+    orderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Order',
+        default: null, // Null for general product files
+        index: true,
+    },
+
+    isForOrder: {
+        type: Boolean,
+        default: false, // Default to false (general product file)
+        index: true,
+    },
+    // --- END OF FIX ---
 
     fileName: {
         type: String,
@@ -79,7 +262,7 @@ const DesignFileSchema = new Schema<IDesignFile>({
         trim: true,
         enum: {
             values: ['psd', 'ai', 'eps', 'pdf', 'svg', 'zip', 'rar', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'],
-            message: 'Invalid file type. Allowed types: psd, ai, eps, pdf, svg, zip, rar, png, jpg, jpeg, gif, webp, mp4, avi, mov, wmv, flv, webm, mkv'
+            message: 'Invalid file type.'
         }
     },
 
@@ -128,46 +311,22 @@ const DesignFileSchema = new Schema<IDesignFile>({
         default: null
     },
 
-    downloadUrl: {
-        type: String,
-        default: null
-    },
-
-    downloadUrlExpiresAt: {
-        type: Date,
-        default: null
-    },
-
     createdBy: {
         type: String,
         required: [true, 'Created by is required'],
         ref: 'User'
     },
 
-    updatedBy: {
-        type: String,
-        ref: 'User',
-        default: null
-    },
-
     // Color variant fields
     colorVariantName: {
         type: String,
         trim: true,
-        maxlength: [50, 'Color variant name cannot exceed 50 characters'],
         default: null
     },
 
     colorVariantHex: {
         type: String,
         trim: true,
-        validate: {
-            validator: function (v: string) {
-                if (!v) return true; // Allow null/empty
-                return /^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/.test(v);
-            },
-            message: 'Please provide a valid hex color code'
-        },
         default: null
     },
 
@@ -177,7 +336,7 @@ const DesignFileSchema = new Schema<IDesignFile>({
     }
 
 }, {
-    timestamps: true, // Automatically adds createdAt and updatedAt
+    timestamps: true,
     toJSON: {
         virtuals: true,
         transform: function (doc, ret: Record<string, unknown>) {

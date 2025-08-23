@@ -383,62 +383,42 @@ export class PayPalService {
                 }
             }
 
-            // Check delivery type based on color variant availability
-            const deliveryResult = await this.checkDeliveryType(order);
-            order.deliveryType = deliveryResult.deliveryType;
-            order.requiresCustomWork = deliveryResult.requiresCustomWork;
+            // Process item-level delivery using the new service
+            const { ItemDeliveryService } = await import('@/lib/services/itemDeliveryService');
 
-            await order.save();
+            console.log('🔄 Processing item-level delivery for paid order');
+            const deliveryResult = await ItemDeliveryService.processOrderDelivery(order);
 
-            let emailSent = false; // Track if customer email was already sent
+            // Send delivery notifications
+            await ItemDeliveryService.sendDeliveryNotifications(order, deliveryResult);
 
-            if (deliveryResult.deliveryType === 'auto_delivery' && !deliveryResult.requiresCustomWork) {
-                // Auto-complete the order and send files immediately
-                await this.autoCompleteOrder(order);
-                emailSent = true; // autoCompleteOrder sends the email
-                console.log('🎉 Order auto-completed with immediate delivery');
-            } else if (deliveryResult.deliveryType === 'auto_delivery' && deliveryResult.requiresCustomWork) {
-                // Send immediate files and customization email for remaining items
-                await this.sendImmediateFiles(order, deliveryResult.availableFiles);
-                await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
-                emailSent = true; // sendImmediateFiles sends the email
-                console.log('📧 Immediate files sent and customization email sent for remaining items');
-            } else {
-                // All items require custom work - send customization email only
-                await this.sendCustomizationEmail(order, deliveryResult.customWorkItems);
-                emailSent = true; // Mark as sent to avoid duplicate customer email
-                console.log('📧 Customization email sent for all items');
-            }
+            console.log(`📊 Delivery Summary: ${deliveryResult.autoDeliveredItems} auto-delivered, ${deliveryResult.awaitingCustomizationItems} awaiting customization`);
 
-            // Send customer notification email after payment (only if not already sent)
-            if (!emailSent) {
-                try {
-                    console.log('📧 Sending customer notification email...');
-                    const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
+            // Send customer notification email after payment
+            try {
+                console.log('📧 Sending customer notification email...');
+                const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
 
-                    const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': 'Bearer system-internal-call'
-                        },
-                        body: JSON.stringify({
-                            orderId: order._id.toString(),
-                            orderNumber: order.orderNumber,
-                            isFreeOrder: false
-                        }),
-                    });
+                const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer system-internal-call'
+                    },
+                    body: JSON.stringify({
+                        orderId: order._id.toString(),
+                        orderNumber: order.orderNumber,
+                        isFreeOrder: false
+                    }),
+                });
 
-                    if (response.ok) {
-                        console.log('✅ Customer notification email sent successfully');
-                    } else {
-                        console.log('⚠️ Failed to send customer notification email:', await response.text());
-                    }
-                } catch (emailError) {
-                    console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
+                if (response.ok) {
+                    console.log('✅ Customer notification email sent successfully');
+                } else {
+                    console.log('⚠️ Failed to send customer notification email:', await response.text());
                 }
-            } else {
-                console.log('📧 Customer email already sent via delivery process, skipping duplicate');
+            } catch (emailError) {
+                console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
             }
 
             // Send admin notification about new paid order
@@ -531,7 +511,36 @@ export class PayPalService {
             const customWorkItems = [];
 
             for (const item of order.items) {
-                console.log('🔍 Checking item:', item.productName, 'hasCustomizations:', item.hasCustomizations);
+                console.log('🔍 Checking item:', item.productName, 'hasCustomizations:', item.hasCustomizations, 'EnableCustomizations:', item.EnableCustomizations);
+
+                // First check if the product supports customization at all
+                if (item.EnableCustomizations === false) {
+                    // Product doesn't support customization - check for general files
+                    console.log('🔍 Product does not support customization, checking general files');
+
+                    // Convert productId to ObjectId if it's a string
+                    const { Types } = await import('mongoose');
+                    const productObjectId = typeof item.productId === 'string' ?
+                        new Types.ObjectId(item.productId) : item.productId;
+
+                    const generalFiles = await DesignFile.find({
+                        productId: productObjectId,
+                        isColorVariant: false,
+                        isActive: true
+                    }).lean();
+
+                    if (generalFiles.length > 0) {
+                        console.log('✅ Found general files for non-customizable product');
+                        availableFiles.push({
+                            ...item,
+                            files: generalFiles
+                        });
+                    } else {
+                        console.log('❌ No general files found for non-customizable product');
+                        customWorkItems.push(item);
+                    }
+                    continue;
+                }
 
                 // Check if item has REAL customizations (text, uploads, notes)
                 // Color selections are NOT customizations - they are product variants
@@ -552,8 +561,14 @@ export class PayPalService {
                     if (!colorCustomizations || colorCustomizations.length === 0) {
                         // No color selection - check for general files
                         console.log('🔍 No color selections, checking general files');
+
+                        // Convert productId to ObjectId if it's a string
+                        const { Types } = await import('mongoose');
+                        const productObjectId = typeof item.productId === 'string' ?
+                            new Types.ObjectId(item.productId) : item.productId;
+
                         const generalFiles = await DesignFile.find({
-                            productId: item.productId,
+                            productId: productObjectId,
                             isColorVariant: false,
                             isActive: true
                         }).lean();
@@ -584,13 +599,12 @@ export class PayPalService {
                             });
 
                             // Convert productId to ObjectId if it's a string
-                            import('mongoose').then(({ Types }) => {
-                                const productObjectId = typeof item.productId === 'string' ?
-                                    new Types.ObjectId(item.productId) : item.productId;
-                            });
+                            const { Types } = await import('mongoose');
+                            const productObjectId = typeof item.productId === 'string' ?
+                                new Types.ObjectId(item.productId) : item.productId;
 
                             const colorFiles = await DesignFile.find({
-                                productId: item.productId, // Try with original first
+                                productId: productObjectId, // Use converted ObjectId
                                 colorVariantHex: color.hex,
                                 isColorVariant: true,
                                 isActive: true
@@ -672,13 +686,17 @@ export class PayPalService {
     /**
      * Send immediate files for items with available color variants
      */
-    private static async sendImmediateFiles(order: IOrder, availableFiles: any[]): Promise<void> {
+    static async sendImmediateFiles(order: IOrder, availableFiles: any[]): Promise<void> {
         try {
             const { OrderDesignFile } = await import('@/lib/db/models');
 
+            console.log('📁 Creating OrderDesignFile records for immediate delivery...');
+
             // Create OrderDesignFile records for immediate delivery
             for (const item of availableFiles) {
+                console.log(`📁 Processing ${item.files.length} files for item: ${item.productName}`);
                 for (const file of item.files) {
+                    console.log(`📁 Creating record for file: ${file.fileName}`);
                     await OrderDesignFile.create({
                         orderId: order._id,
                         designFileId: file._id,
@@ -689,12 +707,28 @@ export class PayPalService {
                 }
             }
 
+            console.log('✅ OrderDesignFile records created successfully');
+
+            // Update order status to reflect that some files are available
+            order.orderStatus = 'processing';
+            order.customizationStatus = 'pending';
+
+            // Add to order history
+            order.orderHistory.push({
+                status: 'partial_delivery',
+                timestamp: new Date(),
+                note: `تم إرسال ${availableFiles.length} منتج متاح للتحميل فوراً`,
+                changedBy: 'system'
+            });
+
+            await order.save();
+
             // Send immediate delivery email
             const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
             const downloadLinks = availableFiles.flatMap(item =>
                 item.files.map((file: any) => ({
                     fileName: file.fileName,
-                    downloadUrl: `${baseUrl}/api/download/${order._id}/${file._id}`
+                    downloadUrl: `${baseUrl}/api/design-files/${file._id}/download`
                 }))
             );
 
@@ -772,7 +806,7 @@ ${itemsList}
     /**
      * Send customization processing email
      */
-    private static async sendCustomizationEmail(order: IOrder, customWorkItems?: any[]): Promise<void> {
+    static async sendCustomizationEmail(order: IOrder, customWorkItems?: any[]): Promise<void> {
         try {
             // Import email service
             const { EmailService } = await import('@/lib/services/emailService');
@@ -943,7 +977,7 @@ ${itemsList}
     /**
      * Auto-complete order without customizations
      */
-    private static async autoCompleteOrder(order: IOrder): Promise<void> {
+    static async autoCompleteOrder(order: IOrder): Promise<void> {
         try {
             console.log('🚀 Auto-completing order with immediate delivery...');
 
