@@ -1,7 +1,8 @@
 /**
  * Send Customer Email API Route
  * 
- * Sends order confirmation email to customer
+ * ⚠️  DEPRECATED: This route should only be used by ItemDeliveryService internally
+ * ⚠️  Do NOT call this route directly from frontend or other services
  * 
  * Route: POST /api/orders/send-customer-email
  */
@@ -13,7 +14,6 @@ import { Order } from '@/lib/db/models';
 import connectDB from '@/lib/db/connection';
 import { z } from 'zod';
 
-// Types for file and item data
 interface FileData {
     fileName: string;
     fileUrl: string;
@@ -26,7 +26,6 @@ interface ItemData {
     quantity: number;
 }
 
-// Validation schema
 const sendCustomerEmailSchema = z.object({
     orderId: z.string().min(1, 'Order ID is required'),
     orderNumber: z.string().min(1, 'Order number is required'),
@@ -41,6 +40,18 @@ export async function POST(request: NextRequest) {
         const authHeader = request.headers.get('Authorization');
         const isSystemCall = authHeader === 'Bearer system-internal-call';
 
+        // Add caller identification for debugging
+        const userAgent = request.headers.get('User-Agent');
+        const referer = request.headers.get('Referer');
+
+        console.log('📧 send-customer-email called by:', {
+            hasSession: !!session?.user,
+            isSystemCall,
+            userAgent,
+            referer,
+            timestamp: new Date().toISOString()
+        });
+
         if (!session?.user && !isSystemCall) {
             return NextResponse.json(
                 { error: 'Authentication required' },
@@ -48,13 +59,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // ⚠️ WARNING: Log if this is being called from non-ItemDeliveryService sources
+        if (!isSystemCall && !userAgent?.includes('ItemDeliveryService')) {
+            console.warn('⚠️ send-customer-email called directly (not from ItemDeliveryService). This may cause duplicate emails!');
+            console.warn('⚠️ Caller details:', { userAgent, referer });
+        }
+
         await connectDB();
 
-        // Parse request body
         const body = await request.json();
         const { orderId, orderNumber, isFreeOrder, missingCustomization } = sendCustomerEmailSchema.parse(body);
 
-        console.log('📧 Sending customer email for order:', orderNumber);
+        console.log('📧 Processing email for order:', orderNumber, { isFreeOrder, missingCustomization });
 
         // Find the order
         const order = await Order.findById(orderId);
@@ -65,12 +81,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Check if we already sent an email for this order recently (within 2 minutes)
+        const recentEmailHistory = order.orderHistory.filter(entry =>
+            entry.status === 'email_sent' &&
+            entry.timestamp &&
+            (new Date().getTime() - new Date(entry.timestamp).getTime()) < 120000 // 2 minutes
+        );
+
+        if (recentEmailHistory.length > 0) {
+            console.warn('⚠️ Email already sent recently for this order. Skipping to prevent duplicates.');
+            console.warn('Recent email history:', recentEmailHistory);
+            return NextResponse.json({
+                success: true,
+                message: 'Email already sent recently, skipped to prevent duplicates',
+                skipped: true
+            });
+        }
+
         // Import email service
         const { EmailService } = await import('@/lib/services/emailService');
 
         if (isFreeOrder) {
             if (missingCustomization) {
-                // Free order with missing customization data - use emailService
                 const result = await EmailService.sendFreeOrderMissingCustomizationEmail(
                     order.customerEmail,
                     {
@@ -88,7 +120,6 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                // Log email in order history
                 order.orderHistory.push({
                     status: 'email_sent',
                     timestamp: new Date(),
@@ -103,9 +134,7 @@ export async function POST(request: NextRequest) {
                     messageId: result.messageId
                 });
 
-
             } else if (order.orderStatus === 'completed' || order.orderStatus === 'outdelivered') {
-                // Free order auto-delivered - use the same email as paid completed orders
                 const downloadLinks = order.downloadLinks?.map((url: string, index: number) => ({
                     fileName: `Design_File_${index + 1}`,
                     fileUrl: url,
@@ -119,7 +148,7 @@ export async function POST(request: NextRequest) {
                         orderNumber: order.orderNumber,
                         customerName: order.customerName,
                         downloadLinks,
-                        downloadExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days expiry
+                        downloadExpiry: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
                         totalPrice: 0
                     }
                 );
@@ -131,23 +160,21 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                // Log email in order history
                 order.orderHistory.push({
                     status: 'email_sent',
                     timestamp: new Date(),
-                    note: `تم إرسال بريد إلكتروني للعميل: طلبك المجاني مكتمل (نفس قالب المدفوع)`,
+                    note: `تم إرسال بريد إلكتروني للعميل: طلبك المجاني مكتمل`,
                     changedBy: 'system'
                 });
                 await order.save();
 
                 return NextResponse.json({
                     success: true,
-                    message: 'Free order completed email sent successfully (paid template)',
+                    message: 'Free order completed email sent successfully',
                     messageId: result.messageId
                 });
 
             } else {
-                // Free order under review - use emailService
                 const result = await EmailService.sendFreeOrderUnderReviewEmail(
                     order.customerEmail,
                     {
@@ -165,7 +192,6 @@ export async function POST(request: NextRequest) {
                     );
                 }
 
-                // Log email in order history
                 order.orderHistory.push({
                     status: 'email_sent',
                     timestamp: new Date(),
@@ -181,7 +207,7 @@ export async function POST(request: NextRequest) {
                 });
             }
         } else {
-            // Paid order - use customization processing email
+            // Paid order
             const customWorkItems = order.items?.map((item: ItemData) => ({
                 productName: item.productName,
                 quantity: item.quantity
@@ -203,7 +229,6 @@ export async function POST(request: NextRequest) {
                 );
             }
 
-            // Log email in order history
             order.orderHistory.push({
                 status: 'email_sent',
                 timestamp: new Date(),

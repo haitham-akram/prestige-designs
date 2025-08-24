@@ -16,7 +16,7 @@
     "build:production": "NODE_ENV=production next build",
     "deploy:vercel": "vercel --prod",
     "deploy:preview": "vercel",
-    "update-files": "ts-node scripts/updateDesignFiles.js"
+    "update-files": "node scripts/updateDesignFiles.js"
   },
   "dependencies": {
     "@fortawesome/fontawesome-svg-core": "^7.0.0",
@@ -37,6 +37,7 @@
     "i18next-http-backend": "^3.0.2",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.539.0",
+    "mongodb": "^5.9.2",
     "mongoose": "^8.16.4",
     "multer": "^2.0.2",
     "next": "15.4.3",

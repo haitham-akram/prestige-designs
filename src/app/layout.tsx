@@ -17,11 +17,42 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
+// export async function generateMetadata(): Promise<Metadata> {
+//   try {
+//     const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/settings`, { cache: 'no-store' })
+//     const json = await res.json()
+//     const branding = json?.data?.branding || {}
+//     return {
+//       title: 'Prestige Designs - Digital Design Store',
+//       description: 'Premium digital designs for your creative projects',
+//       icons: {
+//         icon: branding.faviconUrl || '/favicon.ico',
+//         shortcut: branding.faviconUrl || '/favicon.ico',
+//         apple: branding.faviconUrl || '/favicon.ico',
+//       },
+//     }
+//   } catch {
+//     return {
+//       title: 'Prestige Designs - Digital Design Store',
+//       description: 'Premium digital designs for your creative projects',
+//       icons: {
+//         icon: '/favicon.ico',
+//         shortcut: '/favicon.ico',
+//         apple: '/favicon.ico',
+//       },
+//     }
+//   }
+// }
 export async function generateMetadata(): Promise<Metadata> {
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
+  const paypalId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
+  const spaceremitToken = 'WDPKRV5KEYK5BC381K406XSIIQ9NU1Y6G9GO4HMTPCEX3ZC38H'
+
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/settings`, { cache: 'no-store' })
+    const res = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' })
     const json = await res.json()
     const branding = json?.data?.branding || {}
+
     return {
       title: 'Prestige Designs - Digital Design Store',
       description: 'Premium digital designs for your creative projects',
@@ -29,6 +60,10 @@ export async function generateMetadata(): Promise<Metadata> {
         icon: branding.faviconUrl || '/favicon.ico',
         shortcut: branding.faviconUrl || '/favicon.ico',
         apple: branding.faviconUrl || '/favicon.ico',
+      },
+      other: {
+        'spaceremit-verification': spaceremitToken,
+        'paypal-client-id': paypalId,
       },
     }
   } catch {
@@ -40,10 +75,13 @@ export async function generateMetadata(): Promise<Metadata> {
         shortcut: '/favicon.ico',
         apple: '/favicon.ico',
       },
+      other: {
+        'spaceremit-verification': 'WDPKRV5KEYK5BC381K406XSIIQ9NU1Y6G9GO4HMTPCEX3ZC38H',
+        'paypal-client-id': process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
+      },
     }
   }
 }
-
 // Wrapper component to suppress hydration warnings from browser extensions
 function HydrationWrapper({ children }: { children: React.ReactNode }) {
   return <div suppressHydrationWarning={true}>{children}</div>
@@ -54,6 +92,7 @@ function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} className={`${geistSans.variable} ${geistMono.variable}`}>
       <head>
+        {/* <meta name="spaceremit-verification" content="WDPKRV5KEYK5BC381K406XSIIQ9NU1Y6G9GO4HMTPCEX3ZC38H"/> */}
         <meta name="paypal-client-id" content={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''} />
       </head>
       <body suppressHydrationWarning={true}>

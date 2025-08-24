@@ -37,14 +37,6 @@ export default function CheckoutPage() {
     const { data: session, status } = useSession()
     const router = useRouter()
     const { alerts, showSuccess, showError, showWarning, showInfo } = useAlerts()
-    console.log('CheckoutPage: Cart state loaded', state)
-    console.log('CheckoutPage: Cart state properties:', {
-      totalItems: state.totalItems,
-      totalPrice: state.totalPrice,
-      totalSavings: state.totalSavings,
-      subtotal: state.subtotal,
-      itemsCount: state.items.length,
-    })
 
     const [formData, setFormData] = useState<CheckoutForm>({
       firstName: '',
@@ -89,7 +81,7 @@ export default function CheckoutPage() {
       }
     }, [])
 
-    // Load PayPal SDK with auto-reload on first failure
+    // Load PayPal SDK with auto-reload on first failure - OPTIMIZED VERSION
     useEffect(() => {
       let mounted = true
       let loadTimeout: NodeJS.Timeout | null = null
@@ -152,16 +144,18 @@ export default function CheckoutPage() {
         script.async = true
         script.defer = true
 
+        // ULTRA-FAST TIMEOUT - 0.5 seconds for immediate refresh
         loadTimeout = setTimeout(() => {
-          console.error('⏰ PayPal SDK loading timeout')
+          console.error('⏰ PayPal SDK loading timeout (0.5s)')
           handleSdkLoadError()
-        }, 15000) // 15 second timeout
+        }, 500) // Ultra-fast 0.5 second timeout
 
         script.onload = () => {
           if (loadTimeout) clearTimeout(loadTimeout)
           console.log('📦 PayPal script loaded, waiting for SDK initialization...')
           sessionStorage.removeItem('paypal_sdk_reloaded')
 
+          // ULTRA-FAST INITIALIZATION CHECK - 0.5 seconds total
           const checkPayPalReady = (attempts = 0) => {
             if (!mounted) return
 
@@ -171,11 +165,12 @@ export default function CheckoutPage() {
                 setPaypalLoaded(true)
                 setPaypalSdkError(false)
               }
-            } else if (attempts < 30) {
-              console.log(`⏳ Waiting for PayPal SDK initialization... (attempt ${attempts + 1}/30)`)
-              setTimeout(() => checkPayPalReady(attempts + 1), 500)
+            } else if (attempts < 5) {
+              // Only 5 attempts = 0.5 seconds total
+              console.log(`⏳ Waiting for PayPal SDK initialization... (attempt ${attempts + 1}/5)`)
+              setTimeout(() => checkPayPalReady(attempts + 1), 100) // Very fast 100ms intervals
             } else {
-              console.error('❌ PayPal SDK failed to initialize after loading')
+              console.error('❌ PayPal SDK failed to initialize after loading (0.5s total)')
               handleSdkLoadError()
             }
           }
@@ -198,7 +193,6 @@ export default function CheckoutPage() {
         if (loadTimeout) clearTimeout(loadTimeout)
       }
     }, [])
-
     // Enhanced PayPal button initialization with robust error handling
     const initializePayPalButtons = useCallback(() => {
       console.log('🔄 Attempting PayPal button initialization...', {
@@ -374,7 +368,7 @@ export default function CheckoutPage() {
       }
 
       let attempts = 0
-      const maxAttempts = 20 // Try for 10 seconds (20 * 500ms)
+      const maxAttempts = 1 // Try for 10 seconds (20 * 500ms)
       let intervalId: NodeJS.Timeout | null = null
 
       const tryToInitialize = () => {
@@ -395,7 +389,7 @@ export default function CheckoutPage() {
         }
       }
 
-      intervalId = setInterval(tryToInitialize, 500)
+      intervalId = setInterval(tryToInitialize, 300)
 
       return () => {
         if (intervalId) clearInterval(intervalId)
@@ -636,10 +630,7 @@ export default function CheckoutPage() {
           console.log('🎉 Processing free order - checking for customizable products')
 
           try {
-            // **FIX**: Determine if products are customizable based on cart state, not API response.
-            // This prevents the "Cannot read properties of undefined" error if the API response for free orders is minimal.
             const hasCustomizableProducts = state.items.some((item) => item.EnableCustomizations)
-
             const hasActualCustomizations = state.items.some((item) => {
               return (
                 item.customizations &&
@@ -674,19 +665,7 @@ export default function CheckoutPage() {
                 }),
               })
 
-              await fetch('/api/orders/send-customer-email', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  orderId: orderData.orderId,
-                  orderNumber: orderData.orderNumber,
-                  isFreeOrder: true,
-                  missingCustomization: true,
-                }),
-              })
-
+              // ONLY send admin notification - let ItemDeliveryService handle customer email
               try {
                 console.log('🔔 Sending admin notification for free order with missing customizations...')
                 await fetch('/api/admin/notify-new-order', {
@@ -707,14 +686,16 @@ export default function CheckoutPage() {
                 console.error('❌ Error sending admin notification:', adminError)
               }
 
-              showSuccess(
-                'تم إرسال طلبك المجاني!',
-                'طلبك يحتوي على منتجات قابلة للتخصيص. يرجى إضافة تفاصيل التخصيص أو سيتواصل معك فريقنا.'
-              )
-
-              clearCart()
-              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
-              return
+              // Process the order through ItemDeliveryService (this will send the appropriate customer email)
+              await fetch('/api/orders/complete-free-order', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  orderId: orderData.orderId,
+                }),
+              })
             } else if (hasCustomizableProducts && hasActualCustomizations) {
               console.log('📋 Free order has customizable products with data - needs admin review')
 
@@ -731,18 +712,7 @@ export default function CheckoutPage() {
                 }),
               })
 
-              await fetch('/api/orders/send-customer-email', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  orderId: orderData.orderId,
-                  orderNumber: orderData.orderNumber,
-                  isFreeOrder: true,
-                }),
-              })
-
+              // ONLY send admin notification - let ItemDeliveryService handle customer email
               try {
                 console.log('🔔 Sending admin notification for free order with customizations...')
                 await fetch('/api/admin/notify-new-order', {
@@ -762,17 +732,7 @@ export default function CheckoutPage() {
                 console.error('❌ Error sending admin notification:', adminError)
               }
 
-              showSuccess(
-                'تم إرسال طلبك المجاني!',
-                'تم إرسال طلبك المجاني! سيقوم فريقنا بمراجعة التخصيصات المطلوبة والتواصل معك قريباً.'
-              )
-
-              clearCart()
-              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&pending=true`)
-              return
-            } else {
-              console.log('✅ Free order has no customizable products - auto-completing')
-
+              // Process the order through ItemDeliveryService
               await fetch('/api/orders/complete-free-order', {
                 method: 'POST',
                 headers: {
@@ -782,16 +742,17 @@ export default function CheckoutPage() {
                   orderId: orderData.orderId,
                 }),
               })
+            } else {
+              console.log('✅ Free order has no customizable products - auto-completing')
 
-              await fetch('/api/orders/send-customer-email', {
+              // Let the complete-free-order API handle everything including emails
+              await fetch('/api/orders/complete-free-order', {
                 method: 'POST',
                 headers: {
                   'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
                   orderId: orderData.orderId,
-                  orderNumber: orderData.orderNumber,
-                  isFreeOrder: true,
                 }),
               })
 
@@ -813,16 +774,13 @@ export default function CheckoutPage() {
               } catch (adminError) {
                 console.error('❌ Error sending admin notification:', adminError)
               }
-
-              showSuccess(
-                'تم إكمال طلبك المجاني!',
-                'تم إكمال طلبك المجاني وإرسال الملفات! يمكنك تحميلها من رسالة البريد الإلكتروني.'
-              )
-
-              clearCart()
-              router.push(`/checkout/success?order=${orderData.orderNumber}&free=true&completed=true`)
-              return
             }
+
+            showSuccess('تم إرسال طلبك المجاني!', 'تم معالجة طلبك المجاني بنجاح. ستصلك رسالة تأكيد قريباً.')
+
+            clearCart()
+            router.push(`/checkout/success?order=${orderData.orderNumber}&free=true`)
+            return
           } catch (error) {
             console.error('Error processing free order:', error)
             showError('خطأ في الطلب المجاني', 'حدث خطأ في معالجة الطلب المجاني. يرجى المحاولة مرة أخرى.')
