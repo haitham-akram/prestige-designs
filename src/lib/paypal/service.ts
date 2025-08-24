@@ -298,18 +298,6 @@ export class PayPalService {
                 return order;
             }
 
-            console.log('🔍 PROMO CODE DEBUG - Order before completion:', {
-                orderNumber: order.orderNumber,
-                appliedPromoCodes: order.appliedPromoCodes,
-                totalPromoDiscount: order.totalPromoDiscount,
-                totalPrice: order.totalPrice,
-                itemPromoData: order.items.map(item => ({
-                    name: item.productName,
-                    promoCode: item.promoCode,
-                    promoDiscount: item.promoDiscount
-                }))
-            });
-
             // Preserve promo code data - ensure they remain intact after payment
             // The promo codes and discounts were already calculated and saved during order creation
             // We need to ensure they are not lost during payment completion
@@ -364,14 +352,6 @@ export class PayPalService {
 
             await order.save();
 
-            console.log('🔍 PROMO CODE DEBUG - Order after save:', {
-                orderNumber: order.orderNumber,
-                appliedPromoCodes: order.appliedPromoCodes,
-                totalPromoDiscount: order.totalPromoDiscount,
-                totalPrice: order.totalPrice,
-                paymentStatus: order.paymentStatus
-            });
-
             if (preservedAppliedPromoCodes.length > 0) {
                 if (order.totalPromoDiscount === preservedPromoDiscount) {
                     console.log('✅ PROMO CODE FIX SUCCESS - Promo code data preserved correctly!');
@@ -386,40 +366,10 @@ export class PayPalService {
             // Process item-level delivery using the new service
             const { ItemDeliveryService } = await import('@/lib/services/itemDeliveryService');
 
-            console.log('🔄 Processing item-level delivery for paid order');
             const deliveryResult = await ItemDeliveryService.processOrderDelivery(order);
 
             // Send delivery notifications
             await ItemDeliveryService.sendDeliveryNotifications(order, deliveryResult);
-
-            console.log(`📊 Delivery Summary: ${deliveryResult.autoDeliveredItems} auto-delivered, ${deliveryResult.awaitingCustomizationItems} awaiting customization`);
-
-            // Send customer notification email after payment
-            try {
-                console.log('📧 Sending customer notification email...');
-                const baseUrl = process.env.NEXTAUTH_URL || process.env.VERCEL_URL || 'http://localhost:3000';
-
-                const response = await fetch(`${baseUrl}/api/orders/send-customer-email`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer system-internal-call'
-                    },
-                    body: JSON.stringify({
-                        orderId: order._id.toString(),
-                        orderNumber: order.orderNumber,
-                        isFreeOrder: false
-                    }),
-                });
-
-                if (response.ok) {
-                    console.log('✅ Customer notification email sent successfully');
-                } else {
-                    console.log('⚠️ Failed to send customer notification email:', await response.text());
-                }
-            } catch (emailError) {
-                console.error('⚠️ Error sending customer notification email (non-critical):', emailError);
-            }
 
             // Send admin notification about new paid order
             try {

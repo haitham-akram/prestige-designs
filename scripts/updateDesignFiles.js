@@ -1,25 +1,46 @@
-// scripts/updateDesignFiles.ts
+// scripts/updateDesignFiles.js
 
-const mongoose = require('mongoose');
-import connectDB from '../src/lib/db/connection.js';
-const { DesignFile } = require('../src/lib/db/models');
+const { MongoClient } = require('mongodb')
 
 /**
  * This script updates all documents in the 'designfiles' collection
- * to add the field `isForOrder: false` where it does not already exist.
+ * to add the field `isForOrder: false` where it does not already exist,
+ * and `orderId: null` where it does not already exist.
  */
-const updateDesignFiles = async () => {
+async function updateDesignFiles() {
+  const mongoUri = process.env.MONGO_URI || 'mongodb://localhost:27017/prestige-designs';
+
+  if (!mongoUri) {
+    console.error('MONGO_URI environment variable is not set. Please check your .env file.');
+    process.exit(1);
+  }
+
   console.log('Connecting to the database...');
-  await connectDB();
-  console.log('Database connected.');
+  const client = new MongoClient(mongoUri);
 
   try {
+    await client.connect();
+    console.log('✅ Database connected.');
+
+    const db = client.db(); // This will use the database from your connection string
+    const designFilesCollection = db.collection('designfiles');
+
     console.log('Starting update process for Design Files...');
 
-    // Find all documents where 'isForOrder' does not exist and update them
-    const result = await DesignFile.updateMany(
-      { isForOrder: { $exists: false } }, // Filter: only update documents that don't have this field
-      { $set: { isForOrder: false } }     // Update: set the new field and value
+    // Find all documents where 'isForOrder' OR 'orderId' does not exist and update them
+    const result = await designFilesCollection.updateMany(
+      { 
+        $or: [
+          { isForOrder: { $exists: false } },
+          { orderId: { $exists: false } }
+        ]
+      },
+      { 
+        $set: { 
+          isForOrder: false,
+          orderId: null 
+        } 
+      }
     );
 
     console.log('Update process completed.');
@@ -27,13 +48,13 @@ const updateDesignFiles = async () => {
     console.log(`- Documents updated: ${result.modifiedCount}`);
 
   } catch (error) {
-    console.error('An error occurred during the update process:', error);
+    console.error('❌ An error occurred during the update process:', error);
   } finally {
     // Ensure the database connection is closed
-    await mongoose.disconnect();
-    console.log('Database connection closed.');
+    await client.close();
+    console.log('📦 Database connection closed.');
   }
-};
+}
 
 // Run the script
 updateDesignFiles();
