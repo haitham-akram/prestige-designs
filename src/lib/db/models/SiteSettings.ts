@@ -6,6 +6,8 @@ export interface ISiteSettings extends Document {
         logoPublicId?: string
         faviconUrl?: string
         faviconPublicId?: string
+        previewImageUrl?: string
+        previewImagePublicId?: string
     }
     social: {
         telegram?: string
@@ -37,6 +39,8 @@ const SiteSettingsSchema = new Schema<ISiteSettings>(
             logoPublicId: String,
             faviconUrl: String,
             faviconPublicId: String,
+            previewImageUrl: String,
+            previewImagePublicId: String,
         },
         social: {
             telegram: String,

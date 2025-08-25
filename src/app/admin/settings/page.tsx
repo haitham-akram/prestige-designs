@@ -9,7 +9,14 @@ import { useFileUpload } from '@/hooks/useFileUpload'
 import './settings.css'
 import Image from 'next/image'
 
-type Branding = { logoUrl?: string; logoPublicId?: string; faviconUrl?: string; faviconPublicId?: string }
+type Branding = {
+  logoUrl?: string
+  logoPublicId?: string
+  faviconUrl?: string
+  faviconPublicId?: string
+  previewImageUrl?: string
+  previewImagePublicId?: string
+}
 type Social = {
   telegram?: string
   discord?: string
@@ -271,15 +278,33 @@ export default function AdminSettingsPage() {
     onError: (msg) => showError('فشل رفع الأيقونة', String(msg || 'حدث خطأ غير متوقع')),
   })
 
-  const handleImageFile = async (file: File, field: 'logo' | 'favicon') => {
+  /////
+const {
+    uploadFile: uploadPreview,
+    uploadProgress: previewProgress,
+    resetUpload: resetPreview,
+  } = useFileUpload({
+    onSuccess: (result: { data?: Array<{ url?: string; publicId?: string }>; urls?: string[] }) => {
+      const url = result?.data?.[0]?.url || result?.urls?.[0]
+      const publicId = result?.data?.[0]?.publicId
+      setBranding((b) => ({ ...b, previewImageUrl: url, previewImagePublicId: publicId }))
+      showSuccess('تم رفع الصورة', 'تم رفع صورة المعاينة بنجاح')
+    },
+    onError: (msg) => showError('فشل رفع صورة المعاينة', String(msg || 'حدث خطأ غير متوقع')),
+  })
+  /////
+  const handleImageFile = async (file: File, field: 'logo' | 'favicon' | 'preview') => {
     if (field === 'logo') {
       await uploadLogo(file, '/api/admin/upload/image')
-    } else {
+    } else if (field === 'favicon') {
       await uploadFavicon(file, '/api/admin/upload/image')
+    } else {
+      await uploadPreview(file, '/api/admin/upload/image')
     }
   }
 
-  const removeBrandingImage = (field: 'logo' | 'favicon') => {
+
+  const removeBrandingImage = (field: 'logo' | 'favicon' | 'previewImage') => {
     setBranding((b) => ({ ...b, [`${field}Url`]: undefined, [`${field}PublicId`]: undefined }))
   }
 
@@ -740,6 +765,28 @@ export default function AdminSettingsPage() {
                 <div className="image-preview">
                   <Image src={branding.faviconUrl} alt="favicon" unoptimized width={120} height={120} />
                   <button type="button" className="remove-image-btn" onClick={() => removeBrandingImage('favicon')}>
+                    حذف
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="card">
+              <label className="nice-label">صورة المعاينة (Preview Image)</label>
+              <FileUpload
+                key={`preview-${resetKey}`}
+                accept="image/*"
+                onFileSelect={(f) => handleImageFile(f, 'preview')}
+                label="رفع صورة المعاينة"
+                maxSize={2}
+                externalProgress={previewProgress}
+                onReset={resetPreview}
+                placeholder="اختر صورة أو اسحب صورة"
+                disabled={!!branding.previewImageUrl}
+              />
+              {branding.previewImageUrl && (
+                <div className="image-preview">
+                  <Image src={branding.previewImageUrl} alt="previewImage" unoptimized width={120} height={120} />
+                  <button type="button" className="remove-image-btn" onClick={() => removeBrandingImage('previewImage')}>
                     حذف
                   </button>
                 </div>
