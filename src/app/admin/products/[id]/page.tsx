@@ -58,7 +58,7 @@ interface ProductFormData {
     }[]
   }[]
   designFiles: {
-    isForOrder:boolean
+    isForOrder: boolean
     fileName: string
     fileType: string
     description: string
@@ -329,7 +329,7 @@ export default function EditProduct() {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true)
-      const response = await fetch('/api/admin/categories')
+      const response = await fetch('/api/admin/categories/all')
       const data = await response.json()
 
       if (response.ok) {
@@ -362,12 +362,6 @@ export default function EditProduct() {
           existingDesignFiles = designFilesData.data || []
         }
 
-        console.log('Design files response:', {
-          response: designFilesResponse.status,
-          data: designFilesData,
-          existingDesignFiles,
-        })
-
         // Helper function to extract color name from file URL
         const extractColorFromFileUrl = (fileUrl: string, productSlug: string): string | null => {
           const pattern = new RegExp(`/uploads/designs/${productSlug}/([^/]+)/`)
@@ -380,6 +374,9 @@ export default function EditProduct() {
         const generalFiles: any[] = []
 
         existingDesignFiles.forEach((file: DesignFile) => {
+          if (file.isForOrder) {
+            return
+          }
           const colorName = extractColorFromFileUrl(file.fileUrl, product.slug)
 
           if (colorName) {
@@ -406,12 +403,6 @@ export default function EditProduct() {
               _id: file._id, // Add the database ID to track existing files
             })
           }
-        })
-
-        console.log('File categorization:', {
-          colorFiles,
-          generalFiles,
-          productSlug: product.slug,
         })
 
         // Transform product data to form format
@@ -461,6 +452,7 @@ export default function EditProduct() {
                 ]
               : [
                   {
+                    isForOrder: false,
                     fileName: '',
                     fileType: 'psd',
                     description: '',
@@ -2011,179 +2003,181 @@ export default function EditProduct() {
                 <h3>ملفات التصميم العامة</h3>
                 <p className="section-description">ملفات التصميم المشتركة لجميع الألوان</p>
 
-                { formData.designFiles.filter(file => file.isForOrder).map((file, index) => {
-                  return (
-                    <div key={index} className="design-file-item">
-                      <div className="form-row">
+                {formData.designFiles
+                  .filter((file) => !file.isForOrder)
+                  .map((file, index) => {
+                    return (
+                      <div key={index} className="design-file-item">
+                        <div className="form-row">
+                          <div className="form-group">
+                            <label>اسم الملف</label>
+                            <input
+                              type="text"
+                              value={file.fileName}
+                              onChange={(e) => handleDesignFileChange(index, 'fileName', e.target.value)}
+                              placeholder="مثال: تصميم الشعار.psd"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>نوع الملف</label>
+                            <select
+                              value={file.fileType}
+                              onChange={(e) => handleDesignFileChange(index, 'fileType', e.target.value)}
+                            >
+                              <option value="psd">PSD - Photoshop</option>
+                              <option value="ai">AI - Illustrator</option>
+                              <option value="eps">EPS - Encapsulated PostScript</option>
+                              <option value="pdf">PDF - Portable Document</option>
+                              <option value="svg">SVG - Scalable Vector</option>
+                              <option value="zip">ZIP - Archive</option>
+                              <option value="rar">RAR - Archive</option>
+                              <option value="png">PNG - Image</option>
+                              <option value="jpg">JPG - Image</option>
+                              <option value="jpeg">JPEG - Image</option>
+                              <option value="gif">GIF - Image</option>
+                              <option value="webp">WebP - Image</option>
+                              <option value="mp4">MP4 - Video</option>
+                              <option value="avi">AVI - Video</option>
+                              <option value="mov">MOV - Video</option>
+                              <option value="wmv">WMV - Video</option>
+                              <option value="flv">FLV - Video</option>
+                              <option value="webm">WebM - Video</option>
+                              <option value="mkv">MKV - Video</option>
+                            </select>
+                          </div>
+                        </div>
+
                         <div className="form-group">
-                          <label>اسم الملف</label>
-                          <input
-                            type="text"
-                            value={file.fileName}
-                            onChange={(e) => handleDesignFileChange(index, 'fileName', e.target.value)}
-                            placeholder="مثال: تصميم الشعار.psd"
+                          <label>وصف الملف</label>
+                          <textarea
+                            value={file.description}
+                            onChange={(e) => handleDesignFileChange(index, 'description', e.target.value)}
+                            placeholder="وصف مختصر للملف وما يحتويه"
+                            rows={2}
                           />
                         </div>
+
                         <div className="form-group">
-                          <label>نوع الملف</label>
-                          <select
-                            value={file.fileType}
-                            onChange={(e) => handleDesignFileChange(index, 'fileType', e.target.value)}
-                          >
-                            <option value="psd">PSD - Photoshop</option>
-                            <option value="ai">AI - Illustrator</option>
-                            <option value="eps">EPS - Encapsulated PostScript</option>
-                            <option value="pdf">PDF - Portable Document</option>
-                            <option value="svg">SVG - Scalable Vector</option>
-                            <option value="zip">ZIP - Archive</option>
-                            <option value="rar">RAR - Archive</option>
-                            <option value="png">PNG - Image</option>
-                            <option value="jpg">JPG - Image</option>
-                            <option value="jpeg">JPEG - Image</option>
-                            <option value="gif">GIF - Image</option>
-                            <option value="webp">WebP - Image</option>
-                            <option value="mp4">MP4 - Video</option>
-                            <option value="avi">AVI - Video</option>
-                            <option value="mov">MOV - Video</option>
-                            <option value="wmv">WMV - Video</option>
-                            <option value="flv">FLV - Video</option>
-                            <option value="webm">WebM - Video</option>
-                            <option value="mkv">MKV - Video</option>
-                          </select>
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={file.isActive}
+                              onChange={(e) => handleDesignFileChange(index, 'isActive', e.target.checked)}
+                            />
+                            الملف متاح للعملاء
+                          </label>
                         </div>
-                      </div>
 
-                      <div className="form-group">
-                        <label>وصف الملف</label>
-                        <textarea
-                          value={file.description}
-                          onChange={(e) => handleDesignFileChange(index, 'description', e.target.value)}
-                          placeholder="وصف مختصر للملف وما يحتويه"
-                          rows={2}
-                        />
-                      </div>
+                        <div className="form-group">
+                          <FileUpload
+                            key={`design-file-upload-${index}`}
+                            label="رفع الملف"
+                            accept=".psd,.ai,.eps,.pdf,.svg,.zip,.rar,.png,.jpg,.jpeg,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
+                            maxSize={0}
+                            multiple={true}
+                            onFileSelect={(file) => handleDesignFileUpload(file, index)}
+                            disabled={loading || isUploading || !isSlugValidForUpload()}
+                            placeholder={
+                              !isSlugValidForUpload() ? 'يرجى إدخال رابط المنتج أولاً' : 'اختر ملفات التصميم أو الفيديو'
+                            }
+                            externalProgress={
+                              isUploading || uploadStatus === 'success'
+                                ? {
+                                    progress: uploadProgress,
+                                    status: uploadStatus,
+                                    message: uploadStatus === 'success' ? 'تم رفع الملف بنجاح' : 'جاري رفع الملف...',
+                                  }
+                                : undefined
+                            }
+                            uploadedFiles={formData.designFiles[index]?.uploadedFiles || []}
+                            onFileRemove={async (fileName) => {
+                              // Find the file to get its URL and ID
+                              const fileToDelete = formData.designFiles[index]?.uploadedFiles.find(
+                                (f) => f.fileName === fileName
+                              )
 
-                      <div className="form-group">
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={file.isActive}
-                            onChange={(e) => handleDesignFileChange(index, 'isActive', e.target.checked)}
-                          />
-                          الملف متاح للعملاء
-                        </label>
-                      </div>
+                              if (fileToDelete?.fileUrl) {
+                                try {
+                                  // Delete file from server (and database if it has an _id)
+                                  const response = await fetch('/api/admin/upload/delete-file', {
+                                    method: 'DELETE',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                    },
+                                    body: JSON.stringify({
+                                      fileUrl: fileToDelete.fileUrl,
+                                      deleteFromDatabase: !!fileToDelete._id, // Only delete from DB if it has an ID
+                                    }),
+                                  })
 
-                      <div className="form-group">
-                        <FileUpload
-                          key={`design-file-upload-${index}`}
-                          label="رفع الملف"
-                          accept=".psd,.ai,.eps,.pdf,.svg,.zip,.rar,.png,.jpg,.jpeg,.gif,.webp,.mp4,.avi,.mov,.wmv,.flv,.webm,.mkv"
-                          maxSize={0}
-                          multiple={true}
-                          onFileSelect={(file) => handleDesignFileUpload(file, index)}
-                          disabled={loading || isUploading || !isSlugValidForUpload()}
-                          placeholder={
-                            !isSlugValidForUpload() ? 'يرجى إدخال رابط المنتج أولاً' : 'اختر ملفات التصميم أو الفيديو'
-                          }
-                          externalProgress={
-                            isUploading || uploadStatus === 'success'
-                              ? {
-                                  progress: uploadProgress,
-                                  status: uploadStatus,
-                                  message: uploadStatus === 'success' ? 'تم رفع الملف بنجاح' : 'جاري رفع الملف...',
-                                }
-                              : undefined
-                          }
-                          uploadedFiles={formData.designFiles[index]?.uploadedFiles || []}
-                          onFileRemove={async (fileName) => {
-                            // Find the file to get its URL and ID
-                            const fileToDelete = formData.designFiles[index]?.uploadedFiles.find(
-                              (f) => f.fileName === fileName
-                            )
+                                  const result = await response.json()
 
-                            if (fileToDelete?.fileUrl) {
-                              try {
-                                // Delete file from server (and database if it has an _id)
-                                const response = await fetch('/api/admin/upload/delete-file', {
-                                  method: 'DELETE',
-                                  headers: {
-                                    'Content-Type': 'application/json',
-                                  },
-                                  body: JSON.stringify({
-                                    fileUrl: fileToDelete.fileUrl,
-                                    deleteFromDatabase: !!fileToDelete._id, // Only delete from DB if it has an ID
-                                  }),
-                                })
-
-                                const result = await response.json()
-
-                                if (!result.success) {
-                                  showError('خطأ في حذف الملف', result.message || 'فشل في حذف الملف من الخادم')
+                                  if (!result.success) {
+                                    showError('خطأ في حذف الملف', result.message || 'فشل في حذف الملف من الخادم')
+                                    return
+                                  }
+                                } catch (error) {
+                                  console.error('Error deleting file:', error)
+                                  showError('خطأ في حذف الملف', 'حدث خطأ أثناء حذف الملف من الخادم')
                                   return
                                 }
-                              } catch (error) {
-                                console.error('Error deleting file:', error)
-                                showError('خطأ في حذف الملف', 'حدث خطأ أثناء حذف الملف من الخادم')
-                                return
                               }
-                            }
 
-                            // Remove file from UI state
-                            setFormData((prev) => {
-                              const updatedDesignFiles = [...prev.designFiles]
-                              if (updatedDesignFiles[index]) {
-                                updatedDesignFiles[index] = {
-                                  ...updatedDesignFiles[index],
-                                  uploadedFiles: updatedDesignFiles[index].uploadedFiles.filter(
-                                    (f) => f.fileName !== fileName
-                                  ),
+                              // Remove file from UI state
+                              setFormData((prev) => {
+                                const updatedDesignFiles = [...prev.designFiles]
+                                if (updatedDesignFiles[index]) {
+                                  updatedDesignFiles[index] = {
+                                    ...updatedDesignFiles[index],
+                                    uploadedFiles: updatedDesignFiles[index].uploadedFiles.filter(
+                                      (f) => f.fileName !== fileName
+                                    ),
+                                  }
                                 }
-                              }
-                              return {
-                                ...prev,
-                                designFiles: updatedDesignFiles,
-                              }
-                            })
-
-                            showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
-                          }}
-                          onReset={() => {
-                            setIsUploading(false)
-                            setUploadProgress(0)
-                            setUploadStatus('idle')
-                          }}
-                          onRefresh={() => {
-                            // Update all temp files to permanent status
-                            setFormData((prev) => {
-                              const updatedDesignFiles = [...prev.designFiles]
-                              if (updatedDesignFiles[index]) {
-                                const updatedUploadedFiles = updatedDesignFiles[index].uploadedFiles.map((file) => ({
-                                  ...file,
-                                  isTemp: false,
-                                }))
-
-                                updatedDesignFiles[index] = {
-                                  ...updatedDesignFiles[index],
-                                  uploadedFiles: updatedUploadedFiles,
+                                return {
+                                  ...prev,
+                                  designFiles: updatedDesignFiles,
                                 }
-                              }
+                              })
 
-                              return {
-                                ...prev,
-                                designFiles: updatedDesignFiles,
-                              }
-                            })
+                              showSuccess('تم حذف الملف', 'تم حذف الملف بنجاح')
+                            }}
+                            onReset={() => {
+                              setIsUploading(false)
+                              setUploadProgress(0)
+                              setUploadStatus('idle')
+                            }}
+                            onRefresh={() => {
+                              // Update all temp files to permanent status
+                              setFormData((prev) => {
+                                const updatedDesignFiles = [...prev.designFiles]
+                                if (updatedDesignFiles[index]) {
+                                  const updatedUploadedFiles = updatedDesignFiles[index].uploadedFiles.map((file) => ({
+                                    ...file,
+                                    isTemp: false,
+                                  }))
 
-                            setIsUploading(false)
-                            setUploadProgress(0)
-                            setUploadStatus('idle')
-                          }}
-                        />
+                                  updatedDesignFiles[index] = {
+                                    ...updatedDesignFiles[index],
+                                    uploadedFiles: updatedUploadedFiles,
+                                  }
+                                }
+
+                                return {
+                                  ...prev,
+                                  designFiles: updatedDesignFiles,
+                                }
+                              })
+
+                              setIsUploading(false)
+                              setUploadProgress(0)
+                              setUploadStatus('idle')
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
 
                 <button type="button" onClick={addDesignFile} className="add-file-btn">
                   <FontAwesomeIcon icon={faPlus} />

@@ -135,7 +135,7 @@ export default function AddProduct() {
   const fetchCategories = async () => {
     try {
       setCategoriesLoading(true)
-      const response = await fetch('/api/admin/categories')
+      const response = await fetch('/api/admin/categories/all')
       const data = await response.json()
 
       if (response.ok) {
