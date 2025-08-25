@@ -3,7 +3,7 @@
  * 
  * Sends email notifications to admin when new orders are created
  * 
- *             emailSubject = `🎨 طلب ${orderType}                             <h3 style="color: #065f46; margin: 0 0 10px 0; font-size: 18px;">🎁 طلب مجاني</h3>حتاج تخصيص - ${order.orderNumber}`;oute: POST /api/admin/notify-new-order
+ * POST /api/admin/notify-new-order
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -42,8 +42,6 @@ export async function POST(request: NextRequest) {
         const body = await request.json();
         const notificationData = notifySchema.parse(body);
 
-        console.log('📧 Notification data:', notificationData);
-
         // Find the order for additional details
         const order = await Order.findById(notificationData.orderId);
         if (!order) {
@@ -52,13 +50,12 @@ export async function POST(request: NextRequest) {
 
         // Find admin users in database (ignore environment variables for admin emails)
         let adminEmails: string[] = [];
-        console.log('� Searching for admin users in database...');
-
         // Import User model to find admin users
         const { User } = await import('@/lib/db/models');
 
         try {
             // Find users with admin role who have email notifications enabled
+
             const adminUsers = await User.find({
                 role: 'admin',
                 isActive: true,
@@ -68,7 +65,6 @@ export async function POST(request: NextRequest) {
 
             if (adminUsers && adminUsers.length > 0) {
                 adminEmails = adminUsers.map(admin => admin.email);
-                console.log(`✅ Found ${adminUsers.length} admin user(s) with notifications enabled:`);
                 adminUsers.forEach(admin => {
                     console.log(`   - ${admin.name} (${admin.email})`);
                 });
@@ -82,7 +78,6 @@ export async function POST(request: NextRequest) {
 
                 if (fallbackAdmins && fallbackAdmins.length > 0) {
                     adminEmails = fallbackAdmins.map(admin => admin.email);
-                    console.log(`✅ Found ${fallbackAdmins.length} admin user(s) (fallback, ignoring notification preferences):`);
                     fallbackAdmins.forEach(admin => {
                         console.log(`   - ${admin.name} (${admin.email})`);
                     });
@@ -102,8 +97,6 @@ export async function POST(request: NextRequest) {
                 suggestion: 'Set ADMIN_EMAIL environment variable or ensure at least one user has admin role with verified email'
             });
         }
-
-        console.log(`📧 Will send notifications to ${adminEmails.length} admin(s):`, adminEmails);
 
         // Import email service
         const { EmailService } = await import('@/lib/services/emailService');
@@ -257,35 +250,62 @@ export async function POST(request: NextRequest) {
         }
 
         // Send admin notification email to all admin users
+        // let emailsSent = 0;
+        // const emailErrors: string[] = [];
+
+        // for (const adminEmail of adminEmails) {
+        //     try {
+        //         const emailResult = await EmailService.sendCustomMessage(
+        //             adminEmail,
+        //             {
+        //                 orderNumber: notificationData.orderNumber,
+        //                 customerName: order.customerName,
+        //                 subject: emailSubject,
+        //                 message: emailMessage
+        //             }
+        //         );
+
+        //         if (emailResult.success) {
+        //             emailsSent++;
+        //             console.log(`✅ Admin notification sent successfully to: ${adminEmail}`);
+        //         } else {
+        //             emailErrors.push(`${adminEmail}: ${emailResult.error}`);
+        //             console.log(`⚠️ Failed to send admin notification to ${adminEmail}:`, emailResult.error);
+        //         }
+        //     } catch (emailError) {
+        //         emailErrors.push(`${adminEmail}: ${emailError}`);
+        //         console.error(`❌ Error sending admin notification to ${adminEmail}:`, emailError);
+        //     }
+        // }
         let emailsSent = 0;
         const emailErrors: string[] = [];
+        const admin_email = process.env.ADMIN_EMAIL as string;
+        try {
 
-        for (const adminEmail of adminEmails) {
-            try {
-                const emailResult = await EmailService.sendCustomMessage(
-                    adminEmail,
-                    {
-                        orderNumber: notificationData.orderNumber,
-                        customerName: order.customerName,
-                        subject: emailSubject,
-                        message: emailMessage
-                    }
-                );
 
-                if (emailResult.success) {
-                    emailsSent++;
-                    console.log(`✅ Admin notification sent successfully to: ${adminEmail}`);
-                } else {
-                    emailErrors.push(`${adminEmail}: ${emailResult.error}`);
-                    console.log(`⚠️ Failed to send admin notification to ${adminEmail}:`, emailResult.error);
+            const emailResult = await EmailService.sendCustomMessage(
+                admin_email,
+                {
+                    orderNumber: notificationData.orderNumber,
+                    customerName: order.customerName,
+                    subject: emailSubject,
+                    message: emailMessage
                 }
-            } catch (emailError) {
-                emailErrors.push(`${adminEmail}: ${emailError}`);
-                console.error(`❌ Error sending admin notification to ${adminEmail}:`, emailError);
+            );
+
+            if (emailResult.success) {
+                 emailsSent++
+                console.log(`✅ Admin notification sent successfully to: ${admin_email}`);
+            } else {
+                emailErrors.push(`${admin_email}: ${emailResult.error}`);
+                console.log(`⚠️ Failed to send admin notification to ${admin_email}:`, emailResult.error);
             }
+        } catch (emailError) {
+            emailErrors.push(`${admin_email}: ${emailError}`);
+            console.error(`❌ Error sending admin notification to ${admin_email}:`, emailError);
         }
 
-        // Log notification in order history
+        // // Log notification in order history
         const notificationNote = emailsSent > 0
             ? `تم إرسال إشعار للمدراء (${emailsSent}/${adminEmails.length}): ${emailSubject}`
             : `فشل في إرسال إشعار للمدراء: ${emailSubject}`;
