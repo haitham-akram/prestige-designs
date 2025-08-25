@@ -17,32 +17,6 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 })
 
-// export async function generateMetadata(): Promise<Metadata> {
-//   try {
-//     const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || ''}/api/settings`, { cache: 'no-store' })
-//     const json = await res.json()
-//     const branding = json?.data?.branding || {}
-//     return {
-//       title: 'Prestige Designs - Digital Design Store',
-//       description: 'Premium digital designs for your creative projects',
-//       icons: {
-//         icon: branding.faviconUrl || '/favicon.ico',
-//         shortcut: branding.faviconUrl || '/favicon.ico',
-//         apple: branding.faviconUrl || '/favicon.ico',
-//       },
-//     }
-//   } catch {
-//     return {
-//       title: 'Prestige Designs - Digital Design Store',
-//       description: 'Premium digital designs for your creative projects',
-//       icons: {
-//         icon: '/favicon.ico',
-//         shortcut: '/favicon.ico',
-//         apple: '/favicon.ico',
-//       },
-//     }
-//   }
-// }
 export async function generateMetadata(): Promise<Metadata> {
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || ''
   const paypalId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
@@ -52,14 +26,33 @@ export async function generateMetadata(): Promise<Metadata> {
     const res = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' })
     const json = await res.json()
     const branding = json?.data?.branding || {}
+    const ogImageUrl = branding.ogImageUrl || `${baseUrl}/og-image.jpg`
 
     return {
-      title: 'Prestige Designs - Digital Design Store',
-      description: 'Premium digital designs for your creative projects',
+      title: 'Prestige Designs - متجر تصميمات رقمية',
+      description:
+        'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
       icons: {
         icon: branding.faviconUrl || '/favicon.ico',
         shortcut: branding.faviconUrl || '/favicon.ico',
         apple: branding.faviconUrl || '/favicon.ico',
+      },
+      openGraph: {
+        title: 'Prestige Designs - متجر تصميمات رقمية',
+        description:
+          'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+        url: baseUrl, // The canonical URL for your site
+        siteName: 'Prestige Designs',
+        images: [
+          {
+            url: ogImageUrl, // Must be an absolute URL
+            width: 1200,
+            height: 630,
+            alt: 'Prestige Designs - متجر تصميمات رقمية',
+          },
+        ],
+        locale: 'ar_AR', // Optional: specify the locale
+        type: 'website',
       },
       other: {
         'spaceremit-verification': spaceremitToken,
@@ -68,12 +61,30 @@ export async function generateMetadata(): Promise<Metadata> {
     }
   } catch {
     return {
-      title: 'Prestige Designs - Digital Design Store',
-      description: 'Premium digital designs for your creative projects',
+      title: 'Prestige Designs  - متجر تصميمات رقمية',
+      description:
+        'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
       icons: {
         icon: '/favicon.ico',
         shortcut: '/favicon.ico',
         apple: '/favicon.ico',
+      },
+       openGraph: {
+        title: 'Prestige Designs - متجر تصميمات رقمية',
+        description: 
+                'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+        url: process.env.NEXT_PUBLIC_BASE_URL || '', // Provide a fallback URL
+        siteName: 'Prestige Designs',
+        images: [
+          {
+            url: `${process.env.NEXT_PUBLIC_BASE_URL || ''}/og-image.png`, // Fallback image
+            width: 1200,
+            height: 630,
+            alt: 'Prestige Designs - متجر تصميمات رقمية ',
+          },
+        ],
+        locale: 'ar_AR',
+        type: 'website',
       },
       other: {
         'spaceremit-verification': 'WDPKRV5KEYK5BC381K406XSIIQ9NU1Y6G9GO4HMTPCEX3ZC38H',
