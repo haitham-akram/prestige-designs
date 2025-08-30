@@ -47,6 +47,7 @@ interface OrderHistory {
 }
 
 interface DesignFile {
+  _id: string
   fileName: string
   fileUrl: string
 }
@@ -113,23 +114,6 @@ export default function CustomerOrdersPage() {
     }
   }
 
-  const handleDownloadFile = async (fileUrl, fileName) => {
-    try {
-      const response = await fetch(fileUrl)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Error downloading file:', err)
-      alert('Failed to download file')
-    }
-  }
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -412,7 +396,8 @@ export default function CustomerOrdersPage() {
                               {item.designFiles.map((file, fileIndex) => (
                                 <a
                                   key={fileIndex}
-                                  href={file.fileUrl}
+                                  // href={file.fileUrl}
+                                  href={`/api/design-files/${file._id}/download`}
                                   download={file.fileName}
                                   className="oc-download-btn"
                                 >
@@ -436,7 +421,12 @@ export default function CustomerOrdersPage() {
                       </h4>
                       <div className="oc-download-files">
                         {order.designFiles.map((file, index) => (
-                          <a key={index} href={file.fileUrl} download={file.fileName} className="oc-download-btn">
+                          <a
+                            key={index}
+                            href={`/api/design-files/${file._id}/download`}
+                            download={file.fileName}
+                            className="oc-download-btn"
+                          >
                             <FontAwesomeIcon icon={faDownload} />
                             {file.fileName}
                           </a>

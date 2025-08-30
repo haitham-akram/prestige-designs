@@ -26,21 +26,21 @@ export async function generateMetadata(): Promise<Metadata> {
     const res = await fetch(`${baseUrl}/api/settings`, { cache: 'no-store' })
     const json = await res.json()
     const branding = json?.data?.branding || {}
-    const ogImageUrl = branding.ogImageUrl || `${baseUrl}/og-image.jpg`
+    const ogImageUrl = branding.previewImageUrl || `${baseUrl}/og-image.jpg`
 
     return {
-      title: 'Prestige Designs - متجر تصميمات رقمية',
+      title: 'PRESTIGE DESIGNS - بريستيج ديزاينز',
       description:
-        'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+        'متجر يقدم كافة خدمات التصاميم المرئية والمونتاج , متخصص وموجه لفئة صناع المحتوى , يقدم خدمات ابداعية بأسعار تنافسية !',
       icons: {
         icon: branding.faviconUrl || '/favicon.ico',
         shortcut: branding.faviconUrl || '/favicon.ico',
         apple: branding.faviconUrl || '/favicon.ico',
       },
       openGraph: {
-        title: 'Prestige Designs - متجر تصميمات رقمية',
+        title: 'PRESTIGE DESIGNS - بريستيج ديزاينز',
         description:
-          'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+          'متجر يقدم كافة خدمات التصاميم المرئية والمونتاج , متخصص وموجه لفئة صناع المحتوى , يقدم خدمات ابداعية بأسعار تنافسية !',
         url: baseUrl, // The canonical URL for your site
         siteName: 'Prestige Designs',
         images: [
@@ -48,7 +48,7 @@ export async function generateMetadata(): Promise<Metadata> {
             url: ogImageUrl, // Must be an absolute URL
             width: 1200,
             height: 630,
-            alt: 'Prestige Designs - متجر تصميمات رقمية',
+            alt: 'PRESTIGE DESIGNS - بريستيج ديزاينز',
           },
         ],
         locale: 'ar_AR', // Optional: specify the locale
@@ -61,18 +61,18 @@ export async function generateMetadata(): Promise<Metadata> {
     }
   } catch {
     return {
-      title: 'Prestige Designs  - متجر تصميمات رقمية',
+      title: 'PRESTIGE DESIGNS - بريستيج ديزاينز',
       description:
-        'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+        'متجر يقدم كافة خدمات التصاميم المرئية والمونتاج , متخصص وموجه لفئة صناع المحتوى , يقدم خدمات ابداعية بأسعار تنافسية !',
       icons: {
         icon: '/favicon.ico',
         shortcut: '/favicon.ico',
         apple: '/favicon.ico',
       },
-       openGraph: {
-        title: 'Prestige Designs - متجر تصميمات رقمية',
-        description: 
-                'تصميمات احترافية للستريمرز وصناع المحتوى. متخصصون في قوالب البث المباشر، التنبيهات، والأوفرلي، مع خدمة تصميم مخصصة لبناء هوية فريدة لقناتك',
+      openGraph: {
+        title: 'PRESTIGE DESIGNS - بريستيج ديزاينز',
+        description:
+          'متجر يقدم كافة خدمات التصاميم المرئية والمونتاج , متخصص وموجه لفئة صناع المحتوى , يقدم خدمات ابداعية بأسعار تنافسية !',
         url: process.env.NEXT_PUBLIC_BASE_URL || '', // Provide a fallback URL
         siteName: 'Prestige Designs',
         images: [

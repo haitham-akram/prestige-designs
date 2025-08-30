@@ -1,19 +1,5 @@
 /**
- * Design File Downloexport async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ id: string }> }
-) {
-    try {
-        // Check authentication
-        const session = await getServerSession(authOptions);
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-
-        // Await params for Next.js 15 compatibility
-        const { id: designFileId } = await params;
+ * 
  * 
  * This file handles design file downloads for customers.
  * 
@@ -126,8 +112,10 @@ interface DesignFile {
 async function serveFile(designFile: DesignFile) {
     try {
         // Convert URL to file path
-        const filePath = path.join(process.cwd(), 'public', designFile.fileUrl.substring(1));
-
+        // const filePath = path.join(process.cwd(), 'public', designFile.fileUrl.substring(1));
+        const projectRoot = path.join(process.cwd());
+        const filePath = path.join(projectRoot, 'public', designFile.fileUrl.substring(1));
+        console.log('Attempting to serve file from:', filePath);
         // Check if file exists
         try {
             await stat(filePath);

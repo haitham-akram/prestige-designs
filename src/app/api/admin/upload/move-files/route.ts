@@ -55,8 +55,8 @@ async function moveFiles(req: NextRequest, _context: ApiRouteContext, user: Sess
                 files: files.map(f => ({ fileName: f.fileName, newUrl: f.oldUrl }))
             });
         }
-
-        const baseUploadDir = join(process.cwd(), 'public', 'uploads', 'designs');
+        const projectRoot = join(process.cwd());
+        const baseUploadDir = join(projectRoot, 'public', 'uploads', 'designs');
         const oldDir = join(baseUploadDir, oldSlug);
         const newDir = join(baseUploadDir, newSlug);
 

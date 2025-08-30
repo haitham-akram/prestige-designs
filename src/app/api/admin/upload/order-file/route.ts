@@ -193,14 +193,14 @@ async function uploadOrderFile(req: NextRequest, _context: ApiRouteContext, user
         // Create directory structure: uploads/orders/{orderNumber}/{productSlug}/{colorName?}/
         let uploadDir: string;
         let publicUrl: string;
-
+        const projectRoot = join(process.cwd());
         if (validatedData.colorName) {
             // Color-specific folder structure: /uploads/orders/{orderNumber}/{productSlug}/{colorName}/
-            uploadDir = join(process.cwd(), 'public', 'uploads', 'orders', validatedData.orderNumber, validatedData.productSlug, validatedData.colorName);
+            uploadDir = join(projectRoot, 'public', 'uploads', 'orders', validatedData.orderNumber, validatedData.productSlug, validatedData.colorName);
             publicUrl = `/uploads/orders/${validatedData.orderNumber}/${validatedData.productSlug}/${validatedData.colorName}/${sanitizedFileName}`;
         } else {
             // Regular folder structure: /uploads/orders/{orderNumber}/{productSlug}/
-            uploadDir = join(process.cwd(), 'public', 'uploads', 'orders', validatedData.orderNumber, validatedData.productSlug);
+            uploadDir = join(projectRoot, 'public', 'uploads', 'orders', validatedData.orderNumber, validatedData.productSlug);
             publicUrl = `/uploads/orders/${validatedData.orderNumber}/${validatedData.productSlug}/${sanitizedFileName}`;
         }
 
