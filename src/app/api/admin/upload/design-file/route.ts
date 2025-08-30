@@ -23,11 +23,11 @@ import { existsSync } from 'fs';
 import { z } from 'zod';
 
 export const config = {
-  api: {
-    bodyParser: {
-      sizeLimit: '500mb',
+    api: {
+        bodyParser: {
+            sizeLimit: '500mb',
+        },
     },
-  },
 };
 
 // File upload validation schema
@@ -199,14 +199,15 @@ async function uploadDesignFile(req: NextRequest, _context: ApiRouteContext, use
         // Create directory structure using product slug and color name if provided
         let uploadDir: string;
         let publicUrl: string;
-
+        const projectRoot = join(process.cwd());
         if (validatedData.colorName) {
             // Color-specific folder structure: /uploads/designs/product-slug/color-name/
-            uploadDir = join(process.cwd(), 'public', 'uploads', 'designs', validatedData.productSlug, validatedData.colorName);
+
+            uploadDir = join(projectRoot, 'public', 'uploads', 'designs', validatedData.productSlug, validatedData.colorName);
             publicUrl = `/uploads/designs/${validatedData.productSlug}/${validatedData.colorName}/${sanitizedFileName}`;
         } else {
             // Regular folder structure: /uploads/designs/product-slug/
-            uploadDir = join(process.cwd(), 'public', 'uploads', 'designs', validatedData.productSlug);
+            uploadDir = join(projectRoot, 'public', 'uploads', 'designs', validatedData.productSlug);
             publicUrl = `/uploads/designs/${validatedData.productSlug}/${sanitizedFileName}`;
         }
 

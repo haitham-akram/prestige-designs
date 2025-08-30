@@ -57,6 +57,7 @@ interface OrderItem {
 }
 
 interface DesignFile {
+  _id: string
   fileName: string
   fileUrl: string
   fileType: string
@@ -103,23 +104,23 @@ export default function OrderDetailsPage() {
     }
   }, [status, session, router, orderId])
 
-  const handleDownloadFile = async (fileUrl: string, fileName: string) => {
-    try {
-      const response = await fetch(fileUrl)
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = fileName
-      document.body.appendChild(a)
-      a.click()
-      window.URL.revokeObjectURL(url)
-      document.body.removeChild(a)
-    } catch (err) {
-      console.error('Error downloading file:', err)
-      alert('Failed to download file')
-    }
-  }
+  // const handleDownloadFile = async (fileUrl: string, fileName: string) => {
+  //   try {
+  //     const response = await fetch(fileUrl)
+  //     const blob = await response.blob()
+  //     const url = window.URL.createObjectURL(blob)
+  //     const a = document.createElement('a')
+  //     a.href = url
+  //     a.download = fileName
+  //     document.body.appendChild(a)
+  //     a.click()
+  //     window.URL.revokeObjectURL(url)
+  //     document.body.removeChild(a)
+  //   } catch (err) {
+  //     console.error('Error downloading file:', err)
+  //     alert('Failed to download file')
+  //   }
+  // }
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -373,15 +374,16 @@ export default function OrderDetailsPage() {
                       </h5>
                       <div className="item-files-grid">
                         {item.designFiles.map((file, fileIndex) => (
-                          <button
+                          <a
                             key={fileIndex}
-                            onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
+                            href={`/api/design-files/${file._id}/download`}
+                            download={file.fileName}
                             className="download-file-btn"
                           >
                             <FontAwesomeIcon icon={faDownload} />
                             <span className="file-name">{file.fileName}</span>
                             <span className="file-type">{file.fileType}</span>
-                          </button>
+                          </a>
                         ))}
                       </div>
                     </div>
@@ -403,15 +405,16 @@ export default function OrderDetailsPage() {
             </h3>
             <div className="download-files-grid">
               {order.designFiles.map((file, index) => (
-                <button
+                <a
                   key={index}
-                  onClick={() => handleDownloadFile(file.fileUrl, file.fileName)}
+                  href={`/api/design-files/${file._id}/download`}
+                  download={file.fileName}
                   className="download-file-btn"
                 >
                   <FontAwesomeIcon icon={faDownload} />
                   <span className="file-name">{file.fileName}</span>
                   <span className="file-type">{file.fileType}</span>
-                </button>
+                </a>
               ))}
             </div>
           </div>
