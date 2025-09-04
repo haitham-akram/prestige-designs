@@ -329,7 +329,7 @@ export default function ProductDetailsPage() {
             {/* Colors - Displayed above Add to Cart */}
             {((product.colors && product.colors.length > 0) || product.allowColorChanges) && (
               <div className="pd-product-colors">
-                <h3>الألوان المتاحة لتخصيص التصميم</h3>
+                <h3>الألوان المتاحة لتصميم </h3>
                 <div className="pd-colors-grid">
                   {/* Predefined Colors - Only show if they exist */}
                   {product.colors &&
@@ -343,20 +343,10 @@ export default function ProductDetailsPage() {
                           style={{ backgroundColor: color.hex }}
                           title={color.name}
                           onClick={() => {
-                            // Handle color selection for customizations
-                            const currentColors = customizations.colors || []
-                            const colorExists = currentColors.find((c) => c.hex === color.hex)
-                            let newColors
-
-                            if (colorExists) {
-                              newColors = currentColors.filter((c) => c.hex !== color.hex)
-                            } else {
-                              newColors = [...currentColors, { name: color.name, hex: color.hex }]
-                            }
-
+                            // Handle radio button behavior - only one color selected
                             setCustomizations({
                               ...customizations,
-                              colors: newColors,
+                              colors: [{ name: color.name, hex: color.hex }],
                             })
                           }}
                         />
@@ -367,19 +357,10 @@ export default function ProductDetailsPage() {
                   {product.allowColorChanges && (
                     <ColorPicker
                       onColorSelect={(customColor) => {
-                        const currentColors = customizations.colors || []
-                        const colorExists = currentColors.find((c) => c.hex === customColor.hex)
-                        let newColors
-
-                        if (colorExists) {
-                          newColors = currentColors.filter((c) => c.hex !== customColor.hex)
-                        } else {
-                          newColors = [...currentColors, customColor]
-                        }
-
+                        // Handle radio button behavior - only one color selected
                         setCustomizations({
                           ...customizations,
-                          colors: newColors,
+                          colors: [customColor],
                         })
                       }}
                     />
@@ -398,20 +379,10 @@ export default function ProductDetailsPage() {
                             style={{ backgroundColor: customColor.hex }}
                             title={`Custom Color: ${customColor.hex}`}
                             onClick={() => {
-                              // Handle custom color selection
-                              const currentColors = customizations.colors || []
-                              const colorExists = currentColors.find((c) => c.hex === customColor.hex)
-                              let newColors
-
-                              if (colorExists) {
-                                newColors = currentColors.filter((c) => c.hex !== customColor.hex)
-                              } else {
-                                newColors = [...currentColors, customColor]
-                              }
-
+                              // Handle radio button behavior - only one color selected
                               setCustomizations({
                                 ...customizations,
-                                colors: newColors,
+                                colors: [customColor],
                               })
                             }}
                           />

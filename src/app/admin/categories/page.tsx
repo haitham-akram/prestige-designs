@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
@@ -27,11 +27,17 @@ export default function AdminCategoriesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
   const [categories, setCategories] = useState<Category[]>([])
+  const [allCategories, setAllCategories] = useState<Category[]>([]) // Store all categories for stats
   const [loading, setLoading] = useState(true)
+  const [categoriesLoading, setCategoriesLoading] = useState(false) // Separate loading for categories only
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [showModal, setShowModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(0)
+  const [totalCategories, setTotalCategories] = useState(0)
+  const itemsPerPage = 6 // Show 6 categories per page
   const dataLoadedRef = useRef(false) // Track if data has been loaded
 
   // Redirect if not admin
@@ -43,33 +49,66 @@ export default function AdminCategoriesPage() {
     }
   }, [session, status, router])
 
+  const fetchCategories = useCallback(
+    async (page = 1, showPageLoader = false) => {
+      try {
+        if (showPageLoader) {
+          setLoading(true)
+        } else {
+          setCategoriesLoading(true)
+        }
+
+        // Fetch paginated data for display
+        const response = await fetch(`/api/admin/categories?page=${page}&limit=${itemsPerPage}&search=${searchTerm}`)
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.message || 'Failed to fetch categories')
+        }
+
+        setCategories(data.data || [])
+        setTotalPages(data.pagination?.pages || 0)
+        setTotalCategories(data.pagination?.total || 0)
+        setCurrentPage(page)
+
+        // Fetch all categories for stats (only on first load or when no search term)
+        if (page === 1 && !searchTerm && showPageLoader) {
+          const allResponse = await fetch('/api/admin/categories/all')
+          const allData = await allResponse.json()
+          if (allResponse.ok) {
+            setAllCategories(allData.data || [])
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error)
+        setError('Failed to load categories. Please try again.')
+      } finally {
+        if (showPageLoader) {
+          setLoading(false)
+        } else {
+          setCategoriesLoading(false)
+        }
+      }
+    },
+    [searchTerm, itemsPerPage]
+  )
+
   // Fetch categories when component mounts and user is authenticated
   useEffect(() => {
     if (status === 'loading') return
     if (session?.user && session.user.role === 'admin' && !dataLoadedRef.current) {
       dataLoadedRef.current = true
-      fetchCategories()
+      fetchCategories(1, true) // Show page loader on initial load
     }
-  }, [session, status]) // Removed router from dependencies
+  }, [session, status, fetchCategories])
 
-  const fetchCategories = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/api/admin/categories')
-      const data = await response.json()
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to fetch categories')
-      }
-
-      setCategories(data.data || [])
-    } catch (error) {
-      console.error('Error fetching categories:', error)
-      setError('Failed to load categories. Please try again.')
-    } finally {
-      setLoading(false)
+  // Add effect to handle search changes
+  useEffect(() => {
+    if (dataLoadedRef.current) {
+      setCurrentPage(1) // Reset to first page when searching
+      fetchCategories(1, false) // Don't show page loader for search
     }
-  }
+  }, [searchTerm, fetchCategories])
 
   const handleDelete = async (categoryId: string) => {
     if (!confirm('Are you sure you want to delete this category?')) return
@@ -84,7 +123,14 @@ export default function AdminCategoriesPage() {
         throw new Error(data.message || 'Failed to delete category')
       }
 
+      // Update categories list locally without full page refresh
       setCategories(categories.filter((cat) => cat._id !== categoryId))
+      setAllCategories(allCategories.filter((cat) => cat._id !== categoryId))
+
+      // If current page becomes empty and it's not page 1, go to previous page
+      if (categories.length === 1 && currentPage > 1) {
+        fetchCategories(currentPage - 1, false)
+      }
     } catch (error) {
       console.error('Error deleting category:', error)
       setError('Failed to delete category. Please try again.')
@@ -108,19 +154,26 @@ export default function AdminCategoriesPage() {
         throw new Error(data.message || 'Failed to update category')
       }
 
-      const updatedCategory = await response.json()
-      setCategories(categories.map((cat) => (cat._id === categoryId ? updatedCategory.data : cat)))
+      // Update categories list locally without full page refresh
+      setCategories(categories.map((cat) => (cat._id === categoryId ? { ...cat, isActive: !currentStatus } : cat)))
+      setAllCategories(
+        allCategories.map((cat) => (cat._id === categoryId ? { ...cat, isActive: !currentStatus } : cat))
+      )
     } catch (error) {
       console.error('Error updating category status:', error)
       setError('Failed to update category status. Please try again.')
     }
   }
 
-  const filteredCategories = categories.filter(
-    (category) =>
-      category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      category.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  // Add effect to handle search changes
+  useEffect(() => {
+    if (dataLoadedRef.current) {
+      setCurrentPage(1) // Reset to first page when searching
+      fetchCategories(1)
+    }
+  }, [searchTerm, fetchCategories])
+
+  const filteredCategories = categories // Remove frontend filtering since backend handles it now
 
   if (status === 'loading' || loading) {
     return (
@@ -178,15 +231,15 @@ export default function AdminCategoriesPage() {
           </div>
           <div className="category-stats">
             <div className="stat-item">
-              <span className="stat-number">{categories.length}</span>
+              <span className="stat-number">{allCategories.length}</span>
               <span className="stat-label">إجمالي التصنيفات</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{categories.filter((c) => c.isActive).length}</span>
+              <span className="stat-number">{allCategories.filter((c) => c.isActive).length}</span>
               <span className="stat-label">نشط</span>
             </div>
             <div className="stat-item">
-              <span className="stat-number">{categories.filter((c) => c.isFeatured).length}</span>
+              <span className="stat-number">{allCategories.filter((c) => c.isFeatured).length}</span>
               <span className="stat-label">مميز</span>
             </div>
           </div>
@@ -194,6 +247,14 @@ export default function AdminCategoriesPage() {
 
         {/* Categories Table/Grid */}
         <div className="categories-section">
+          {categoriesLoading && (
+            <div className="categories-loading">
+              <div className="loading-spinner-small">
+                <div className="spinner-small"></div>
+                <p>جاري التحديث...</p>
+              </div>
+            </div>
+          )}
           {filteredCategories.length === 0 ? (
             <div className="empty-state">
               <div className="empty-icon">
@@ -286,6 +347,45 @@ export default function AdminCategoriesPage() {
                   </div>
                 ))}
               </div>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div className="pagination-container">
+                  <div className="pagination-info">
+                    عرض {categories.length} من {totalCategories} تصنيف
+                  </div>
+                  <div className="pagination">
+                    <button
+                      className={`pagination-btn ${currentPage === 1 ? 'disabled' : ''}`}
+                      onClick={() => currentPage > 1 && fetchCategories(currentPage - 1, false)}
+                      disabled={currentPage === 1}
+                    >
+                      السابق
+                    </button>
+
+                    {[...Array(totalPages)].map((_, index) => {
+                      const page = index + 1
+                      return (
+                        <button
+                          key={page}
+                          className={`pagination-btn ${currentPage === page ? 'active' : ''}`}
+                          onClick={() => fetchCategories(page, false)}
+                        >
+                          {page}
+                        </button>
+                      )
+                    })}
+
+                    <button
+                      className={`pagination-btn ${currentPage === totalPages ? 'disabled' : ''}`}
+                      onClick={() => currentPage < totalPages && fetchCategories(currentPage + 1, false)}
+                      disabled={currentPage === totalPages}
+                    >
+                      التالي
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
@@ -304,12 +404,9 @@ export default function AdminCategoriesPage() {
             <div className="modal-body">
               <CategoryForm
                 category={editingCategory}
-                onSave={(savedCategory) => {
-                  if (editingCategory) {
-                    setCategories(categories.map((cat) => (cat._id === savedCategory._id ? savedCategory : cat)))
-                  } else {
-                    setCategories([...categories, savedCategory])
-                  }
+                onSave={() => {
+                  // Refresh current page after save without page loader
+                  fetchCategories(currentPage, false)
                   setShowModal(false)
                   setEditingCategory(null)
                 }}
