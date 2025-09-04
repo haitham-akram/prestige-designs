@@ -50,6 +50,110 @@
   background: var(--admin-gradient-primary);
 }
 
+/* Pagination Styles */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem 2rem;
+  border-top: 1px solid var(--admin-border-color);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 1rem;
+}
+
+.pagination-info {
+  color: var(--admin-text-secondary);
+  font-size: 0.9rem;
+}
+
+.pagination {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--admin-border-color);
+  background: transparent;
+  color: var(--admin-text-primary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.9rem;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-btn:hover:not(.disabled) {
+  background: var(--admin-gradient-hover);
+  border-color: var(--admin-accent-color);
+  transform: translateY(-1px);
+}
+
+.pagination-btn.active {
+  background: var(--admin-gradient-primary);
+  border-color: var(--admin-accent-color);
+  color: white;
+  font-weight: 600;
+}
+
+.pagination-btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: transparent;
+}
+
+.pagination-btn.disabled:hover {
+  transform: none;
+}
+
+/* Categories Loading Indicator */
+.categories-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--admin-gradient-card);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 12px;
+}
+
+.loading-spinner-small {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.spinner-small {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--admin-border-color);
+  border-top: 3px solid var(--admin-accent-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.loading-spinner-small p {
+  color: var(--admin-text-secondary);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
 /* Admin Loading Spinner */
 .admin-loading-spinner {
   display: flex;
@@ -224,6 +328,7 @@
 /* Categories Section */
 .categories-section {
   padding: 2rem;
+  position: relative; /* Add this for absolute positioning of loading overlay */
 }
 
 .empty-state {
