@@ -971,6 +971,64 @@ ${itemsList}
             console.log('⚠️ Auto-completion failed, order marked as processing for manual handling');
         }
     }
+
+    /**
+     * Process PayPal webhook events
+     * Handles payment status updates from PayPal webhooks
+     */
+    static async processWebhookEvent(webhookData: any): Promise<{
+        success: boolean;
+        message: string;
+        orderId?: string;
+    }> {
+        try {
+            console.log('🔔 Processing PayPal webhook event:', webhookData.event_type);
+
+            // Use the dedicated webhook service for better error handling
+            const { PayPalWebhookService } = await import('@/lib/services/paypalWebhookService');
+
+            const webhookEventData = {
+                eventType: webhookData.event_type,
+                eventId: webhookData.id,
+                paypalOrderId: this.extractPayPalOrderId(webhookData),
+                captureId: this.extractCaptureId(webhookData),
+                resource: webhookData.resource,
+                timestamp: new Date(webhookData.create_time || Date.now())
+            };
+
+            const result = await PayPalWebhookService.processWebhookEvent(webhookEventData);
+
+            return {
+                success: result.success,
+                message: result.message,
+                orderId: result.orderId
+            };
+
+        } catch (error) {
+            console.error('❌ Error processing webhook event:', error);
+            return {
+                success: false,
+                message: `Error processing webhook: ${error instanceof Error ? error.message : 'Unknown error'}`
+            };
+        }
+    }
+
+    /**
+     * Extract PayPal Order ID from webhook data
+     */
+    private static extractPayPalOrderId(webhookData: any): string | undefined {
+        // Try different paths where the order ID might be located
+        return webhookData.resource?.supplementary_data?.related_ids?.order_id ||
+            webhookData.resource?.id ||
+            webhookData.resource?.order_id;
+    }
+
+    /**
+     * Extract Capture ID from webhook data  
+     */
+    private static extractCaptureId(webhookData: any): string | undefined {
+        return webhookData.resource?.id;
+    }
 }
 
 export { paypalClient };

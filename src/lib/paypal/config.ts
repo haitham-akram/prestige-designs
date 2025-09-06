@@ -55,6 +55,16 @@ export const PAYPAL_CONFIG = {
         returnUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/paypal/success`,
         cancelUrl: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/paypal/cancel`,
     },
+    webhook: {
+        url: `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/api/paypal/webhook`,
+        events: [
+            'PAYMENT.CAPTURE.COMPLETED',
+            'PAYMENT.CAPTURE.PENDING',
+            'PAYMENT.CAPTURE.DENIED',
+            'CHECKOUT.ORDER.APPROVED',
+            'CHECKOUT.ORDER.COMPLETED'
+        ]
+    }
 } as const;
 
 export { Environment };

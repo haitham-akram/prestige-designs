@@ -59,35 +59,61 @@ export async function GET(
         if (session.user.role === 'admin') {
             return await serveFile(designFile);
         }
+        console.log('session.user.id :>> ', session.user.id);
+
+        // First, let's check if the design file belongs directly to any of the user's orders
+        const userOrderIds = await getUserOrderIds(session.user.id);
+        console.log('User order IDs:', userOrderIds);
+
+        // Check if the design file is directly attached to any of the user's orders
+        const orderWithFile = await Order.findOne({
+            _id: { $in: userOrderIds },
+            $or: [
+                { 'designFiles._id': designFileId },
+                { 'items.designFiles._id': designFileId }
+            ]
+        });
+
+        console.log('Order with file found:', !!orderWithFile);
+
+        if (orderWithFile) {
+            // User has access through direct order attachment
+            return await serveFile(designFile);
+        }
 
         // For customers, check if they have access to this file through an order
         const orderDesignFile = await OrderDesignFile.findOne({
             designFileId: designFileId,
-            orderId: { $in: await getUserOrderIds(session.user.id) },
+            orderId: { $in: userOrderIds },
             isActive: true
         });
 
+        console.log('OrderDesignFile found:', !!orderDesignFile);
+
         if (!orderDesignFile) {
+            console.log('Access denied - no OrderDesignFile found for user:', session.user.id, 'designFile:', designFileId);
             return NextResponse.json({ error: 'Access denied' }, { status: 403 });
         }
 
-        // Check if customer's access has expired
-        if (orderDesignFile.expiresAt && new Date() > orderDesignFile.expiresAt) {
+        // Check if customer's access has expired (only if using OrderDesignFile)
+        if (orderDesignFile && orderDesignFile.expiresAt && new Date() > orderDesignFile.expiresAt) {
             return NextResponse.json({ error: 'Your access to this file has expired' }, { status: 410 });
         }
 
-        // Check download limits
-        if (designFile.maxDownloads && orderDesignFile.downloadCount >= designFile.maxDownloads) {
+        // Check download limits (only if using OrderDesignFile)
+        if (orderDesignFile && designFile.maxDownloads && orderDesignFile.downloadCount >= designFile.maxDownloads) {
             return NextResponse.json({ error: 'Download limit reached' }, { status: 429 });
         }
 
-        // Increment download count
-        orderDesignFile.downloadCount += 1;
-        orderDesignFile.lastDownloadedAt = new Date();
-        if (!orderDesignFile.firstDownloadedAt) {
-            orderDesignFile.firstDownloadedAt = new Date();
+        // Increment download count (only if using OrderDesignFile)
+        if (orderDesignFile) {
+            orderDesignFile.downloadCount += 1;
+            orderDesignFile.lastDownloadedAt = new Date();
+            if (!orderDesignFile.firstDownloadedAt) {
+                orderDesignFile.firstDownloadedAt = new Date();
+            }
+            await orderDesignFile.save();
         }
-        await orderDesignFile.save();
 
         // Serve the file
         return await serveFile(designFile);
@@ -164,10 +190,11 @@ async function getUserOrderIds(userId: string): Promise<string[]> {
     try {
         const orders = await Order.find({
             customerId: userId,
-            orderStatus: { $in: ['completed', 'processing'] },
-            paymentStatus: 'paid'
+            orderStatus: { $in: ['completed', 'processing', 'awaiting_customization', 'under_customization'] },
+            paymentStatus: { $in: ['paid', 'free'] }
         }).select('_id');
 
+        console.log('Found orders for user:', userId, '- count:', orders.length);
         return orders.map(order => order._id.toString());
     } catch (error) {
         console.error('Error getting user order IDs:', error);
