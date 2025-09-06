@@ -135,6 +135,15 @@ export interface IOrder extends Document {
         changedBy?: string;            // Admin who made the change
     }[];
 
+    // PayPal webhook events tracking
+    webhookEvents?: {
+        eventType: string;             // PayPal event type (e.g., PAYMENT.CAPTURE.COMPLETED)
+        eventId: string;               // PayPal event ID
+        timestamp: Date;               // When webhook was received
+        processed: boolean;            // Whether the webhook was successfully processed
+        data?: any;                    // Raw webhook data for debugging
+    }[];
+
     // Processing information
     processedAt?: Date;              // When order was processed
     processedBy?: string;            // System or admin who processed
@@ -498,6 +507,34 @@ const OrderSchema = new Schema<IOrder>({
         changedBy: {
             type: String,
             trim: true
+        }
+    }],
+
+    // PayPal webhook events tracking
+    webhookEvents: [{
+        eventType: {
+            type: String,
+            required: [true, 'Event type is required'],
+            trim: true
+        },
+        eventId: {
+            type: String,
+            required: [true, 'Event ID is required'],
+            trim: true
+        },
+        timestamp: {
+            type: Date,
+            required: [true, 'Timestamp is required'],
+            default: Date.now
+        },
+        processed: {
+            type: Boolean,
+            required: [true, 'Processed status is required'],
+            default: false
+        },
+        data: {
+            type: Schema.Types.Mixed,
+            required: false
         }
     }],
 
