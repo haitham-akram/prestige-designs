@@ -1,7 +1,8 @@
 /**
- * 
+ * Design File Download API Route
  * 
  * This file handles design file downloads for customers.
+ * Supports both R2 files and local server files (legacy).
  * 
  * Routes:
  * - GET /api/design-files/[id]/download - Download a specific design file
@@ -9,8 +10,8 @@
  * Features:
  * - Customer authentication required
  * - Order-based access control
+ * - R2/local file support
  * - Download tracking
- * - Temporary download URLs
  * - Security validation
  */
 
@@ -23,6 +24,7 @@ import connectDB from '@/lib/db/connection';
 import { readFile, stat } from 'fs/promises';
 import path from 'path';
 import Order from '@/lib/db/models/Order';
+import { R2Service } from '@/lib/services/r2Service';
 
 export async function GET(
     request: NextRequest,
@@ -119,7 +121,7 @@ export async function GET(
         return await serveFile(designFile);
 
     } catch (error) {
-        console.error('Error downloading design file:', error);
+        console.error('❌ Error downloading design file:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -137,32 +139,98 @@ interface DesignFile {
 
 async function serveFile(designFile: DesignFile) {
     try {
-        // Convert URL to file path
-        // const filePath = path.join(process.cwd(), 'public', designFile.fileUrl.substring(1));
+        console.log(`📥 Serving file: ${designFile.fileName}`);
+
+        // Check if file is stored on R2 (Cloudflare)
+        if ((designFile as any).useR2 && (designFile as any).r2FileKey) {
+            console.log(`☁️ Downloading from R2: ${(designFile as any).r2FileKey}`);
+            return await serveR2File(designFile);
+        } else {
+            console.log(`💾 Downloading from local server: ${designFile.fileUrl}`);
+            return await serveLocalFile(designFile);
+        }
+
+    } catch (error) {
+        console.error('❌ Error serving file:', error);
+        return NextResponse.json(
+            { error: 'Error serving file' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * Serve a file from R2 (Cloudflare)
+ */
+async function serveR2File(designFile: DesignFile) {
+    try {
+        const r2FileKey = (designFile as any).r2FileKey;
+        console.log(`☁️ Serving R2 file: ${r2FileKey}`);
+
+        if (!r2FileKey) {
+            return NextResponse.json({ error: 'R2 file key not found' }, { status: 404 });
+        }
+
+        // Download file from R2
+        const fileStream = await R2Service.downloadFile(r2FileKey);
+
+        // Set appropriate headers
+        const headers = new Headers();
+        headers.set('Content-Type', designFile.mimeType || 'application/octet-stream');
+        headers.set('Content-Disposition', `attachment; filename="${designFile.fileName}"`);
+        headers.set('Cache-Control', 'public, max-age=3600');
+
+        // Increment download count
+        await DesignFile.findByIdAndUpdate(designFile._id, {
+            $inc: { downloadCount: 1 },
+            lastDownloadedAt: new Date()
+        });
+
+        console.log(`✅ R2 file served successfully`);
+
+        return new NextResponse(fileStream as any, {
+            status: 200,
+            headers: headers
+        });
+
+    } catch (error) {
+        console.error('❌ Error serving R2 file:', error);
+        return NextResponse.json(
+            { error: 'Error downloading from R2' },
+            { status: 500 }
+        );
+    }
+}
+
+/**
+ * Serve a file from local server storage (legacy)
+ */
+async function serveLocalFile(designFile: DesignFile) {
+    try {
+        console.log(`💾 Serving local file: ${designFile.fileUrl}`);
+
         const projectRoot = path.join(process.cwd());
         const filePath = path.join(projectRoot, 'public', designFile.fileUrl.substring(1));
-        console.log('Attempting to serve file from:', filePath);
+        console.log(`📂 File path: ${filePath}`);
+
         // Check if file exists
         try {
             await stat(filePath);
         } catch (fileError) {
-            console.error('File not found:', filePath, fileError);
+            console.error('❌ File not found:', filePath, fileError);
             return NextResponse.json({ error: 'File not found on server' }, { status: 404 });
         }
 
         // Read file
         const fileBuffer = await readFile(filePath);
 
-        // Handle Arabic and special characters in filename
-        // Use RFC 6266 encoding for non-ASCII filenames
-        const sanitizedFileName = designFile.fileName.replace(/[^\w\s\-_.]/g, '');
-        const encodedFileName = encodeURIComponent(designFile.fileName);
-
         // Set appropriate headers
         const headers = new Headers();
         headers.set('Content-Type', designFile.mimeType || 'application/octet-stream');
 
-        // Use RFC 6266 standard for Unicode filenames
+        const sanitizedFileName = designFile.fileName.replace(/[^\w\s\-_.]/g, '');
+        const encodedFileName = encodeURIComponent(designFile.fileName);
+
         headers.set('Content-Disposition',
             `attachment; filename="${sanitizedFileName}"; filename*=UTF-8''${encodedFileName}`
         );
@@ -178,7 +246,7 @@ async function serveFile(designFile: DesignFile) {
         });
 
     } catch (error) {
-        console.error('Error serving file:', error);
+        console.error('❌ Error serving local file:', error);
         return NextResponse.json(
             { error: 'Error serving file' },
             { status: 500 }

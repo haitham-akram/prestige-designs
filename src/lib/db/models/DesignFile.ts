@@ -215,6 +215,11 @@ export interface IDesignFile extends Document {
     colorVariantHex?: string;    // Hex color code: "#FF0000", "#0000FF", null for general files
     isColorVariant: boolean;     // true if file is for specific color variant
 
+    // R2 storage fields
+    r2FileKey?: string;       // S3-compatible key for R2 object storage
+    r2FolderPath?: string;    // Folder path in R2 bucket
+    useR2: boolean;           // true if file is stored in R2, false for legacy storage
+
     createdAt: Date;
     updatedAt: Date;
 }
@@ -223,8 +228,9 @@ export interface IDesignFile extends Document {
 const DesignFileSchema = new Schema<IDesignFile>({
     productId: {
         type: mongoose.Schema.Types.ObjectId,
-        required: [true, 'Product ID is required'],
-        ref: 'Product'
+        required: false, // Optional - allows uploading before product creation
+        ref: 'Product',
+        default: null
     },
 
     // --- START OF FIX ---
@@ -333,6 +339,24 @@ const DesignFileSchema = new Schema<IDesignFile>({
     isColorVariant: {
         type: Boolean,
         default: false
+    },
+
+    // R2 storage fields
+    r2FileKey: {
+        type: String,
+        default: null,
+        index: true // Index for faster lookups by file key
+    },
+
+    r2FolderPath: {
+        type: String,
+        default: null
+    },
+
+    useR2: {
+        type: Boolean,
+        default: false, // false for legacy local files, true for R2 files
+        index: true
     }
 
 }, {
@@ -353,6 +377,9 @@ DesignFileSchema.index({ isPublic: 1 });
 DesignFileSchema.index({ fileType: 1 });
 DesignFileSchema.index({ createdAt: -1 });
 DesignFileSchema.index({ expiresAt: 1 });
+DesignFileSchema.index({ r2FileKey: 1 }); // Index for R2 files - used for linking by key
+DesignFileSchema.index({ useR2: 1 }); // Index to find R2 files
+DesignFileSchema.index({ orderId: 1 }); // Index for order-specific files
 
 // Compound indexes
 DesignFileSchema.index({ productId: 1, isActive: 1 });
@@ -360,6 +387,7 @@ DesignFileSchema.index({ productId: 1, fileType: 1 });
 DesignFileSchema.index({ productId: 1, isColorVariant: 1 });
 DesignFileSchema.index({ productId: 1, colorVariantHex: 1 });
 DesignFileSchema.index({ productId: 1, isColorVariant: 1, isActive: 1 });
+DesignFileSchema.index({ r2FileKey: 1, productId: 1 }); // Compound index for R2 linking
 
 // Pre-save middleware to validate file size
 DesignFileSchema.pre('save', function (this: IDesignFile, next) {

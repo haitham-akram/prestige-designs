@@ -758,17 +758,6 @@ export default function AddProduct() {
     // Ensure colorName is always a valid string
     const validColorName = sanitizedColorName || 'default'
 
-    // Debug logging
-    console.log('Color file upload data:', {
-      fileName: file.name,
-      fileType,
-      description: `ملف ${formData.colors[colorIndex]?.name || sanitizedColorName}`,
-      productId: 'temp',
-      productSlug: cleanSlug,
-      colorName: validColorName,
-      slugValidation: /^[a-z0-9-]+$/.test(cleanSlug),
-    })
-
     await uploadDesignFile(
       file,
       '/api/admin/upload/design-file',
@@ -973,235 +962,239 @@ export default function AddProduct() {
         console.log('Product data:', data.data)
 
         // Save design files to database after product creation
-        const uploadedFiles = formData.designFiles.flatMap((designFile) =>
-          designFile.uploadedFiles.filter((file) => !file.isTemp)
-        )
+        // const uploadedFiles = formData.designFiles.flatMap((designFile) =>
+        //   designFile.uploadedFiles.filter((file) => !file.isTemp)
+        // )
 
         // Save color files to database after product creation
-        const uploadedColorFiles = formData.colors.flatMap(
-          (color) => color.uploadedFiles?.filter((file) => !file.isTemp) || []
-        )
+        // const uploadedColorFiles = formData.colors.flatMap(
+        //   (color) => color.uploadedFiles?.filter((file) => !file.isTemp) || []
+        // )
 
-        if (uploadedFiles.length > 0 || uploadedColorFiles.length > 0) {
-          const designFileErrors: string[] = []
-          setSavingDesignFiles(true)
+        // if (uploadedFiles.length > 0 || uploadedColorFiles.length > 0) {
+        //   const designFileErrors: string[] = []
+        //   setSavingDesignFiles(true)
 
-          // Save each design file to database with the correct productId
-          for (const designFile of formData.designFiles) {
-            const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp)
+        //   // Save each design file to database with the correct productId
+        //   for (const designFile of formData.designFiles) {
+        //     const filesToSave = designFile.uploadedFiles.filter((file) => !file.isTemp)
 
-            for (const file of filesToSave) {
-              try {
-                // Validate file data before sending
-                if (!file.fileUrl || !file.fileName || !file.fileType) {
-                  const errorMsg = `بيانات الملف غير مكتملة: ${file.fileName}`
-                  console.error(errorMsg, file)
-                  designFileErrors.push(errorMsg)
-                  continue
-                }
+        //     for (const file of filesToSave) {
+        //       try {
+        //         // Validate file data before sending
+        //         if (!file.fileUrl || !file.fileName || !file.fileType) {
+        //           const errorMsg = `بيانات الملف غير مكتملة: ${file.fileName}`
+        //           console.error(errorMsg, file)
+        //           designFileErrors.push(errorMsg)
+        //           continue
+        //         }
 
-                const designFileData = {
-                  productId: productId, // Use the actual productId
-                  fileName: file.fileName,
-                  fileUrl: file.fileUrl,
-                  fileType: file.fileType,
-                  fileSize: file.fileSize,
-                  mimeType: getMimeType(file.fileName),
-                  description: designFile.description || '',
-                  isActive: true,
-                  isPublic: false,
-                }
-                console.log('Saving design file with productId:', productId)
-                console.log('Design file data:', designFileData)
+        //         const designFileData = {
+        //           productId: productId, // Use the actual productId
+        //           fileName: file.fileName,
+        //           fileUrl: file.fileUrl,
+        //           fileType: file.fileType,
+        //           fileSize: file.fileSize,
+        //           mimeType: getMimeType(file.fileName),
+        //           description: designFile.description || '',
+        //           isActive: true,
+        //           isPublic: false,
+        //         }
+        //         console.log('Saving design file with productId:', productId)
+        //         console.log('Design file data:', designFileData)
 
-                // Retry mechanism for saving design files
-                let retryCount = 0
-                const maxRetries = 3
-                let designFileResponse
-                let errorData
+        //         // Retry mechanism for saving design files
+        //         let retryCount = 0
+        //         const maxRetries = 3
+        //         let designFileResponse
+        //         let errorData
 
-                while (retryCount < maxRetries) {
-                  try {
-                    designFileResponse = await fetch('/api/admin/design-files', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(designFileData),
-                    })
+        //         while (retryCount < maxRetries) {
+        //           try {
+        //             designFileResponse = await fetch('/api/admin/design-files', {
+        //               method: 'POST',
+        //               headers: {
+        //                 'Content-Type': 'application/json',
+        //               },
+        //               body: JSON.stringify(designFileData),
+        //             })
 
-                    if (designFileResponse.ok) {
-                      console.log(`Successfully saved design file: ${file.fileName}`)
-                      break // Success, exit retry loop
-                    }
+        //             if (designFileResponse.ok) {
+        //               console.log(`Successfully saved design file: ${file.fileName}`)
+        //               break // Success, exit retry loop
+        //             }
 
-                    // Read response body only once
-                    errorData = await designFileResponse.json()
+        //             // Read response body only once
+        //             errorData = await designFileResponse.json()
 
-                    // If it's a file not found error, wait a bit and retry
-                    if (
-                      errorData.message &&
-                      errorData.message.includes('File not found') &&
-                      retryCount < maxRetries - 1
-                    ) {
-                      console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
+        //             // If it's a file not found error, wait a bit and retry
+        //             if (
+        //               errorData.message &&
+        //               errorData.message.includes('File not found') &&
+        //               retryCount < maxRetries - 1
+        //             ) {
+        //               console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
+        //               await new Promise((resolve) => setTimeout(resolve, 1000))
+        //               retryCount++
+        //               continue
+        //             }
 
-                    // For other errors, don't retry
-                    break
-                  } catch (fetchError) {
-                    console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
-                    if (retryCount < maxRetries - 1) {
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-                    throw fetchError
-                  }
-                }
+        //             // For other errors, don't retry
+        //             break
+        //           } catch (fetchError) {
+        //             console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
+        //             if (retryCount < maxRetries - 1) {
+        //               await new Promise((resolve) => setTimeout(resolve, 1000))
+        //               retryCount++
+        //               continue
+        //             }
+        //             throw fetchError
+        //           }
+        //         }
 
-                if (!designFileResponse?.ok) {
-                  const errorMsg = `فشل في حفظ ملف التصميم "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
-                  console.error('Failed to save design file:', file.fileName)
-                  console.error('Error response:', errorData)
-                  designFileErrors.push(errorMsg)
-                }
-              } catch (error) {
-                const errorMsg = `خطأ في حفظ ملف التصميم "${file.fileName}": ${
-                  error instanceof Error ? error.message : 'خطأ غير معروف'
-                }`
-                console.error('Error saving design file:', error)
-                designFileErrors.push(errorMsg)
-              }
-            }
-          }
+        //         if (!designFileResponse?.ok) {
+        //           const errorMsg = `فشل في حفظ ملف التصميم "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
+        //           console.error('Failed to save design file:', file.fileName)
+        //           console.error('Error response:', errorData)
+        //           designFileErrors.push(errorMsg)
+        //         }
+        //       } catch (error) {
+        //         const errorMsg = `خطأ في حفظ ملف التصميم "${file.fileName}": ${
+        //           error instanceof Error ? error.message : 'خطأ غير معروف'
+        //         }`
+        //         console.error('Error saving design file:', error)
+        //         designFileErrors.push(errorMsg)
+        //       }
+        //     }
+        //   }
 
-          // Save color files to database
-          for (const color of formData.colors) {
-            const filesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
+        //   // Save color files to database
+        //   for (const color of formData.colors) {
+        //     const filesToSave = color.uploadedFiles?.filter((file) => !file.isTemp) || []
 
-            for (const file of filesToSave) {
-              try {
-                // Validate file data before sending
-                if (!file.fileUrl || !file.fileName || !file.fileType) {
-                  const errorMsg = `بيانات ملف اللون غير مكتملة: ${file.fileName}`
-                  console.error(errorMsg, file)
-                  designFileErrors.push(errorMsg)
-                  continue
-                }
+        //     for (const file of filesToSave) {
+        //       try {
+        //         // Validate file data before sending
+        //         if (!file.fileUrl || !file.fileName || !file.fileType) {
+        //           const errorMsg = `بيانات ملف اللون غير مكتملة: ${file.fileName}`
+        //           console.error(errorMsg, file)
+        //           designFileErrors.push(errorMsg)
+        //           continue
+        //         }
 
-                const designFileData = {
-                  productId: productId, // Use the actual productId
-                  fileName: file.fileName,
-                  fileUrl: file.fileUrl,
-                  fileType: file.fileType,
-                  fileSize: file.fileSize,
-                  mimeType: getMimeType(file.fileName),
-                  description: `ملف ${color.name}`,
-                  isActive: true,
-                  isPublic: false,
-                  // Color variant fields
-                  colorVariantName: color.name,
-                  colorVariantHex: color.hex,
-                  isColorVariant: true,
-                }
-                console.log('Saving color file with productId:', productId)
-                console.log('Color file data:', designFileData)
+        //         const designFileData = {
+        //           productId: productId, // Use the actual productId
+        //           fileName: file.fileName,
+        //           fileUrl: file.fileUrl,
+        //           fileType: file.fileType,
+        //           fileSize: file.fileSize,
+        //           mimeType: getMimeType(file.fileName),
+        //           description: `ملف ${color.name}`,
+        //           isActive: true,
+        //           isPublic: false,
+        //           // Color variant fields
+        //           colorVariantName: color.name,
+        //           colorVariantHex: color.hex,
+        //           isColorVariant: true,
+        //         }
+        //         console.log('Saving color file with productId:', productId)
+        //         console.log('Color file data:', designFileData)
 
-                // Retry mechanism for saving color files
-                let retryCount = 0
-                const maxRetries = 3
-                let designFileResponse
-                let errorData
+        //         // Retry mechanism for saving color files
+        //         let retryCount = 0
+        //         const maxRetries = 3
+        //         let designFileResponse
+        //         let errorData
 
-                while (retryCount < maxRetries) {
-                  try {
-                    designFileResponse = await fetch('/api/admin/design-files', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                      },
-                      body: JSON.stringify(designFileData),
-                    })
+        //         while (retryCount < maxRetries) {
+        //           try {
+        //             designFileResponse = await fetch('/api/admin/design-files', {
+        //               method: 'POST',
+        //               headers: {
+        //                 'Content-Type': 'application/json',
+        //               },
+        //               body: JSON.stringify(designFileData),
+        //             })
 
-                    if (designFileResponse.ok) {
-                      console.log(`Successfully saved color file: ${file.fileName}`)
-                      break // Success, exit retry loop
-                    }
+        //             if (designFileResponse.ok) {
+        //               console.log(`Successfully saved color file: ${file.fileName}`)
+        //               break // Success, exit retry loop
+        //             }
 
-                    // Read response body only once
-                    errorData = await designFileResponse.json()
+        //             // Read response body only once
+        //             errorData = await designFileResponse.json()
 
-                    // If it's a file not found error, wait a bit and retry
-                    if (
-                      errorData.message &&
-                      errorData.message.includes('File not found') &&
-                      retryCount < maxRetries - 1
-                    ) {
-                      console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
+        //             // If it's a file not found error, wait a bit and retry
+        //             if (
+        //               errorData.message &&
+        //               errorData.message.includes('File not found') &&
+        //               retryCount < maxRetries - 1
+        //             ) {
+        //               console.log(`File not found, retrying in 1 second... (attempt ${retryCount + 1}/${maxRetries})`)
+        //               await new Promise((resolve) => setTimeout(resolve, 1000))
+        //               retryCount++
+        //               continue
+        //             }
 
-                    // For other errors, don't retry
-                    break
-                  } catch (fetchError) {
-                    console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
-                    if (retryCount < maxRetries - 1) {
-                      await new Promise((resolve) => setTimeout(resolve, 1000))
-                      retryCount++
-                      continue
-                    }
-                    throw fetchError
-                  }
-                }
+        //             // For other errors, don't retry
+        //             break
+        //           } catch (fetchError) {
+        //             console.error(`Fetch error on attempt ${retryCount + 1}:`, fetchError)
+        //             if (retryCount < maxRetries - 1) {
+        //               await new Promise((resolve) => setTimeout(resolve, 1000))
+        //               retryCount++
+        //               continue
+        //             }
+        //             throw fetchError
+        //           }
+        //         }
 
-                if (!designFileResponse?.ok) {
-                  const errorMsg = `فشل في حفظ ملف اللون "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
-                  console.error('Failed to save color file:', file.fileName)
-                  console.error('Error response:', errorData)
-                  designFileErrors.push(errorMsg)
-                }
-              } catch (error) {
-                const errorMsg = `خطأ في حفظ ملف اللون "${file.fileName}": ${
-                  error instanceof Error ? error.message : 'خطأ غير معروف'
-                }`
-                console.error('Error saving color file:', error)
-                designFileErrors.push(errorMsg)
-              }
-            }
-          }
+        //         if (!designFileResponse?.ok) {
+        //           const errorMsg = `فشل في حفظ ملف اللون "${file.fileName}": ${errorData?.message || 'خطأ غير معروف'}`
+        //           console.error('Failed to save color file:', file.fileName)
+        //           console.error('Error response:', errorData)
+        //           designFileErrors.push(errorMsg)
+        //         }
+        //       } catch (error) {
+        //         const errorMsg = `خطأ في حفظ ملف اللون "${file.fileName}": ${
+        //           error instanceof Error ? error.message : 'خطأ غير معروف'
+        //         }`
+        //         console.error('Error saving color file:', error)
+        //         designFileErrors.push(errorMsg)
+        //       }
+        //     }
+        //   }
 
-          // Show warnings for any design file errors
-          if (designFileErrors.length > 0) {
-            showWarning(
-              'تحذير: بعض ملفات التصميم',
-              `تم إنشاء المنتج بنجاح، لكن حدثت أخطاء في حفظ بعض ملفات التصميم:\n${designFileErrors.join('\n')}`
-            )
-            // Still redirect even with warnings since the product was created successfully
-            setTimeout(() => {
-              router.push('/admin/products')
-            }, 2000) // Give more time to read the warning
-          } else {
-            showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج وملفات التصميم بنجاح!')
-            // Wait a moment for the success message to be displayed before redirecting
-            setTimeout(() => {
-              router.push('/admin/products')
-            }, 1000)
-          }
-        } else {
-          showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج بنجاح!')
-          // Wait a moment for the success message to be displayed before redirecting
-          setTimeout(() => {
-            router.push('/admin/products')
-          }, 1000)
-        }
-
-        setSavingDesignFiles(false)
+        //   // Show warnings for any design file errors
+        //   if (designFileErrors.length > 0) {
+        //     showWarning(
+        //       'تحذير: بعض ملفات التصميم',
+        //       `تم إنشاء المنتج بنجاح، لكن حدثت أخطاء في حفظ بعض ملفات التصميم:\n${designFileErrors.join('\n')}`
+        //     )
+        //     // Still redirect even with warnings since the product was created successfully
+        //     setTimeout(() => {
+        //       router.push('/admin/products')
+        //     }, 2000) // Give more time to read the warning
+        //   } else {
+        //     showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج وملفات التصميم بنجاح!')
+        //     // Wait a moment for the success message to be displayed before redirecting
+        //     setTimeout(() => {
+        //       router.push('/admin/products')
+        //     }, 1000)
+        //   }
+        // } else {
+        //   showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج بنجاح!')
+        //   // Wait a moment for the success message to be displayed before redirecting
+        //   setTimeout(() => {
+        //     router.push('/admin/products')
+        //   }, 1000)
+        // }
+        showSuccess('تم إنشاء المنتج', 'تم إنشاء المنتج بنجاح!')
+        // Wait a moment for the success message to be displayed before redirecting
+        setTimeout(() => {
+          router.push('/admin/products')
+        }, 1000)
+        setSavingDesignFiles(true)
       } else {
         // Handle validation errors specifically
         if (data.errors && Array.isArray(data.errors)) {
